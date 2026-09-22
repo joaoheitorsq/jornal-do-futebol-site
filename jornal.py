@@ -587,9 +587,8 @@ def short_confirmed(
             {
 
                 "url":
-                    "https://www.youtube.com/"
-                    "watch?v="
-                    + video_id,
+    "https://www.youtube.com/shorts/"
+    + video_id,
 
                 "format":
                     "json"
