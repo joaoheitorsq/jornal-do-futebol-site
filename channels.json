@@ -162,5 +162,37 @@
   {
     "handle": "@BotãoTurbo",
     "onlyShorts": true
+  },
+  {
+    "handle": "@Futstatus1",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@MarkMcKz",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@lebronfut",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@CellbitVODS",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@1155shorts",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@rodrigobaltar",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@ZezinRanks",
+    "onlyShorts": true
+  },
+  {
+    "handle": "@TicoMiaShorts",
+    "onlyShorts": true
   }
 ]
