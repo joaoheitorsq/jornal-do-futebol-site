@@ -11,72 +11,91 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 
+# ==========================================================
+# CONFIGURAÇÃO
+# ==========================================================
+
 API = "https://www.googleapis.com/youtube/v3"
+
 OEMBED = "https://www.youtube.com/oembed"
 
 TZ = ZoneInfo("America/Fortaleza")
+
 UTC = ZoneInfo("UTC")
 
 RESET_HOUR = 4
+
 WINDOW_HOURS = 24
 
 MAX_RETRIES = 5
 
-RETRYABLE = {
+RETRYABLE_HTTP_CODES = {
     429,
     500,
     502,
     503,
-    504
+    504,
 }
 
 
-def log(msg):
+# ==========================================================
+# LOG
+# ==========================================================
+
+def log(message):
 
     print(
-        f"[{datetime.now(TZ):%H:%M:%S}] {msg}",
-        flush=True
+        f"[{datetime.now(TZ):%H:%M:%S}] {message}",
+        flush=True,
     )
 
+
+# ==========================================================
+# HTTP / RETRY
+# ==========================================================
 
 def get_json(
     url,
     params=None,
-    retries=MAX_RETRIES
+    retries=MAX_RETRIES,
 ):
 
     if params:
 
+        separator = (
+            "&"
+            if "?" in url
+            else "?"
+        )
+
         url += (
-            "&" if "?" in url else "?"
-        ) + urlencode(params)
+            separator
+            + urlencode(params)
+        )
 
-
-    last = None
-
+    last_error = None
 
     for attempt in range(
         1,
-        retries + 1
+        retries + 1,
     ):
 
         try:
 
-            req = Request(
+            request = Request(
                 url,
                 headers={
                     "User-Agent":
-                        "JornalDoFutebol/1.0",
+                        "JornalDoFutebol/2.0",
 
                     "Accept":
-                        "application/json"
-                }
+                        "application/json",
+                },
             )
 
-
             with urlopen(
-                req,
-                timeout=25
+                request,
+                timeout=25,
             ) as response:
 
                 return json.loads(
@@ -85,181 +104,162 @@ def get_json(
                     .decode("utf-8")
                 )
 
-
-        except HTTPError as erro:
+        except HTTPError as error:
 
             body = ""
 
             try:
 
                 body = (
-                    erro
+                    error
                     .read()
                     .decode(
                         "utf-8",
-                        errors="replace"
+                        errors="replace",
                     )
                 )
 
             except Exception:
-
                 pass
 
-
-            last = RuntimeError(
-                f"HTTP {erro.code}: "
-                f"{body[:400]}"
+            last_error = RuntimeError(
+                f"HTTP {error.code}: "
+                f"{body[:500]}"
             )
 
-
             if (
-                erro.code
-                not in RETRYABLE
+                error.code
+                not in RETRYABLE_HTTP_CODES
                 or
                 attempt == retries
             ):
 
-                raise last
-
+                raise last_error
 
         except (
             URLError,
             TimeoutError,
-            ConnectionError
-        ) as erro:
+            ConnectionError,
+        ) as error:
 
-            last = erro
-
+            last_error = error
 
             if attempt == retries:
-
                 raise
 
-
-        wait = min(
+        wait_seconds = min(
             2 ** attempt,
-            30
+            30,
         )
-
 
         log(
             "Falha temporária; "
-            f"nova tentativa em {wait}s "
-            f"({attempt}/{retries})."
+            f"tentativa {attempt}/{retries}. "
+            f"Aguardando {wait_seconds}s."
         )
 
-
-        time.sleep(wait)
-
+        time.sleep(
+            wait_seconds
+        )
 
     raise (
-        last
+        last_error
         or RuntimeError(
-            "Falha de rede desconhecida."
+            "Falha HTTP desconhecida."
         )
     )
 
 
 def yt(
     resource,
-    key,
-    **params
+    api_key,
+    **params,
 ):
 
-    params["key"] = key
-
+    params["key"] = api_key
 
     return get_json(
         f"{API}/{resource}",
-        params
+        params,
     )
 
+
+# ==========================================================
+# CANAIS
+# ==========================================================
 
 def load_channels():
 
     with open(
         "channels.json",
-        encoding="utf-8"
+        encoding="utf-8",
     ) as file:
 
         raw = json.load(file)
 
-
-    out = []
+    channels = []
 
     seen = set()
-
 
     for item in raw:
 
         handle = str(
             item.get(
                 "handle",
-                ""
+                "",
             )
         ).strip()
 
-
         if not handle:
-
             continue
-
 
         if not handle.startswith("@"):
-
             handle = "@" + handle
 
-
-        if (
-            handle.casefold()
-            in seen
-        ):
-
-            continue
-
-
-        seen.add(
+        normalized = (
             handle.casefold()
         )
 
+        if normalized in seen:
+            continue
 
-        out.append({
+        seen.add(
+            normalized
+        )
 
-            "handle":
-                handle,
+        channels.append(
+            {
+                "handle":
+                    handle,
 
-            "onlyShorts":
-                bool(
-                    item.get(
-                        "onlyShorts",
-                        False
-                    )
-                )
+                "onlyShorts":
+                    bool(
+                        item.get(
+                            "onlyShorts",
+                            False,
+                        )
+                    ),
+            }
+        )
 
-        })
-
-
-    if not out:
+    if not channels:
 
         raise RuntimeError(
             "channels.json não contém "
-            "canais válidos."
+            "nenhum canal válido."
         )
 
-
-    return out
+    return channels
 
 
 def resolve_channel(
-    key,
-    config
+    api_key,
+    config,
 ):
 
     data = yt(
-
         "channels",
-
-        key,
+        api_key,
 
         part=
             "id,snippet,contentDetails",
@@ -267,48 +267,47 @@ def resolve_channel(
         forHandle=
             config["handle"],
 
-        maxResults=1
-
+        maxResults=1,
     )
 
+    items = data.get(
+        "items",
+        [],
+    )
 
-    if not data.get("items"):
+    if not items:
 
         raise RuntimeError(
             "Canal não encontrado: "
             + config["handle"]
         )
 
-
-    channel = data["items"][0]
-
+    channel = items[0]
 
     uploads = (
         channel
         .get(
             "contentDetails",
-            {}
+            {},
         )
         .get(
             "relatedPlaylists",
-            {}
+            {},
         )
         .get(
             "uploads"
         )
     )
 
-
     if not uploads:
 
         raise RuntimeError(
-            "Uploads não encontrados: "
+            "Playlist de uploads "
+            "não encontrada: "
             + config["handle"]
         )
 
-
     return {
-
         **config,
 
         "channelId":
@@ -320,37 +319,65 @@ def resolve_channel(
             ]["title"],
 
         "uploads":
-            uploads
-
+            uploads,
     }
 
+
+# ==========================================================
+# DATAS
+# ==========================================================
 
 def parse_dt(value):
 
     return datetime.fromisoformat(
         value.replace(
             "Z",
-            "+00:00"
+            "+00:00",
         )
     )
 
 
+def journal_day(
+    now_local,
+):
+
+    if (
+        now_local.hour
+        >= RESET_HOUR
+    ):
+
+        reference = now_local
+
+    else:
+
+        reference = (
+            now_local
+            - timedelta(days=1)
+        )
+
+    return reference.strftime(
+        "%d/%m/%Y"
+    )
+
+
+# ==========================================================
+# UPLOADS RECENTES
+# ==========================================================
+
 def recent_uploads(
-    key,
+    api_key,
     channel,
     start,
-    now_utc
+    now_utc,
 ):
 
     result = []
 
     token = None
 
-
     while True:
 
         params = {
-
             "part":
                 "contentDetails",
 
@@ -358,10 +385,8 @@ def recent_uploads(
                 channel["uploads"],
 
             "maxResults":
-                50
-
+                50,
         }
-
 
         if token:
 
@@ -369,311 +394,249 @@ def recent_uploads(
                 "pageToken"
             ] = token
 
-
         data = yt(
             "playlistItems",
-            key,
-            **params
+            api_key,
+            **params,
         )
-
 
         items = data.get(
             "items",
-            []
+            [],
         )
 
-
         if not items:
-
             break
 
-
         found_old = False
-
 
         for item in items:
 
             details = item.get(
                 "contentDetails",
-                {}
+                {},
             )
-
 
             video_id = details.get(
                 "videoId"
             )
 
-
-            published = details.get(
+            published_at = details.get(
                 "videoPublishedAt"
             )
-
 
             if (
                 not video_id
                 or
-                not published
+                not published_at
             ):
-
                 continue
 
-
-            date = parse_dt(
-                published
+            published_dt = parse_dt(
+                published_at
             )
 
-
-            if date < start:
+            if published_dt < start:
 
                 found_old = True
 
                 continue
 
-
-            if date > now_utc:
-
+            if published_dt > now_utc:
                 continue
 
+            result.append(
+                {
+                    "videoId":
+                        video_id,
 
-            result.append({
+                    "publishedAt":
+                        published_at,
 
-                "videoId":
-                    video_id,
+                    "publishedDt":
+                        published_dt,
 
-                "publishedAt":
-                    published,
+                    "channelId":
+                        channel[
+                            "channelId"
+                        ],
 
-                "publishedDt":
-                    date,
+                    "channelTitle":
+                        channel[
+                            "channelTitle"
+                        ],
 
-                "channelId":
-                    channel[
-                        "channelId"
-                    ],
-
-                "channelTitle":
-                    channel[
-                        "channelTitle"
-                    ],
-
-                "onlyShorts":
-                    channel[
-                        "onlyShorts"
-                    ]
-
-            })
-
+                    "onlyShorts":
+                        channel[
+                            "onlyShorts"
+                        ],
+                }
+            )
 
         if found_old:
-
             break
-
 
         token = data.get(
             "nextPageToken"
         )
 
-
         if not token:
-
             break
-
 
     return result
 
 
 def chunks(
     sequence,
-    size=50
+    size=50,
 ):
 
-    for i in range(
+    for index in range(
         0,
         len(sequence),
-        size
+        size,
     ):
 
         yield sequence[
-            i:i + size
+            index:index + size
         ]
 
 
+# ==========================================================
+# DURAÇÃO
+# ==========================================================
+
 def duration_seconds(
-    value
+    value,
 ):
 
     match = re.fullmatch(
-
         r"P(?:(\d+)D)?T"
         r"(?:(\d+)H)?"
         r"(?:(\d+)M)?"
         r"(?:(\d+)S)?",
-
-        value or ""
-
+        value or "",
     )
-
 
     if not match:
-
         return None
 
-
     days, hours, minutes, seconds = [
-
-        int(
-            value or 0
-        )
-
-        for value
+        int(part or 0)
+        for part
         in match.groups()
-
     ]
 
-
     return (
-
         days * 86400
-
-        +
-
-        hours * 3600
-
-        +
-
-        minutes * 60
-
-        +
-
-        seconds
-
+        + hours * 3600
+        + minutes * 60
+        + seconds
     )
 
+
+# ==========================================================
+# DETECÇÃO DE SHORTS
+# ==========================================================
 
 def short_confirmed(
     video_id,
-    video
+    video,
 ):
 
-    seconds = duration_seconds(
-
+    duration = duration_seconds(
         video
         .get(
             "contentDetails",
-            {}
+            {},
         )
         .get(
             "duration"
         )
-
     )
 
-
+    # Shorts modernos podem ter até 3 minutos.
     if (
-        seconds is None
+        duration is None
         or
-        seconds > 180
+        duration > 180
     ):
 
         return False
 
-
     try:
 
         data = get_json(
-
             OEMBED,
-
             {
-
                 "url":
-    "https://www.youtube.com/shorts/"
-    + video_id,
+                    "https://www.youtube.com/"
+                    "shorts/"
+                    + video_id,
 
                 "format":
-                    "json"
-
+                    "json",
             },
-
-            retries=3
-
+            retries=3,
         )
-
 
         width = int(
             data.get(
                 "width",
-                0
+                0,
             )
         )
-
 
         height = int(
             data.get(
                 "height",
-                0
+                0,
             )
         )
 
-
         return (
-
             width > 0
-
             and
-
             height > 0
-
             and
-
             width <= height
-
         )
 
-
-    except Exception as erro:
+    except Exception as error:
 
         log(
-            "Short não confirmado "
-            f"({video_id}): "
-            f"{erro}"
+            "Short não pôde ser "
+            f"confirmado ({video_id}): "
+            f"{error}"
         )
-
 
         return False
 
 
+# ==========================================================
+# COLETA / FILTROS
+# ==========================================================
+
 def collect(
-    key,
-    configs
+    api_key,
+    configs,
 ):
 
     now_local = datetime.now(
         TZ
     )
 
-
     now_utc = (
         now_local
-        .astimezone(
-            UTC
-        )
+        .astimezone(UTC)
     )
-
 
     start = (
-
         now_utc
-
-        -
-
-        timedelta(
-            hours=
-                WINDOW_HOURS
+        - timedelta(
+            hours=WINDOW_HOURS
         )
-
     )
-
 
     candidates = {}
 
@@ -681,68 +644,40 @@ def collect(
 
     successful_channels = 0
 
-
     for config in configs:
 
         try:
 
             channel = resolve_channel(
-                key,
-                config
+                api_key,
+                config,
             )
-
 
             successful_channels += 1
 
-
             log(
-
                 "CANAL OK: "
-
-                +
-
-                channel[
+                + channel[
                     "channelTitle"
                 ]
-
-                +
-
-                " ["
-
-                +
-
-                (
+                + " ["
+                + (
                     "SOMENTE SHORTS"
-
-                    if
-                    channel[
+                    if channel[
                         "onlyShorts"
                     ]
-
                     else
-
                     "TODOS"
                 )
-
-                +
-
-                "]"
-
+                + "]"
             )
-
 
             uploads = recent_uploads(
-
-                key,
-
+                api_key,
                 channel,
-
                 start,
-
-                now_utc
-
+                now_utc,
             )
-
 
             for item in uploads:
 
@@ -750,87 +685,52 @@ def collect(
                     item["videoId"]
                 ] = item
 
-
-        except Exception as erro:
+        except Exception as error:
 
             failures.append(
-
                 f"{config['handle']}: "
-                f"{erro}"
-
+                f"{error}"
             )
-
 
             log(
-
                 "AVISO: "
-
-                +
-
-                config[
-                    "handle"
-                ]
-
-                +
-
-                ": "
-
-                +
-
-                str(erro)
-
+                + config["handle"]
+                + " → "
+                + str(error)
             )
-
 
     if successful_channels == 0:
 
         raise RuntimeError(
-
-            "Nenhum canal pôde ser "
-            "consultado. "
-            "Verifique a API Key."
-
+            "Nenhum canal pôde "
+            "ser consultado."
         )
-
 
     if (
-
         len(failures)
-
         >
-
         max(
             3,
-            len(configs) // 4
+            len(configs) // 4,
         )
-
     ):
 
         raise RuntimeError(
-
-            "Muitos canais falharam; "
-            "preservando o site anterior."
-
+            "Muitos canais falharam. "
+            "O site anterior será preservado."
         )
 
-
     details = {}
-
 
     ids = list(
         candidates
     )
 
-
-    for batch in chunks(
-        ids
-    ):
+    for batch in chunks(ids):
 
         data = yt(
-
             "videos",
-
-            key,
+            api_key,
 
             part=
                 "snippet,"
@@ -841,395 +741,382 @@ def collect(
             id=
                 ",".join(batch),
 
-            maxResults=50
-
+            maxResults=50,
         )
-
 
         for video in data.get(
             "items",
-            []
+            [],
         ):
 
             details[
                 video["id"]
             ] = video
 
-
     accepted = []
-
 
     for (
         video_id,
-        candidate
+        candidate,
     ) in candidates.items():
 
         video = details.get(
             video_id
         )
 
-
         if not video:
-
             continue
-
 
         snippet = video.get(
             "snippet",
-            {}
+            {},
         )
 
-
         if (
-
             snippet.get(
                 "channelId"
             )
-
             !=
-
             candidate[
                 "channelId"
             ]
-
         ):
-
             continue
 
+        # --------------------------------------------------
+        # EXCLUI TODAS AS LIVES
+        #
+        # futura
+        # acontecendo
+        # encerrada
+        # --------------------------------------------------
 
-        # Exclui lives futuras,
-        # atuais e encerradas.
-        if video.get(
+        if (
             "liveStreamingDetails"
+            in video
         ):
 
             log(
-
                 "LIVE EXCLUÍDA: "
-
-                +
-
-                snippet.get(
+                + snippet.get(
                     "title",
-                    video_id
+                    video_id,
                 )
-
             )
-
 
             continue
 
+        # --------------------------------------------------
+        # CLASSIFICA SHORT / VÍDEO NORMAL
+        # --------------------------------------------------
 
-        # Nos canais onlyShorts=true,
-        # somente Shorts confirmados entram.
+        is_short = short_confirmed(
+            video_id,
+            video,
+        )
+
+        # --------------------------------------------------
+        # CANAIS SOMENTE SHORTS
+        # --------------------------------------------------
+
         if (
-
             candidate[
                 "onlyShorts"
             ]
-
             and
-
-            not short_confirmed(
-                video_id,
-                video
-            )
-
+            not is_short
         ):
 
             log(
-
                 "NÃO ENTROU — "
-                "SOMENTE SHORTS: "
-
-                +
-
-                snippet.get(
+                "CANAL SOMENTE SHORTS: "
+                + snippet.get(
                     "title",
-                    video_id
+                    video_id,
                 )
-
             )
-
 
             continue
 
+        accepted.append(
+            {
+                "videoId":
+                    video_id,
 
-        accepted.append({
+                "title":
+                    snippet.get(
+                        "title",
+                        "Sem título",
+                    ),
 
-            "videoId":
-                video_id,
+                "channelTitle":
+                    snippet.get(
+                        "channelTitle",
+                        candidate[
+                            "channelTitle"
+                        ],
+                    ),
 
-            "title":
-                snippet.get(
-                    "title",
-                    "Sem título"
-                ),
-
-            "channelTitle":
-                snippet.get(
-
-                    "channelTitle",
-
+                "publishedDt":
                     candidate[
-                        "channelTitle"
-                    ]
+                        "publishedDt"
+                    ],
 
-                ),
+                "isShort":
+                    is_short,
 
-            "publishedDt":
-                candidate[
-                    "publishedDt"
-                ],
+                "embeddable":
+                    bool(
+                        video
+                        .get(
+                            "status",
+                            {},
+                        )
+                        .get(
+                            "embeddable",
+                            True,
+                        )
+                    ),
+            }
+        )
 
-            "embeddable":
-                bool(
-
-                    video
-                    .get(
-                        "status",
-                        {}
-                    )
-                    .get(
-                        "embeddable",
-                        True
-                    )
-
-                )
-
-        })
-
-
+    # Mais antigo → mais novo.
     accepted.sort(
         key=lambda item:
-            item[
-                "publishedDt"
-            ]
+            item["publishedDt"]
     )
-
 
     return (
         accepted,
         now_local,
-        failures
+        failures,
     )
 
 
-def journal_day(
-    now_local
-):
-
-    if (
-        now_local.hour
-        >=
-        RESET_HOUR
-    ):
-
-        reference = (
-            now_local
-        )
-
-
-    else:
-
-        reference = (
-
-            now_local
-
-            -
-
-            timedelta(
-                days=1
-            )
-
-        )
-
-
-    return reference.strftime(
-        "%d/%m/%Y"
-    )
-
+# ==========================================================
+# JSON SEGURO PARA HTML
+# ==========================================================
 
 def js_json(
-    obj
+    obj,
 ):
 
     return (
-
         json.dumps(
             obj,
-            ensure_ascii=False
+            ensure_ascii=False,
         )
-
         .replace(
             "<",
-            "\\u003c"
+            "\\u003c",
         )
-
         .replace(
             ">",
-            "\\u003e"
+            "\\u003e",
         )
-
         .replace(
             "&",
-            "\\u0026"
+            "\\u0026",
         )
-
     )
 
+
+# ==========================================================
+# GERAÇÃO DA PÁGINA
+# ==========================================================
 
 def build_page(
     videos,
     now_local,
-    failures
+    failures,
 ):
 
     date = journal_day(
         now_local
     )
 
-
-    updated = now_local.strftime(
-        "%d/%m/%Y às %H:%M"
+    updated = (
+        now_local
+        .strftime(
+            "%d/%m/%Y às %H:%M"
+        )
     )
 
+    version = (
+        now_local
+        .isoformat()
+    )
 
-    player_ids = [
+    normal_count = sum(
+        1
+        for video in videos
+        if not video["isShort"]
+    )
 
-        video[
-            "videoId"
-        ]
+    shorts_count = sum(
+        1
+        for video in videos
+        if video["isShort"]
+    )
 
-        for video
-        in videos
-
-        if video[
-            "embeddable"
-        ]
-
-    ]
-
+    video_data = []
 
     cards = []
 
-
     for video in videos:
 
-        published = (
+        video_id = video[
+            "videoId"
+        ]
 
+        published = (
             video[
                 "publishedDt"
             ]
-
-            .astimezone(
-                TZ
-            )
-
-            .strftime(
-                "%H:%M"
-            )
-
+            .astimezone(TZ)
+            .strftime("%H:%M")
         )
 
+        video_type = (
+            "short"
+            if video["isShort"]
+            else "normal"
+        )
 
-        badge = ""
+        type_label = (
+            "SHORT"
+            if video["isShort"]
+            else "VÍDEO"
+        )
 
+        video_data.append(
+            {
+                "id":
+                    video_id,
+
+                "title":
+                    video["title"],
+
+                "channel":
+                    video[
+                        "channelTitle"
+                    ],
+
+                "time":
+                    published,
+
+                "type":
+                    video_type,
+
+                "embeddable":
+                    video[
+                        "embeddable"
+                    ],
+            }
+        )
+
+        non_embeddable = ""
 
         if not video[
             "embeddable"
         ]:
 
-            badge = (
-
-                "<small>"
-                "Não incorporável — "
-                "abre no YouTube"
-                "</small>"
-
+            non_embeddable = (
+                '<span class="external-note">'
+                'Abre no YouTube'
+                '</span>'
             )
 
-
         cards.append(
-
             f'''
-
 <button
     class="card"
-    onclick="openVideo('{html.escape(video["videoId"])}')"
+    data-video-id="{html.escape(video_id)}"
+    data-type="{video_type}"
+    onclick="openVideo('{html.escape(video_id)}')"
 >
 
-<img
-    src="https://i.ytimg.com/vi/{html.escape(video["videoId"])}/mqdefault.jpg"
-    alt=""
-    loading="lazy"
->
+    <div class="thumb-wrap">
 
-<span>
+        <img
+            src="https://i.ytimg.com/vi/{html.escape(video_id)}/mqdefault.jpg"
+            alt=""
+            loading="lazy"
+        >
 
-<b>
-{html.escape(video["title"])}
-</b>
+        <span class="type-badge {video_type}">
+            {type_label}
+        </span>
 
-<em>
-{html.escape(video["channelTitle"])}
- ·
-{published}
-</em>
+        <span
+            class="watched-eye"
+            title="Assistido por completo"
+        >
+            👁️
+        </span>
 
-{badge}
+        <span class="new-badge">
+            NOVO
+        </span>
 
-</span>
+    </div>
+
+    <span class="card-info">
+
+        <b>
+            {html.escape(video["title"])}
+        </b>
+
+        <em>
+            {html.escape(video["channelTitle"])}
+            ·
+            {published}
+        </em>
+
+        {non_embeddable}
+
+    </span>
 
 </button>
-
 '''
-
         )
-
 
     cards_html = (
         "\n".join(cards)
     )
 
-
     if not cards_html:
 
         cards_html = (
-
             '<p class="empty">'
             'Nenhum vídeo válido '
             'nas últimas 24 horas.'
             '</p>'
-
         )
 
-
     warning = ""
-
 
     if failures:
 
         warning = (
-
             '<p class="warn">'
-
-            +
-
-            str(
-                len(failures)
-            )
-
-            +
-
-            ' canal(is) falharam '
-            'nesta atualização; '
-            'serão tentados novamente.'
-
+            f'{len(failures)} canal(is) '
+            'falharam nesta atualização. '
+            'Eles serão consultados novamente '
+            'na próxima execução.'
             '</p>'
-
         )
 
+    data_payload = {
+        "version":
+            version,
+
+        "generatedAt":
+            updated,
+
+        "videos":
+            video_data,
+    }
 
     return f'''<!doctype html>
 
@@ -1244,6 +1131,11 @@ def build_page(
     content="width=device-width,initial-scale=1"
 >
 
+<meta
+    name="journal-version"
+    content="{html.escape(version)}"
+>
+
 <title>
 Jornal do Futebol — {date}
 </title>
@@ -1254,60 +1146,159 @@ Jornal do Futebol — {date}
     box-sizing: border-box;
 }}
 
+html {{
+    scroll-behavior: smooth;
+}}
+
 body {{
     margin: 0;
     background: #0f1115;
     color: #f2f3f5;
+
     font:
         15px
         system-ui,
         -apple-system,
-        Segoe UI,
+        BlinkMacSystemFont,
+        "Segoe UI",
         sans-serif;
+}}
+
+button {{
+    font: inherit;
 }}
 
 main {{
     max-width: 1050px;
     margin: auto;
-    padding: 24px 14px 50px;
+    padding: 24px 14px 60px;
 }}
 
 h1 {{
     margin: 0;
+
     font-size:
         clamp(
-            26px,
+            27px,
             5vw,
             40px
         );
 }}
 
-.meta,
-em,
-small {{
+.meta {{
     color: #aeb4bd;
-    font-style: normal;
+    margin-top: 4px;
 }}
 
-.playerbox,
-.card {{
+
+/* ======================================================
+   AVISO DE NOVA VERSÃO
+   ====================================================== */
+
+.update-banner {{
+    position: sticky;
+    top: 10px;
+    z-index: 999;
+
+    display: none;
+
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    margin: 14px 0;
+
+    padding: 12px 14px;
+
+    background: #17375e;
+
+    border:
+        1px solid
+        #3176bc;
+
+    border-radius: 12px;
+
+    box-shadow:
+        0 8px 30px
+        rgba(0, 0, 0, .35);
+}}
+
+.update-banner.show {{
+    display: flex;
+}}
+
+.update-banner button {{
+    flex-shrink: 0;
+
+    border: 0;
+    border-radius: 9px;
+
+    padding: 9px 13px;
+
+    cursor: pointer;
+
+    background: #fff;
+    color: #111;
+    font-weight: 700;
+}}
+
+
+/* ======================================================
+   CONTADORES
+   ====================================================== */
+
+.stats {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin: 15px 0;
+}}
+
+.stat {{
     background: #181b22;
+
     border:
         1px solid
         #303641;
-    border-radius: 14px;
+
+    border-radius: 999px;
+
+    padding: 7px 11px;
+
+    color: #d8dce2;
 }}
 
+.stat strong {{
+    color: white;
+}}
+
+
+/* ======================================================
+   PLAYER
+   ====================================================== */
+
 .playerbox {{
+    background: #181b22;
+
+    border:
+        1px solid
+        #303641;
+
+    border-radius: 14px;
+
     padding: 12px;
-    margin: 20px 0;
+
+    margin: 18px 0;
 }}
 
 #playerwrap {{
-    aspect-ratio:
-        16 / 9;
+    aspect-ratio: 16 / 9;
+
     background: #000;
+
     border-radius: 10px;
+
     overflow: hidden;
 }}
 
@@ -1320,24 +1311,83 @@ small {{
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+
     margin-top: 10px;
 }}
 
 .controls button {{
     background: #242933;
     color: white;
+
     border:
         1px solid
         #3a414d;
+
     border-radius: 9px;
+
     padding: 9px 12px;
+
     cursor: pointer;
+}}
+
+.controls button:hover {{
+    background: #303642;
 }}
 
 #status {{
     color: #aeb4bd;
     margin-top: 9px;
 }}
+
+
+/* ======================================================
+   FILTROS
+   ====================================================== */
+
+.filters {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin:
+        18px 0
+        12px;
+}}
+
+.filter-button {{
+    border:
+        1px solid
+        #3a414d;
+
+    background: #181b22;
+    color: #d8dce2;
+
+    padding: 8px 12px;
+
+    border-radius: 999px;
+
+    cursor: pointer;
+}}
+
+.filter-button.active {{
+    background: #f2f3f5;
+    color: #111;
+
+    border-color:
+        #f2f3f5;
+
+    font-weight: 700;
+}}
+
+.results-info {{
+    color: #aeb4bd;
+    margin-bottom: 10px;
+}}
+
+
+/* ======================================================
+   LISTA
+   ====================================================== */
 
 .list {{
     display: grid;
@@ -1346,25 +1396,72 @@ small {{
 
 .card {{
     display: grid;
+
     grid-template-columns:
         150px 1fr;
+
     gap: 12px;
+
     padding: 0;
+
     width: 100%;
+
+    background: #181b22;
     color: inherit;
+
+    border:
+        1px solid
+        #303641;
+
+    border-radius: 14px;
+
     text-align: left;
+
     cursor: pointer;
+
     overflow: hidden;
 }}
 
-.card img {{
+.card:hover {{
+    background: #1e222a;
+}}
+
+.card.hidden {{
+    display: none;
+}}
+
+.card.playing {{
+    border-color: #5a9ee2;
+
+    box-shadow:
+        0 0 0 1px
+        #5a9ee2;
+}}
+
+.card.watched {{
+    opacity: .72;
+}}
+
+.thumb-wrap {{
+    position: relative;
+
     width: 150px;
-    aspect-ratio:
-        16 / 9;
+
+    aspect-ratio: 16 / 9;
+
+    overflow: hidden;
+
+    background: #000;
+}}
+
+.thumb-wrap img {{
+    width: 100%;
+    height: 100%;
+
     object-fit: cover;
 }}
 
-.card span {{
+.card-info {{
     padding:
         10px
         12px
@@ -1372,21 +1469,125 @@ small {{
         0;
 
     display: grid;
+
     gap: 5px;
+
     align-content: center;
 }}
 
-.card b {{
-    line-height: 1.25;
+.card-info b {{
+    line-height: 1.28;
+}}
+
+.card-info em {{
+    color: #aeb4bd;
+    font-style: normal;
+}}
+
+.type-badge {{
+    position: absolute;
+
+    left: 6px;
+    bottom: 6px;
+
+    padding: 3px 6px;
+
+    border-radius: 6px;
+
+    font-size: 10px;
+    font-weight: 800;
+
+    background:
+        rgba(
+            0,
+            0,
+            0,
+            .78
+        );
+
+    color: white;
+}}
+
+.type-badge.short {{
+    background:
+        rgba(
+            197,
+            38,
+            60,
+            .90
+        );
+}}
+
+.watched-eye {{
+    display: none;
+
+    position: absolute;
+
+    top: 6px;
+    right: 6px;
+
+    padding: 4px 6px;
+
+    border-radius: 999px;
+
+    background:
+        rgba(
+            0,
+            0,
+            0,
+            .80
+        );
+
+    font-size: 16px;
+}}
+
+.card.watched
+.watched-eye {{
+    display: block;
+}}
+
+.new-badge {{
+    display: none;
+
+    position: absolute;
+
+    top: 6px;
+    left: 6px;
+
+    padding: 4px 6px;
+
+    border-radius: 6px;
+
+    background: #1f8f4d;
+
+    color: white;
+
+    font-size: 10px;
+
+    font-weight: 900;
+}}
+
+.card.new-video
+.new-badge {{
+    display: block;
+}}
+
+.external-note {{
+    color: #e5b85c;
+    font-size: 12px;
 }}
 
 .warn {{
     background: #292411;
+
     border:
         1px solid
         #665b27;
+
     padding: 10px;
+
     border-radius: 9px;
+
     color: #eadc9b;
 }}
 
@@ -1394,17 +1595,45 @@ small {{
     color: #aeb4bd;
 }}
 
+
+/* ======================================================
+   MOBILE
+   ====================================================== */
+
 @media (
     max-width: 600px
 ) {{
+
+    main {{
+        padding:
+            18px
+            10px
+            50px;
+    }}
 
     .card {{
         grid-template-columns:
             110px 1fr;
     }}
 
-    .card img {{
+    .thumb-wrap {{
         width: 110px;
+    }}
+
+    .card-info {{
+        padding:
+            8px
+            9px
+            8px
+            0;
+    }}
+
+    .update-banner {{
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
     }}
 
 }}
@@ -1413,53 +1642,106 @@ small {{
 
 </head>
 
+
 <body>
 
 <main>
+
 
 <h1>
 ⚽ Jornal do Futebol — {date}
 </h1>
 
+
 <div class="meta">
+
 Últimas 24 horas
  ·
 antigo → novo
  ·
 atualizado em {updated}
+
+</div>
+
+
+<div
+    id="update-banner"
+    class="update-banner"
+>
+
+    <span id="update-message">
+        🔔 Há uma versão mais recente do Jornal.
+    </span>
+
+    <button
+        onclick="location.reload()"
+    >
+        Atualizar agora
+    </button>
+
+</div>
+
+
+<div class="stats">
+
+    <span class="stat">
+        Total:
+        <strong>
+            {len(videos)}
+        </strong>
+    </span>
+
+    <span class="stat">
+        Novos:
+        <strong id="new-count">
+            0
+        </strong>
+    </span>
+
+    <span class="stat">
+        Assistidos:
+        <strong id="watched-count">
+            0
+        </strong>
+    </span>
+
 </div>
 
 
 <section class="playerbox">
 
-<div id="playerwrap">
+    <div id="playerwrap">
 
-<div id="player"></div>
+        <div id="player"></div>
 
-</div>
-
-
-<div class="controls">
-
-<button onclick="start()">
-▶ Começar jornal
-</button>
-
-<button onclick="prev()">
-⏮ Anterior
-</button>
-
-<button onclick="next()">
-Próximo ⏭
-</button>
-
-</div>
+    </div>
 
 
-<div id="status">
-Clique em “Começar jornal”
-para reproduzir em ordem cronológica.
-</div>
+    <div class="controls">
+
+        <button onclick="start()">
+            ▶ Começar jornal
+        </button>
+
+        <button onclick="prev()">
+            ⏮ Anterior
+        </button>
+
+        <button onclick="next(false)">
+            Próximo ⏭
+        </button>
+
+    </div>
+
+
+    <div id="status">
+
+        Clique em
+        “Começar jornal”
+        para reproduzir
+        em ordem cronológica.
+
+    </div>
 
 </section>
 
@@ -1467,47 +1749,645 @@ para reproduzir em ordem cronológica.
 {warning}
 
 
-<h2>
-Vídeos ({len(videos)})
-</h2>
+<div class="filters">
+
+    <button
+        class="filter-button active"
+        data-filter="all"
+        onclick="setFilter('all')"
+    >
+        Todos ({len(videos)})
+    </button>
+
+    <button
+        class="filter-button"
+        data-filter="normal"
+        onclick="setFilter('normal')"
+    >
+        Vídeos ({normal_count})
+    </button>
+
+    <button
+        class="filter-button"
+        data-filter="short"
+        onclick="setFilter('short')"
+    >
+        Shorts ({shorts_count})
+    </button>
+
+</div>
 
 
-<section class="list">
+<div
+    id="results-info"
+    class="results-info"
+>
+    Exibindo {len(videos)} vídeos.
+</div>
+
+
+<section
+    id="video-list"
+    class="list"
+>
 
 {cards_html}
 
 </section>
+
+
+<script
+    id="journal-data"
+    type="application/json"
+>
+{js_json(data_payload)}
+</script>
+
 
 </main>
 
 
 <script>
 
-const playlist =
-{js_json(player_ids)};
+/*
+==========================================================
+ DADOS DO JORNAL
+==========================================================
+*/
 
-let i = 0;
+const JOURNAL =
+JSON.parse(
+
+    document
+        .getElementById(
+            'journal-data'
+        )
+        .textContent
+
+);
+
+
+const CURRENT_VERSION =
+JOURNAL.version;
+
+
+const VIDEOS =
+JOURNAL.videos;
+
+
+const CURRENT_IDS =
+VIDEOS.map(
+    video => video.id
+);
+
+
+const CURRENT_ID_SET =
+new Set(
+    CURRENT_IDS
+);
+
+
+/*
+==========================================================
+ STORAGE
+==========================================================
+*/
+
+const STORAGE = {{
+
+    WATCHED:
+        'jdf_watched_v2',
+
+    LAST_SEEN:
+        'jdf_last_seen_v2',
+
+    FILTER:
+        'jdf_filter_v2'
+
+}};
+
+
+/*
+==========================================================
+ HELPERS DE STORAGE
+==========================================================
+*/
+
+function loadJSON(
+    key,
+    fallback
+) {{
+
+    try {{
+
+        const raw =
+            localStorage
+                .getItem(key);
+
+
+        if (!raw) {{
+            return fallback;
+        }}
+
+
+        return JSON.parse(
+            raw
+        );
+
+    }}
+    catch (_) {{
+
+        return fallback;
+
+    }}
+
+}}
+
+
+function saveJSON(
+    key,
+    value
+) {{
+
+    try {{
+
+        localStorage.setItem(
+
+            key,
+
+            JSON.stringify(
+                value
+            )
+
+        );
+
+    }}
+    catch (_) {{}}
+
+}}
+
+
+/*
+==========================================================
+ VÍDEOS NOVOS
+==========================================================
+
+ "Novo" =
+ existe no Jornal atual,
+ mas não existia na última
+ versão que você abriu.
+
+ Na primeira utilização não
+ marcamos todos como novos.
+==========================================================
+*/
+
+const PREVIOUS_IDS =
+loadJSON(
+    STORAGE.LAST_SEEN,
+    []
+);
+
+
+const previousSet =
+new Set(
+    PREVIOUS_IDS
+);
+
+
+let NEW_IDS =
+new Set();
+
+
+if (
+    PREVIOUS_IDS.length > 0
+) {{
+
+    for (
+        const id
+        of CURRENT_IDS
+    ) {{
+
+        if (
+            !previousSet.has(id)
+        ) {{
+
+            NEW_IDS.add(id);
+
+        }}
+
+    }}
+
+}
+
+
+/*
+ * Depois de calcular,
+ * esta versão passa a ser
+ * a referência da próxima visita.
+ */
+saveJSON(
+    STORAGE.LAST_SEEN,
+    CURRENT_IDS
+);
+
+
+/*
+==========================================================
+ ASSISTIDOS
+==========================================================
+*/
+
+let watched =
+loadJSON(
+    STORAGE.WATCHED,
+    {{}}
+);
+
+
+/*
+ * Remove registros com mais
+ * de 180 dias.
+ */
+function pruneWatched() {{
+
+    const limit =
+        Date.now()
+        -
+        180
+        * 24
+        * 60
+        * 60
+        * 1000;
+
+
+    for (
+        const id
+        in watched
+    ) {{
+
+        if (
+            Number(
+                watched[id]
+            )
+            <
+            limit
+        ) {{
+
+            delete watched[id];
+
+        }}
+
+    }}
+
+
+    saveJSON(
+        STORAGE.WATCHED,
+        watched
+    );
+
+}}
+
+
+pruneWatched();
+
+
+function markWatched(
+    id
+) {{
+
+    watched[id] =
+        Date.now();
+
+
+    saveJSON(
+        STORAGE.WATCHED,
+        watched
+    );
+
+
+    refreshCardStates();
+
+}}
+
+
+/*
+==========================================================
+ ESTADO VISUAL DOS CARDS
+==========================================================
+*/
+
+function refreshCardStates() {{
+
+    let watchedInJournal = 0;
+
+
+    document
+        .querySelectorAll(
+            '.card'
+        )
+        .forEach(card => {{
+
+            const id =
+                card.dataset.videoId;
+
+
+            const isWatched =
+                Boolean(
+                    watched[id]
+                );
+
+
+            card.classList.toggle(
+                'watched',
+                isWatched
+            );
+
+
+            card.classList.toggle(
+                'new-video',
+                NEW_IDS.has(id)
+            );
+
+
+            if (isWatched) {{
+
+                watchedInJournal++;
+
+            }}
+
+        });
+
+
+    document
+        .getElementById(
+            'new-count'
+        )
+        .textContent =
+            NEW_IDS.size;
+
+
+    document
+        .getElementById(
+            'watched-count'
+        )
+        .textContent =
+            watchedInJournal;
+
+}}
+
+
+refreshCardStates();
+
+
+/*
+==========================================================
+ FILTROS
+==========================================================
+*/
+
+let currentFilter =
+localStorage.getItem(
+    STORAGE.FILTER
+)
+||
+'all';
+
+
+if (
+    ![
+        'all',
+        'normal',
+        'short'
+    ].includes(
+        currentFilter
+    )
+) {{
+
+    currentFilter =
+        'all';
+
+}}
+
+
+function matchesFilter(
+    video
+) {{
+
+    if (
+        currentFilter
+        ===
+        'all'
+    ) {{
+
+        return true;
+
+    }}
+
+
+    return (
+        video.type
+        ===
+        currentFilter
+    );
+
+}}
+
+
+function filteredVideos() {{
+
+    return VIDEOS.filter(
+        matchesFilter
+    );
+
+}}
+
+
+let activePlaylist = [];
+
+let currentIndex = 0;
+
+
+function rebuildPlaylist() {{
+
+    activePlaylist =
+        filteredVideos()
+        .filter(
+            video =>
+                video.embeddable
+        )
+        .map(
+            video =>
+                video.id
+        );
+
+
+    const currentVideoId =
+        getCurrentVideoId();
+
+
+    if (
+        currentVideoId
+        &&
+        activePlaylist.includes(
+            currentVideoId
+        )
+    ) {{
+
+        currentIndex =
+            activePlaylist.indexOf(
+                currentVideoId
+            );
+
+    }}
+    else {{
+
+        currentIndex = 0;
+
+    }}
+
+}}
+
+
+function setFilter(
+    filter
+) {{
+
+    currentFilter =
+        filter;
+
+
+    localStorage.setItem(
+        STORAGE.FILTER,
+        filter
+    );
+
+
+    document
+        .querySelectorAll(
+            '.filter-button'
+        )
+        .forEach(button => {{
+
+            button
+                .classList
+                .toggle(
+                    'active',
+                    button.dataset.filter
+                    ===
+                    filter
+                );
+
+        });
+
+
+    let visible = 0;
+
+
+    document
+        .querySelectorAll(
+            '.card'
+        )
+        .forEach(card => {{
+
+            const shouldShow =
+                (
+                    filter
+                    ===
+                    'all'
+                )
+                ||
+                (
+                    card.dataset.type
+                    ===
+                    filter
+                );
+
+
+            card.classList.toggle(
+                'hidden',
+                !shouldShow
+            );
+
+
+            if (shouldShow) {{
+
+                visible++;
+
+            }}
+
+        });
+
+
+    document
+        .getElementById(
+            'results-info'
+        )
+        .textContent =
+            'Exibindo '
+            + visible
+            + (
+                visible === 1
+                ? ' vídeo.'
+                : ' vídeos.'
+            );
+
+
+    rebuildPlaylist();
+
+}}
+
+
+/*
+==========================================================
+ PLAYER
+==========================================================
+*/
 
 let player = null;
 
-let ready = false;
+let playerReady = false;
 
 
-const tag =
-document.createElement(
-    'script'
-);
+function getCurrentVideoId() {{
 
-tag.src =
-'https://www.youtube.com/iframe_api';
+    if (
+        !player
+        ||
+        !playerReady
+    ) {{
 
-document.head.appendChild(
-    tag
-);
+        return null;
+
+    }}
+
+
+    try {{
+
+        const data =
+            player.getVideoData();
+
+
+        return (
+            data
+            &&
+            data.video_id
+        )
+        ||
+        null;
+
+    }}
+    catch (_) {{
+
+        return null;
+
+    }}
+
+}}
 
 
 function setStatus(
-    text
+    message
 ) {{
 
     document
@@ -1515,19 +2395,77 @@ function setStatus(
             'status'
         )
         .textContent =
-            text;
+            message;
 
 }}
+
+
+function highlightPlaying(
+    id
+) {{
+
+    document
+        .querySelectorAll(
+            '.card'
+        )
+        .forEach(card => {{
+
+            card
+                .classList
+                .toggle(
+                    'playing',
+                    card.dataset.videoId
+                    ===
+                    id
+                );
+
+        });
+
+}}
+
+
+const youtubeScript =
+document.createElement(
+    'script'
+);
+
+
+youtubeScript.src =
+'https://www.youtube.com/iframe_api';
+
+
+document.head.appendChild(
+    youtubeScript
+);
 
 
 function onYouTubeIframeAPIReady() {{
 
     if (
-        !playlist.length
+        VIDEOS.length === 0
     ) {{
 
         setStatus(
-            'Nenhum vídeo reproduzível no player.'
+            'Nenhum vídeo disponível.'
+        );
+
+        return;
+
+    }}
+
+
+    const firstEmbeddable =
+        VIDEOS.find(
+            video =>
+                video.embeddable
+        );
+
+
+    if (!firstEmbeddable) {{
+
+        setStatus(
+            'Nenhum vídeo pode ser '
+            + 'reproduzido dentro da página.'
         );
 
         return;
@@ -1543,7 +2481,7 @@ function onYouTubeIframeAPIReady() {{
         {{
 
             videoId:
-                playlist[0],
+                firstEmbeddable.id,
 
             width:
                 '100%',
@@ -1562,8 +2500,14 @@ function onYouTubeIframeAPIReady() {{
             events: {{
 
                 onReady:
-                    () =>
-                        ready = true,
+                    () => {{
+
+                        playerReady = true;
+
+                        rebuildPlaylist();
+
+                    }},
+
 
                 onStateChange:
                     event => {{
@@ -1571,25 +2515,67 @@ function onYouTubeIframeAPIReady() {{
                         if (
                             event.data
                             ===
+                            YT.PlayerState.PLAYING
+                        ) {{
+
+                            const id =
+                                getCurrentVideoId();
+
+
+                            if (id) {{
+
+                                highlightPlaying(
+                                    id
+                                );
+
+                            }}
+
+                        }}
+
+
+                        if (
+                            event.data
+                            ===
                             YT.PlayerState.ENDED
                         ) {{
 
-                            next();
+                            const id =
+                                getCurrentVideoId();
+
+
+                            if (id) {{
+
+                                /*
+                                 * Só recebe 👁️ quando
+                                 * realmente chega ao fim.
+                                 */
+                                markWatched(
+                                    id
+                                );
+
+                            }}
+
+
+                            next(true);
 
                         }}
 
                     }},
 
+
                 onError:
                     () => {{
 
                         setStatus(
-                            'Vídeo indisponível aqui; pulando...'
+                            'Vídeo indisponível '
+                            + 'no player. Pulando...'
                         );
 
+
                         setTimeout(
-                            next,
-                            700
+                            () =>
+                                next(true),
+                            800
                         );
 
                     }}
@@ -1603,14 +2589,31 @@ function onYouTubeIframeAPIReady() {{
 }}
 
 
-function play(
+function playIndex(
     index
 ) {{
 
     if (
-        !playlist.length
+        !playerReady
         ||
-        !ready
+        activePlaylist.length === 0
+    ) {{
+
+        setStatus(
+            'Nenhum vídeo reproduzível '
+            + 'neste filtro.'
+        );
+
+        return;
+
+    }}
+
+
+    if (
+        index < 0
+        ||
+        index >=
+        activePlaylist.length
     ) {{
 
         return;
@@ -1618,18 +2621,23 @@ function play(
     }}
 
 
-    i =
-        (
-            index
-            +
-            playlist.length
-        )
-        %
-        playlist.length;
+    currentIndex =
+        index;
+
+
+    const id =
+        activePlaylist[
+            currentIndex
+        ];
 
 
     player.loadVideoById(
-        playlist[i]
+        id
+    );
+
+
+    highlightPlaying(
+        id
     );
 
 
@@ -1639,7 +2647,7 @@ function play(
 
         +
 
-        (i + 1)
+        (currentIndex + 1)
 
         +
 
@@ -1647,7 +2655,7 @@ function play(
 
         +
 
-        playlist.length
+        activePlaylist.length
 
     );
 
@@ -1656,15 +2664,107 @@ function play(
 
 function start() {{
 
-    play(i);
+    rebuildPlaylist();
+
+
+    if (
+        activePlaylist.length === 0
+    ) {{
+
+        setStatus(
+            'Nenhum vídeo reproduzível '
+            + 'neste filtro.'
+        );
+
+        return;
+
+    }}
+
+
+    const current =
+        getCurrentVideoId();
+
+
+    if (
+        current
+        &&
+        activePlaylist.includes(
+            current
+        )
+    ) {{
+
+        currentIndex =
+            activePlaylist.indexOf(
+                current
+            );
+
+    }}
+    else {{
+
+        currentIndex = 0;
+
+    }}
+
+
+    playIndex(
+        currentIndex
+    );
 
 }}
 
 
-function next() {{
+function next(
+    automatic = false
+) {{
 
-    play(
-        i + 1
+    rebuildPlaylist();
+
+
+    const current =
+        getCurrentVideoId();
+
+
+    if (
+        current
+        &&
+        activePlaylist.includes(
+            current
+        )
+    ) {{
+
+        currentIndex =
+            activePlaylist.indexOf(
+                current
+            );
+
+    }}
+
+
+    const nextIndex =
+        currentIndex + 1;
+
+
+    if (
+        nextIndex
+        >=
+        activePlaylist.length
+    ) {{
+
+        setStatus(
+            automatic
+            ?
+            'Fim do Jornal.'
+            :
+            'Você chegou ao último vídeo.'
+        );
+
+        return;
+
+    }}
+
+
+    playIndex(
+        nextIndex
     );
 
 }}
@@ -1672,8 +2772,44 @@ function next() {{
 
 function prev() {{
 
-    play(
-        i - 1
+    rebuildPlaylist();
+
+
+    const current =
+        getCurrentVideoId();
+
+
+    if (
+        current
+        &&
+        activePlaylist.includes(
+            current
+        )
+    ) {{
+
+        currentIndex =
+            activePlaylist.indexOf(
+                current
+            );
+
+    }}
+
+
+    if (
+        currentIndex <= 0
+    ) {{
+
+        setStatus(
+            'Você está no primeiro vídeo.'
+        );
+
+        return;
+
+    }}
+
+
+    playIndex(
+        currentIndex - 1
     );
 
 }}
@@ -1683,8 +2819,45 @@ function openVideo(
     id
 ) {{
 
+    const video =
+        VIDEOS.find(
+            item =>
+                item.id === id
+        );
+
+
+    if (!video) {{
+        return;
+    }}
+
+
+    if (
+        !video.embeddable
+    ) {{
+
+        window.open(
+
+            'https://www.youtube.com/watch?v='
+            +
+            encodeURIComponent(id),
+
+            '_blank',
+
+            'noopener'
+
+        );
+
+
+        return;
+
+    }}
+
+
+    rebuildPlaylist();
+
+
     const index =
-        playlist.indexOf(
+        activePlaylist.indexOf(
             id
         );
 
@@ -1693,12 +2866,12 @@ function openVideo(
         index >= 0
     ) {{
 
-        play(
+        playIndex(
             index
         );
 
 
-        scrollTo({{
+        window.scrollTo({{
 
             top: 0,
 
@@ -1707,27 +2880,228 @@ function openVideo(
 
         }});
 
+    }}
 
-        return;
+}}
+
+
+/*
+==========================================================
+ AVISO DE NOVA VERSÃO
+==========================================================
+
+ A página NÃO recarrega sozinha.
+
+ A cada 2 minutos apenas verifica
+ se o GitHub Pages publicou uma
+ versão mais recente.
+
+ Se houver, aparece um aviso.
+==========================================================
+*/
+
+async function checkForUpdate() {{
+
+    try {{
+
+        const url =
+            new URL(
+                window.location.href
+            );
+
+
+        url.searchParams.set(
+            '_check',
+            Date.now()
+        );
+
+
+        const response =
+            await fetch(
+                url.toString(),
+                {{
+                    cache:
+                        'no-store'
+                }}
+            );
+
+
+        if (!response.ok) {{
+            return;
+        }}
+
+
+        const text =
+            await response.text();
+
+
+        const documentCopy =
+            new DOMParser()
+            .parseFromString(
+                text,
+                'text/html'
+            );
+
+
+        const meta =
+            documentCopy
+            .querySelector(
+                'meta[name="journal-version"]'
+            );
+
+
+        if (!meta) {{
+            return;
+        }}
+
+
+        const remoteVersion =
+            meta.content;
+
+
+        if (
+            !remoteVersion
+            ||
+            remoteVersion
+            ===
+            CURRENT_VERSION
+        ) {{
+
+            return;
+
+        }}
+
+
+        let newSinceOpen = 0;
+
+
+        const dataElement =
+            documentCopy
+            .getElementById(
+                'journal-data'
+            );
+
+
+        if (dataElement) {{
+
+            try {{
+
+                const remoteData =
+                    JSON.parse(
+                        dataElement
+                            .textContent
+                    );
+
+
+                const remoteIds =
+                    remoteData.videos
+                    .map(
+                        video =>
+                            video.id
+                    );
+
+
+                newSinceOpen =
+                    remoteIds
+                    .filter(
+                        id =>
+                            !CURRENT_ID_SET
+                                .has(id)
+                    )
+                    .length;
+
+            }}
+            catch (_) {{}}
+
+        }}
+
+
+        const banner =
+            document
+            .getElementById(
+                'update-banner'
+            );
+
+
+        const message =
+            document
+            .getElementById(
+                'update-message'
+            );
+
+
+        if (
+            newSinceOpen > 0
+        ) {{
+
+            message.textContent =
+
+                '🔔 Há uma versão mais recente '
+                + 'do Jornal — '
+                + newSinceOpen
+                + (
+                    newSinceOpen === 1
+                    ?
+                    ' vídeo novo.'
+                    :
+                    ' vídeos novos.'
+                );
+
+        }}
+        else {{
+
+            message.textContent =
+                '🔔 Há uma versão mais recente '
+                + 'do Jornal.';
+
+        }}
+
+
+        banner.classList.add(
+            'show'
+        );
+
+    }}
+    catch (_) {{
+
+        /*
+         * Uma falha nesta verificação
+         * não interfere no player.
+         */
 
     }}
 
-
-    window.open(
-
-        'https://www.youtube.com/watch?v='
-        +
-        encodeURIComponent(
-            id
-        ),
-
-        '_blank',
-
-        'noopener'
-
-    );
-
 }}
+
+
+/*
+ * Verifica a cada 2 minutos.
+ */
+setInterval(
+    checkForUpdate,
+    2 * 60 * 1000
+);
+
+
+/*
+ * Primeira verificação depois
+ * de 30 segundos.
+ */
+setTimeout(
+    checkForUpdate,
+    30 * 1000
+);
+
+
+/*
+==========================================================
+ INICIALIZA FILTRO
+==========================================================
+*/
+
+setFilter(
+    currentFilter
+);
 
 </script>
 
@@ -1737,66 +3111,58 @@ function openVideo(
 '''
 
 
+# ==========================================================
+# MAIN
+# ==========================================================
+
 def main():
 
-    key = os.environ.get(
+    api_key = os.environ.get(
         "YOUTUBE_API_KEY",
-        ""
+        "",
     ).strip()
 
-
-    if not key:
+    if not api_key:
 
         raise RuntimeError(
             "Secret YOUTUBE_API_KEY ausente."
         )
 
-
     channels = load_channels()
-
 
     log(
         f"{len(channels)} "
         "canais carregados."
     )
 
-
-    videos, now_local, failures = (
-        collect(
-            key,
-            channels
-        )
+    (
+        videos,
+        now_local,
+        failures,
+    ) = collect(
+        api_key,
+        channels,
     )
-
 
     log(
         f"{len(videos)} "
         "vídeos válidos encontrados."
     )
 
-
     with open(
-
         "index.html",
-
         "w",
-
         encoding="utf-8",
-
-        newline="\n"
-
+        newline="\n",
     ) as file:
 
         file.write(
-
             build_page(
                 videos,
                 now_local,
-                failures
+                failures,
             )
-
         )
-
 
     log(
         "index.html atualizado."
