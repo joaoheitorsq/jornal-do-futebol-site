@@ -1057,11 +1057,17 @@ def build_hearthpwn_widget(news_items):
 
         rows.append(
             f'''
-<a
+<article
     class="hearthpwn-news-item"
+    data-news-key="{url}"
+>
+
+<a
+    class="hearthpwn-news-link"
     href="{url}"
     target="_blank"
     rel="noopener noreferrer"
+    onclick="markHearthPwnSeen(this.closest('.hearthpwn-news-item').dataset.newsKey)"
 >
 
 <div class="hearthpwn-news-main">
@@ -1069,9 +1075,22 @@ def build_hearthpwn_widget(news_items):
 {summary_html}
 </div>
 
+<div class="hearthpwn-news-meta">
 {meta}
+<span class="hearthpwn-seen-badge">✓ VISTO</span>
+</div>
 
 </a>
+
+<button
+    class="hearthpwn-watch-action"
+    type="button"
+    onclick="toggleHearthPwnSeen(this.closest('.hearthpwn-news-item').dataset.newsKey)"
+>
+✓ Marcar como visto
+</button>
+
+</article>
 '''
         )
 
@@ -1842,12 +1861,10 @@ small {
 }
 
 .hearthpwn-news-item {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    padding: 12px 15px;
     color: inherit;
-    text-decoration: none;
+    transition:
+        background .15s,
+        opacity .15s;
 }
 
 .hearthpwn-news-item + .hearthpwn-news-item {
@@ -1856,6 +1873,24 @@ small {
 
 .hearthpwn-news-item:hover {
     background: #1e222a;
+}
+
+.hearthpwn-news-item.seen {
+    background: #14171c;
+}
+
+.hearthpwn-news-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 12px 15px 8px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.hearthpwn-news-item.seen
+.hearthpwn-news-main {
+    opacity: .58;
 }
 
 .hearthpwn-news-main strong {
@@ -1870,10 +1905,49 @@ small {
     line-height: 1.35;
 }
 
+.hearthpwn-news-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+
 .hearthpwn-date {
     color: #808996;
     font-size: 12px;
     white-space: nowrap;
+}
+
+.hearthpwn-seen-badge {
+    display: none;
+    color: #7fd09a;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .05em;
+}
+
+.hearthpwn-news-item.seen
+.hearthpwn-seen-badge {
+    display: inline;
+}
+
+.hearthpwn-watch-action {
+    margin: 0 15px 12px;
+    padding: 7px 10px;
+    background: #242933;
+    color: #d8dee8;
+    border: 1px solid #3a414d;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.hearthpwn-watch-action:hover {
+    background: #2c323e;
+}
+
+.hearthpwn-watch-action.seen {
+    color: #9da6b2;
 }
 
 .warn {
@@ -1919,9 +1993,13 @@ small {
         width: calc(100vw - 16px);
     }
 
-    .hearthpwn-news-item {
+    .hearthpwn-news-link {
         grid-template-columns: 1fr;
         gap: 5px;
+    }
+
+    .hearthpwn-news-meta {
+        align-items: flex-start;
     }
 
     .hearthpwn-date {
@@ -2145,6 +2223,9 @@ const RESUME_KEY =
 const WATCHED_KEY =
 'jornal_do_futebol_watched_v1';
 
+const HEARTHPWN_SEEN_KEY =
+'jornal_do_futebol_hearthpwn_seen_v1';
+
 const UNWATCHED_MODE_KEY =
 'jornal_do_futebol_only_unwatched_v1';
 
@@ -2157,6 +2238,7 @@ let activePlaylist = [];
 let i = 0;
 let resumeState = null;
 let watched = loadWatched();
+let hearthpwnSeen = loadHearthPwnSeen();
 let onlyUnwatched = loadUnwatchedMode();
 let collapsedChapters = loadCollapsedChapters();
 let searchQuery = '';
@@ -2192,6 +2274,116 @@ function saveWatched() {
         );
     }
     catch (_) {}
+}
+
+
+function loadHearthPwnSeen() {
+    try {
+        const raw =
+            localStorage.getItem(
+                HEARTHPWN_SEEN_KEY
+            );
+
+        if (!raw) {
+            return {};
+        }
+
+        const data = JSON.parse(raw);
+        return data && typeof data === 'object'
+            ? data
+            : {};
+    }
+    catch (_) {
+        return {};
+    }
+}
+
+
+function saveHearthPwnSeen() {
+    try {
+        localStorage.setItem(
+            HEARTHPWN_SEEN_KEY,
+            JSON.stringify(hearthpwnSeen)
+        );
+    }
+    catch (_) {}
+}
+
+
+function isHearthPwnSeen(newsKey) {
+    return Boolean(
+        newsKey
+        &&
+        hearthpwnSeen[newsKey]
+    );
+}
+
+
+function updateHearthPwnSeenUI() {
+    document
+        .querySelectorAll(
+            '.hearthpwn-news-item[data-news-key]'
+        )
+        .forEach(item => {
+            const newsKey =
+                item.dataset.newsKey;
+
+            const seen =
+                isHearthPwnSeen(newsKey);
+
+            item.classList.toggle(
+                'seen',
+                seen
+            );
+
+            const button =
+                item.querySelector(
+                    '.hearthpwn-watch-action'
+                );
+
+            if (button) {
+                button.classList.toggle(
+                    'seen',
+                    seen
+                );
+
+                button.textContent =
+                    seen
+                    ? '↶ Marcar como não visto'
+                    : '✓ Marcar como visto';
+            }
+        });
+}
+
+
+function markHearthPwnSeen(newsKey) {
+    if (!newsKey) {
+        return;
+    }
+
+    hearthpwnSeen[newsKey] =
+        Date.now();
+
+    saveHearthPwnSeen();
+    updateHearthPwnSeenUI();
+}
+
+
+function toggleHearthPwnSeen(newsKey) {
+    if (!newsKey) {
+        return;
+    }
+
+    if (isHearthPwnSeen(newsKey)) {
+        delete hearthpwnSeen[newsKey];
+    }
+    else {
+        hearthpwnSeen[newsKey] =
+            Date.now();
+    }
+
+    saveHearthPwnSeen();
+    updateHearthPwnSeenUI();
 }
 
 
@@ -3471,6 +3663,7 @@ document.head.appendChild(tag);
 resumeState = loadResume();
 
 applyView();
+updateHearthPwnSeenUI();
 
 if (resumeState) {
     showResumeCard(
