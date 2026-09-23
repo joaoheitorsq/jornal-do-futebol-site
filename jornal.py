@@ -1105,6 +1105,8 @@ def build_hearthpwn_widget(news_items):
 __TRANSLATION_NOTE__
 </div>
 
+<div class="hearthpwn-head-actions">
+
 <a
     class="hearthpwn-open"
     href="https://www.hearthpwn.com/"
@@ -1113,6 +1115,18 @@ __TRANSLATION_NOTE__
 >
 Abrir HearthPwn ↗
 </a>
+
+<button
+    class="hearthpwn-collapse-toggle"
+    type="button"
+    onclick="toggleHearthPwnWidget()"
+    aria-expanded="true"
+    title="Recolher notícias do HearthPwn"
+>
+<span class="hearthpwn-collapse-chevron" aria-hidden="true">▾</span>
+</button>
+
+</div>
 </div>
 
 <div class="hearthpwn-news-list">
@@ -1842,11 +1856,51 @@ small {
     letter-spacing: .12em;
 }
 
+.hearthpwn-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .hearthpwn-open {
     color: #a9cfff;
     text-decoration: none;
     white-space: nowrap;
     font-size: 13px;
+}
+
+.hearthpwn-collapse-toggle {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: #242933;
+    color: #dce3ed;
+    border: 1px solid #3a414d;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.hearthpwn-collapse-toggle:hover {
+    background: #2c323e;
+}
+
+.hearthpwn-collapse-chevron {
+    display: block;
+    transform: translateY(-1px);
+}
+
+.hearthpwn-widget.collapsed
+.hearthpwn-news-list {
+    display: none;
+}
+
+.hearthpwn-widget.collapsed
+.hearthpwn-head {
+    padding-bottom: 14px;
 }
 
 .translation-note {
@@ -2226,6 +2280,9 @@ const WATCHED_KEY =
 const HEARTHPWN_SEEN_KEY =
 'jornal_do_futebol_hearthpwn_seen_v1';
 
+const HEARTHPWN_COLLAPSED_KEY =
+'jornal_do_futebol_hearthpwn_collapsed_v1';
+
 const UNWATCHED_MODE_KEY =
 'jornal_do_futebol_only_unwatched_v1';
 
@@ -2239,6 +2296,7 @@ let i = 0;
 let resumeState = null;
 let watched = loadWatched();
 let hearthpwnSeen = loadHearthPwnSeen();
+let hearthpwnCollapsed = loadHearthPwnCollapsed();
 let onlyUnwatched = loadUnwatchedMode();
 let collapsedChapters = loadCollapsedChapters();
 let searchQuery = '';
@@ -2307,6 +2365,87 @@ function saveHearthPwnSeen() {
         );
     }
     catch (_) {}
+}
+
+
+function loadHearthPwnCollapsed() {
+    try {
+        return (
+            localStorage.getItem(
+                HEARTHPWN_COLLAPSED_KEY
+            )
+            === '1'
+        );
+    }
+    catch (_) {
+        return false;
+    }
+}
+
+
+function saveHearthPwnCollapsed() {
+    try {
+        localStorage.setItem(
+            HEARTHPWN_COLLAPSED_KEY,
+            hearthpwnCollapsed ? '1' : '0'
+        );
+    }
+    catch (_) {}
+}
+
+
+function applyHearthPwnCollapse() {
+    const widget =
+        document.querySelector(
+            '.hearthpwn-widget'
+        );
+
+    if (!widget) {
+        return;
+    }
+
+    widget.classList.toggle(
+        'collapsed',
+        hearthpwnCollapsed
+    );
+
+    const button =
+        widget.querySelector(
+            '.hearthpwn-collapse-toggle'
+        );
+
+    const chevron =
+        widget.querySelector(
+            '.hearthpwn-collapse-chevron'
+        );
+
+    if (button) {
+        button.setAttribute(
+            'aria-expanded',
+            hearthpwnCollapsed ? 'false' : 'true'
+        );
+
+        button.title =
+            hearthpwnCollapsed
+            ? 'Expandir notícias do HearthPwn'
+            : 'Recolher notícias do HearthPwn';
+    }
+
+    if (chevron) {
+        chevron.textContent =
+            hearthpwnCollapsed
+            ? '▸'
+            : '▾';
+    }
+}
+
+
+function toggleHearthPwnWidget() {
+    hearthpwnCollapsed =
+        !hearthpwnCollapsed;
+
+    saveHearthPwnCollapsed();
+    applyHearthPwnCollapse();
 }
 
 
@@ -3664,6 +3803,7 @@ resumeState = loadResume();
 
 applyView();
 updateHearthPwnSeenUI();
+applyHearthPwnCollapse();
 
 if (resumeState) {
     showResumeCard(
