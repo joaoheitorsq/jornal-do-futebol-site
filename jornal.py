@@ -21,6 +21,14 @@ HEARTHPWN_RSS = "https://www.hearthpwn.com/news.rss"
 HEARTHPWN_HOME = "https://www.hearthpwn.com/"
 HEARTHPWN_LIMIT = 5
 
+TRANSLATION_CACHE_FILE = "hearthpwn_translation_cache.json"
+PUBLIC_TRANSLATION_CACHE_URL = (
+    "https://joaoheitorsq.github.io/"
+    "jornal-do-futebol-site/"
+    "hearthpwn_translation_cache.json"
+)
+TRANSLATION_CACHE_MAX_ITEMS = 300
+
 TZ = ZoneInfo("America/Fortaleza")
 UTC = ZoneInfo("UTC")
 
@@ -53,7 +61,7 @@ def get_json(url, params=None, retries=MAX_RETRIES):
             req = Request(
                 url,
                 headers={
-                    "User-Agent": "JornalDoFutebol/1.3",
+                    "User-Agent": "JornalDoFutebol/1.6",
                     "Accept": "application/json",
                 },
             )
@@ -89,6 +97,7 @@ def get_json(url, params=None, retries=MAX_RETRIES):
     raise last or RuntimeError("Falha de rede desconhecida.")
 
 
+
 def get_text(url, retries=3, timeout=12):
     last = None
 
@@ -97,7 +106,7 @@ def get_text(url, retries=3, timeout=12):
             req = Request(
                 url,
                 headers={
-                    "User-Agent": "JornalDoFutebol/1.4",
+                    "User-Agent": "JornalDoFutebol/1.6",
                     "Accept": "text/html,application/rss+xml,application/xml;q=0.9,*/*;q=0.8",
                 },
             )
@@ -261,6 +270,386 @@ def fetch_hearthpwn_news():
         )
         return []
 
+
+
+def empty_translation_cache():
+    return {
+        "version": 1,
+        "items": {},
+    }
+
+
+def normalize_translation_cache(data):
+    if not isinstance(data, dict):
+        return empty_translation_cache()
+
+    items = data.get("items")
+
+    if not isinstance(items, dict):
+        items = {}
+
+    return {
+        "version": 1,
+        "items": items,
+    }
+
+
+def load_translation_cache():
+    try:
+        with open(
+            TRANSLATION_CACHE_FILE,
+            encoding="utf-8",
+        ) as file:
+            data = normalize_translation_cache(
+                json.load(file)
+            )
+
+        log(
+            "Cache de traduções local carregado: "
+            f"{len(data['items'])} item(ns)."
+        )
+
+        return data
+
+    except FileNotFoundError:
+        pass
+
+    except Exception as erro:
+        log(
+            "AVISO: cache local de traduções inválido: "
+            f"{erro}"
+        )
+
+    try:
+        data = normalize_translation_cache(
+            get_json(
+                (
+                    PUBLIC_TRANSLATION_CACHE_URL
+                    + "?v="
+                    + str(int(time.time()))
+                ),
+                retries=2,
+            )
+        )
+
+        log(
+            "Cache de traduções do GitHub Pages carregado: "
+            f"{len(data['items'])} item(ns)."
+        )
+
+        return data
+
+    except Exception as erro:
+        log(
+            "Cache de traduções ainda não disponível; "
+            f"começando vazio. Motivo: {erro}"
+        )
+
+        return empty_translation_cache()
+
+
+def prune_translation_cache(cache):
+    items = cache.get("items", {})
+
+    if len(items) <= TRANSLATION_CACHE_MAX_ITEMS:
+        return
+
+    ordered = sorted(
+        items.items(),
+        key=lambda pair: (
+            pair[1].get(
+                "translatedAt",
+                "",
+            )
+            if isinstance(pair[1], dict)
+            else ""
+        ),
+        reverse=True,
+    )
+
+    cache["items"] = dict(
+        ordered[
+            :TRANSLATION_CACHE_MAX_ITEMS
+        ]
+    )
+
+
+def save_translation_cache(cache):
+    prune_translation_cache(cache)
+
+    with open(
+        TRANSLATION_CACHE_FILE,
+        "w",
+        encoding="utf-8",
+        newline="\n",
+    ) as file:
+        json.dump(
+            cache,
+            file,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+
+        file.write("\n")
+
+
+
+def normalize_ptbr_text(value):
+    """Aplica pequenas trocas de vocabulário para aproximar PT de PT-BR."""
+    if not value:
+        return ""
+
+    replacements = [
+        (r"\bficheiros\b", "arquivos"),
+        (r"\bficheiro\b", "arquivo"),
+        (r"\bFicheiros\b", "Arquivos"),
+        (r"\bFicheiro\b", "Arquivo"),
+        (r"\butilizadores\b", "usuários"),
+        (r"\butilizador\b", "usuário"),
+        (r"\bUtilizadores\b", "Usuários"),
+        (r"\bUtilizador\b", "Usuário"),
+        (r"\becrãs\b", "telas"),
+        (r"\becrã\b", "tela"),
+        (r"\bEcrãs\b", "Telas"),
+        (r"\bEcrã\b", "Tela"),
+        (r"\bequipas\b", "equipes"),
+        (r"\bequipa\b", "equipe"),
+        (r"\bEquipas\b", "Equipes"),
+        (r"\bEquipa\b", "Equipe"),
+        (r"\btelemóveis\b", "celulares"),
+        (r"\btelemóvel\b", "celular"),
+        (r"\bTelemóveis\b", "Celulares"),
+        (r"\bTelemóvel\b", "Celular"),
+    ]
+
+    result = value
+
+    for pattern, replacement in replacements:
+        result = re.sub(pattern, replacement, result)
+
+    return " ".join(result.split())
+
+
+def get_argos_translator():
+    """
+    Retorna o módulo de tradução do Argos pronto para EN -> PT.
+
+    O modelo é instalado apenas quando ainda não existe no diretório
+    configurado por ARGOS_PACKAGE_DIR. Qualquer falha aqui é opcional:
+    o Jornal continua funcionando e o HearthPwn permanece em inglês.
+    """
+    try:
+        import argostranslate.package as argos_package
+        import argostranslate.translate as argos_translate
+    except Exception as erro:
+        log(
+            "AVISO: Argos Translate não está disponível; "
+            "HearthPwn continuará em inglês. "
+            f"Motivo: {erro}"
+        )
+        return None
+
+    try:
+        installed = argos_package.get_installed_packages()
+
+        has_model = any(
+            getattr(pkg, "from_code", None) == "en"
+            and getattr(pkg, "to_code", None) == "pt"
+            for pkg in installed
+        )
+
+        if not has_model:
+            log(
+                "Modelo Argos EN → PT ainda não instalado; "
+                "baixando uma vez para o cache do workflow."
+            )
+
+            argos_package.update_package_index()
+            available = argos_package.get_available_packages()
+
+            package_to_install = next(
+                (
+                    pkg
+                    for pkg in available
+                    if pkg.from_code == "en"
+                    and pkg.to_code == "pt"
+                ),
+                None,
+            )
+
+            if package_to_install is None:
+                raise RuntimeError(
+                    "Modelo Argos EN → PT não encontrado."
+                )
+
+            argos_package.install_from_path(
+                package_to_install.download()
+            )
+
+            log("Modelo Argos EN → PT instalado.")
+        else:
+            log("Modelo Argos EN → PT carregado do cache.")
+
+        # Teste leve para confirmar que o modelo ficou utilizável.
+        probe = argos_translate.translate(
+            "News",
+            "en",
+            "pt",
+        )
+
+        if not probe:
+            raise RuntimeError(
+                "Argos não retornou tradução no teste."
+            )
+
+        return argos_translate
+
+    except Exception as erro:
+        log(
+            "AVISO: não foi possível preparar o Argos Translate; "
+            "HearthPwn continuará em inglês. "
+            f"Motivo: {erro}"
+        )
+        return None
+
+
+def translate_local_ptbr(text, translator):
+    if not text:
+        return ""
+
+    translated = translator.translate(
+        text,
+        "en",
+        "pt",
+    )
+
+    translated = clean_html_text(translated)
+    translated = normalize_ptbr_text(translated)
+
+    if not translated:
+        raise RuntimeError(
+            "Argos retornou tradução vazia."
+        )
+
+    return translated
+
+
+def translate_hearthpwn_news(news_items):
+    if not news_items:
+        cache = load_translation_cache()
+        save_translation_cache(cache)
+        return []
+
+    cache = load_translation_cache()
+    cache_items = cache["items"]
+
+    result = []
+    pending = []
+
+    for item in news_items:
+        original = dict(item)
+
+        url = str(original.get("url", ""))
+        title = str(original.get("title", ""))
+        summary = str(original.get("summary", ""))
+
+        cached = cache_items.get(url)
+
+        if (
+            isinstance(cached, dict)
+            and cached.get("sourceTitle") == title
+            and cached.get("sourceSummary") == summary
+            and cached.get("titlePtBr")
+        ):
+            translated_item = dict(original)
+            translated_item["title"] = cached["titlePtBr"]
+            translated_item["summary"] = cached.get(
+                "summaryPtBr",
+                "",
+            )
+            translated_item["translated"] = True
+
+            result.append(translated_item)
+            continue
+
+        translated_item = dict(original)
+        translated_item["translated"] = False
+        result.append(translated_item)
+
+        pending.append(
+            {
+                "resultIndex": len(result) - 1,
+                "url": url,
+                "title": title,
+                "summary": summary,
+            }
+        )
+
+    if not pending:
+        log(
+            "HearthPwn: todas as notícias vieram "
+            "do cache de tradução."
+        )
+        save_translation_cache(cache)
+        return result
+
+    translator = get_argos_translator()
+
+    if translator is None:
+        save_translation_cache(cache)
+        return result
+
+    translated_count = 0
+
+    for pending_item in pending:
+        result_index = pending_item["resultIndex"]
+
+        try:
+            translated_title = translate_local_ptbr(
+                pending_item["title"],
+                translator,
+            )
+
+            translated_summary = (
+                translate_local_ptbr(
+                    pending_item["summary"],
+                    translator,
+                )
+                if pending_item["summary"]
+                else ""
+            )
+
+            result[result_index]["title"] = translated_title
+            result[result_index]["summary"] = translated_summary
+            result[result_index]["translated"] = True
+
+            cache_items[pending_item["url"]] = {
+                "sourceTitle": pending_item["title"],
+                "sourceSummary": pending_item["summary"],
+                "titlePtBr": translated_title,
+                "summaryPtBr": translated_summary,
+                "translatedAt": datetime.now(UTC).isoformat(),
+                "engine": "argos-en-pt",
+            }
+
+            translated_count += 1
+
+        except Exception as erro:
+            log(
+                "AVISO: falha traduzindo uma notícia do HearthPwn; "
+                "ela permanecerá em inglês nesta atualização. "
+                f"Motivo: {erro}"
+            )
+
+    if translated_count:
+        log(
+            "HearthPwn traduzido localmente: "
+            f"{translated_count} notícia(s) nova(s)."
+        )
+
+    save_translation_cache(cache)
+    return result
 
 def yt(resource, key, **params):
     params["key"] = key
@@ -634,6 +1023,20 @@ def build_hearthpwn_widget(news_items):
 
     rows = []
 
+    translated_count = sum(
+        1
+        for item in news_items[:HEARTHPWN_LIMIT]
+        if item.get("translated")
+    )
+
+    translation_note = (
+        '<span class="translation-note">'
+        'Traduzido automaticamente para PT-BR'
+        '</span>'
+        if translated_count
+        else ""
+    )
+
     for item in news_items[:HEARTHPWN_LIMIT]:
         title = html.escape(item.get("title", "Sem título"))
         url = html.escape(item.get("url", HEARTHPWN_HOME), quote=True)
@@ -680,6 +1083,7 @@ def build_hearthpwn_widget(news_items):
 <div>
 <span class="widget-kicker">HEARTHSTONE</span>
 <h2>🔥 Últimas do HearthPwn</h2>
+__TRANSLATION_NOTE__
 </div>
 
 <a
@@ -700,6 +1104,9 @@ Abrir HearthPwn ↗
 
 </section>
 '''
+    ).replace(
+        "__TRANSLATION_NOTE__",
+        translation_note,
     )
 
 
@@ -1421,6 +1828,13 @@ small {
     text-decoration: none;
     white-space: nowrap;
     font-size: 13px;
+}
+
+.translation-note {
+    display: block;
+    margin-top: 5px;
+    color: #8993a0;
+    font-size: 11px;
 }
 
 .hearthpwn-news-list {
@@ -3614,6 +4028,10 @@ def main():
     log(f"{len(videos)} vídeos válidos encontrados.")
 
     hearthpwn_news = fetch_hearthpwn_news()
+
+    hearthpwn_news = translate_hearthpwn_news(
+        hearthpwn_news,
+    )
 
     with open(
         "index.html",
