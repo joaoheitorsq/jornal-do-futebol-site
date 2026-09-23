@@ -4,6 +4,7 @@ import time
 import html
 import re
 
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import urlencode
@@ -21,21 +22,11 @@ RESET_HOUR = 4
 WINDOW_HOURS = 24
 
 MAX_RETRIES = 5
-
-RETRYABLE = {
-    429,
-    500,
-    502,
-    503,
-    504,
-}
+RETRYABLE = {429, 500, 502, 503, 504}
 
 
 def log(msg):
-    print(
-        f"[{datetime.now(TZ):%H:%M:%S}] {msg}",
-        flush=True,
-    )
+    print(f"[{datetime.now(TZ):%H:%M:%S}] {msg}", flush=True)
 
 
 def get_json(url, params=None, retries=MAX_RETRIES):
@@ -49,88 +40,56 @@ def get_json(url, params=None, retries=MAX_RETRIES):
             req = Request(
                 url,
                 headers={
-                    "User-Agent": "JornalDoFutebol/1.1",
+                    "User-Agent": "JornalDoFutebol/1.2",
                     "Accept": "application/json",
                 },
             )
 
             with urlopen(req, timeout=25) as response:
-                return json.loads(
-                    response.read().decode("utf-8")
-                )
+                return json.loads(response.read().decode("utf-8"))
 
         except HTTPError as erro:
             body = ""
-
             try:
-                body = erro.read().decode(
-                    "utf-8",
-                    errors="replace",
-                )
+                body = erro.read().decode("utf-8", errors="replace")
             except Exception:
                 pass
 
-            last = RuntimeError(
-                f"HTTP {erro.code}: {body[:400]}"
-            )
+            last = RuntimeError(f"HTTP {erro.code}: {body[:400]}")
 
-            if (
-                erro.code not in RETRYABLE
-                or attempt == retries
-            ):
+            if erro.code not in RETRYABLE or attempt == retries:
                 raise last
 
-        except (
-            URLError,
-            TimeoutError,
-            ConnectionError,
-        ) as erro:
+        except (URLError, TimeoutError, ConnectionError) as erro:
             last = erro
-
             if attempt == retries:
                 raise
 
         wait = min(2 ** attempt, 30)
-
         log(
             "Falha temporária; "
             f"nova tentativa em {wait}s "
             f"({attempt}/{retries})."
         )
-
         time.sleep(wait)
 
-    raise (
-        last
-        or RuntimeError(
-            "Falha de rede desconhecida."
-        )
-    )
+    raise last or RuntimeError("Falha de rede desconhecida.")
 
 
 def yt(resource, key, **params):
     params["key"] = key
-
-    return get_json(
-        f"{API}/{resource}",
-        params,
-    )
+    return get_json(f"{API}/{resource}", params)
 
 
 def load_channels():
-    with open(
-        "channels.json",
-        encoding="utf-8",
-    ) as file:
+    with open("channels.json", encoding="utf-8") as file:
         raw = json.load(file)
 
     out = []
     seen = set()
 
     for item in raw:
-        handle = str(
-            item.get("handle", "")
-        ).strip()
+        handle = str(item.get("handle", "")).strip()
 
         if not handle:
             continue
@@ -142,24 +101,15 @@ def load_channels():
             continue
 
         seen.add(handle.casefold())
-
         out.append(
             {
                 "handle": handle,
-                "onlyShorts": bool(
-                    item.get(
-                        "onlyShorts",
-                        False,
-                    )
-                ),
+                "onlyShorts": bool(item.get("onlyShorts", False)),
             }
         )
 
     if not out:
-        raise RuntimeError(
-            "channels.json não contém "
-            "canais válidos."
-        )
+        raise RuntimeError("channels.json não contém canais válidos.")
 
     return out
 
@@ -174,25 +124,17 @@ def resolve_channel(key, config):
     )
 
     if not data.get("items"):
-        raise RuntimeError(
-            "Canal não encontrado: "
-            + config["handle"]
-        )
+        raise RuntimeError("Canal não encontrado: " + config["handle"])
 
     channel = data["items"][0]
-
     uploads = (
-        channel
-        .get("contentDetails", {})
+        channel.get("contentDetails", {})
         .get("relatedPlaylists", {})
         .get("uploads")
     )
 
     if not uploads:
-        raise RuntimeError(
-            "Uploads não encontrados: "
-            + config["handle"]
-        )
+        raise RuntimeError("Uploads não encontrados: " + config["handle"])
 
     return {
         **config,
@@ -203,17 +145,10 @@ def resolve_channel(key, config):
 
 
 def parse_dt(value):
-    return datetime.fromisoformat(
-        value.replace("Z", "+00:00")
-    )
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
-def recent_uploads(
-    key,
-    channel,
-    start,
-    now_utc,
-):
+def recent_uploads(key, channel, start, now_utc):
     result = []
     token = None
 
@@ -227,12 +162,7 @@ def recent_uploads(
         if token:
             params["pageToken"] = token
 
-        data = yt(
-            "playlistItems",
-            key,
-            **params,
-        )
-
+        data = yt("playlistItems", key, **params)
         items = data.get("items", [])
 
         if not items:
@@ -241,18 +171,9 @@ def recent_uploads(
         found_old = False
 
         for item in items:
-            details = item.get(
-                "contentDetails",
-                {},
-            )
-
-            video_id = details.get(
-                "videoId"
-            )
-
-            published = details.get(
-                "videoPublishedAt"
-            )
+            details = item.get("contentDetails", {})
+            video_id = details.get("videoId")
+            published = details.get("videoPublishedAt")
 
             if not video_id or not published:
                 continue
@@ -281,7 +202,6 @@ def recent_uploads(
             break
 
         token = data.get("nextPageToken")
-
         if not token:
             break
 
@@ -289,11 +209,7 @@ def recent_uploads(
 
 
 def chunks(sequence, size=50):
-    for i in range(
-        0,
-        len(sequence),
-        size,
-    ):
+    for i in range(0, len(sequence), size):
         yield sequence[i:i + size]
 
 
@@ -309,10 +225,7 @@ def duration_seconds(value):
     if not match:
         return None
 
-    days, hours, minutes, seconds = [
-        int(value or 0)
-        for value in match.groups()
-    ]
+    days, hours, minutes, seconds = [int(value or 0) for value in match.groups()]
 
     return (
         days * 86400
@@ -324,9 +237,7 @@ def duration_seconds(value):
 
 def short_confirmed(video_id, video):
     seconds = duration_seconds(
-        video
-        .get("contentDetails", {})
-        .get("duration")
+        video.get("contentDetails", {}).get("duration")
     )
 
     if seconds is None or seconds > 180:
@@ -336,45 +247,26 @@ def short_confirmed(video_id, video):
         data = get_json(
             OEMBED,
             {
-                "url":
-                    "https://www.youtube.com/shorts/"
-                    + video_id,
+                "url": "https://www.youtube.com/shorts/" + video_id,
                 "format": "json",
             },
             retries=3,
         )
 
-        width = int(
-            data.get("width", 0)
-        )
+        width = int(data.get("width", 0))
+        height = int(data.get("height", 0))
 
-        height = int(
-            data.get("height", 0)
-        )
-
-        return (
-            width > 0
-            and height > 0
-            and width <= height
-        )
+        return width > 0 and height > 0 and width <= height
 
     except Exception as erro:
-        log(
-            "Short não confirmado "
-            f"({video_id}): {erro}"
-        )
-
+        log(f"Short não confirmado ({video_id}): {erro}")
         return False
 
 
 def collect(key, configs):
     now_local = datetime.now(TZ)
     now_utc = now_local.astimezone(UTC)
-
-    start = (
-        now_utc
-        - timedelta(hours=WINDOW_HOURS)
-    )
+    start = now_utc - timedelta(hours=WINDOW_HOURS)
 
     candidates = {}
     failures = []
@@ -382,67 +274,34 @@ def collect(key, configs):
 
     for config in configs:
         try:
-            channel = resolve_channel(
-                key,
-                config,
-            )
-
+            channel = resolve_channel(key, config)
             successful_channels += 1
 
             log(
                 "CANAL OK: "
                 + channel["channelTitle"]
                 + " ["
-                + (
-                    "SOMENTE SHORTS"
-                    if channel["onlyShorts"]
-                    else "TODOS"
-                )
+                + ("SOMENTE SHORTS" if channel["onlyShorts"] else "TODOS")
                 + "]"
             )
 
-            uploads = recent_uploads(
-                key,
-                channel,
-                start,
-                now_utc,
-            )
+            uploads = recent_uploads(key, channel, start, now_utc)
 
             for item in uploads:
-                candidates[
-                    item["videoId"]
-                ] = item
+                candidates[item["videoId"]] = item
 
         except Exception as erro:
-            failures.append(
-                f"{config['handle']}: {erro}"
-            )
-
-            log(
-                "AVISO: "
-                + config["handle"]
-                + ": "
-                + str(erro)
-            )
+            failures.append(f"{config['handle']}: {erro}")
+            log("AVISO: " + config["handle"] + ": " + str(erro))
 
     if successful_channels == 0:
         raise RuntimeError(
-            "Nenhum canal pôde ser "
-            "consultado. "
-            "Verifique a API Key."
+            "Nenhum canal pôde ser consultado. Verifique a API Key."
         )
 
-    if (
-        len(failures)
-        >
-        max(
-            3,
-            len(configs) // 4,
-        )
-    ):
+    if len(failures) > max(3, len(configs) // 4):
         raise RuntimeError(
-            "Muitos canais falharam; "
-            "preservando o site anterior."
+            "Muitos canais falharam; preservando o site anterior."
         )
 
     details = {}
@@ -452,186 +311,148 @@ def collect(key, configs):
         data = yt(
             "videos",
             key,
-            part=(
-                "snippet,"
-                "contentDetails,"
-                "liveStreamingDetails,"
-                "status"
-            ),
+            part="snippet,contentDetails,liveStreamingDetails,status",
             id=",".join(batch),
             maxResults=50,
         )
 
-        for video in data.get(
-            "items",
-            [],
-        ):
-            details[
-                video["id"]
-            ] = video
+        for video in data.get("items", []):
+            details[video["id"]] = video
 
     accepted = []
 
-    for (
-        video_id,
-        candidate,
-    ) in candidates.items():
+    for video_id, candidate in candidates.items():
         video = details.get(video_id)
 
         if not video:
             continue
 
-        snippet = video.get(
-            "snippet",
-            {},
-        )
+        snippet = video.get("snippet", {})
 
-        if (
-            snippet.get("channelId")
-            != candidate["channelId"]
-        ):
+        if snippet.get("channelId") != candidate["channelId"]:
             continue
 
-        if video.get(
-            "liveStreamingDetails"
-        ):
-            log(
-                "LIVE EXCLUÍDA: "
-                + snippet.get(
-                    "title",
-                    video_id,
-                )
-            )
+        if video.get("liveStreamingDetails"):
+            log("LIVE EXCLUÍDA: " + snippet.get("title", video_id))
             continue
 
-        if (
-            candidate["onlyShorts"]
-            and not short_confirmed(
-                video_id,
-                video,
-            )
-        ):
+        if candidate["onlyShorts"] and not short_confirmed(video_id, video):
             log(
-                "NÃO ENTROU — "
-                "SOMENTE SHORTS: "
-                + snippet.get(
-                    "title",
-                    video_id,
-                )
+                "NÃO ENTROU — SOMENTE SHORTS: "
+                + snippet.get("title", video_id)
             )
             continue
 
         accepted.append(
             {
                 "videoId": video_id,
-                "title": snippet.get(
-                    "title",
-                    "Sem título",
-                ),
+                "title": snippet.get("title", "Sem título"),
                 "channelTitle": snippet.get(
                     "channelTitle",
                     candidate["channelTitle"],
                 ),
-                "publishedDt":
-                    candidate["publishedDt"],
+                "publishedDt": candidate["publishedDt"],
                 "embeddable": bool(
-                    video
-                    .get("status", {})
-                    .get(
-                        "embeddable",
-                        True,
-                    )
+                    video.get("status", {}).get("embeddable", True)
                 ),
             }
         )
 
-    accepted.sort(
-        key=lambda item:
-            item["publishedDt"]
-    )
+    accepted.sort(key=lambda item: item["publishedDt"])
 
-    return (
-        accepted,
-        now_local,
-        failures,
-    )
+    return accepted, now_local, failures
 
 
 def journal_day(now_local):
-    if now_local.hour >= RESET_HOUR:
-        reference = now_local
-    else:
-        reference = (
-            now_local
-            - timedelta(days=1)
-        )
-
-    return reference.strftime(
-        "%d/%m/%Y"
+    reference = (
+        now_local
+        if now_local.hour >= RESET_HOUR
+        else now_local - timedelta(days=1)
     )
+
+    return reference.strftime("%d/%m/%Y")
 
 
 def js_json(obj):
     return (
-        json.dumps(
-            obj,
-            ensure_ascii=False,
-        )
+        json.dumps(obj, ensure_ascii=False)
         .replace("<", "\\u003c")
         .replace(">", "\\u003e")
         .replace("&", "\\u0026")
     )
 
 
-def build_page(
-    videos,
-    now_local,
-    failures,
-):
+def chapter_label(video_dt, now_local):
+    local_dt = video_dt.astimezone(TZ)
+
+    today = now_local.date()
+    yesterday = today - timedelta(days=1)
+
+    if local_dt.date() == today:
+        day_label = "Hoje"
+    elif local_dt.date() == yesterday:
+        day_label = "Ontem"
+    else:
+        day_label = local_dt.strftime("%d/%m")
+
+    hour = local_dt.hour
+
+    if 0 <= hour < 6:
+        period = "Madrugada"
+    elif 6 <= hour < 12:
+        period = "Manhã"
+    elif 12 <= hour < 18:
+        period = "Tarde"
+    else:
+        period = "Noite"
+
+    return f"{day_label} • {period}"
+
+
+def build_page(videos, now_local, failures):
     date = journal_day(now_local)
+    updated = now_local.strftime("%d/%m/%Y às %H:%M")
 
-    updated = now_local.strftime(
-        "%d/%m/%Y às %H:%M"
-    )
-
-    player_ids = [
-        video["videoId"]
+    player_videos = [
+        {
+            "id": video["videoId"],
+            "embeddable": video["embeddable"],
+        }
         for video in videos
-        if video["embeddable"]
     ]
 
-    cards = []
+    chapters = OrderedDict()
 
     for video in videos:
-        published = (
-            video["publishedDt"]
-            .astimezone(TZ)
-            .strftime("%H:%M")
-        )
+        label = chapter_label(video["publishedDt"], now_local)
+        chapters.setdefault(label, []).append(video)
 
-        badge = ""
+    chapter_html_parts = []
 
-        if not video["embeddable"]:
-            badge = (
-                "<small>"
-                "Não incorporável — "
-                "abre no YouTube"
-                "</small>"
+    for chapter_index, (label, chapter_videos) in enumerate(chapters.items()):
+        cards = []
+
+        for video in chapter_videos:
+            published = (
+                video["publishedDt"]
+                .astimezone(TZ)
+                .strftime("%H:%M")
             )
 
-        video_id = html.escape(
-            video["videoId"]
-        )
+            badge = ""
 
-        title = html.escape(
-            video["title"]
-        )
+            if not video["embeddable"]:
+                badge = (
+                    "<small>"
+                    "Não incorporável — abre no YouTube"
+                    "</small>"
+                )
 
-        channel_title = html.escape(
-            video["channelTitle"]
-        )
+            video_id = html.escape(video["videoId"])
+            title = html.escape(video["title"])
+            channel_title = html.escape(video["channelTitle"])
 
-        card = """
+            card = """
 <button
     class="card"
     data-video-id="__VIDEO_ID__"
@@ -658,14 +479,10 @@ def build_page(
 
 <span class="card-info">
 
-<b>
-__TITLE__
-</b>
+<b>__TITLE__</b>
 
 <em>
-__CHANNEL_TITLE__
- ·
-__PUBLISHED__
+__CHANNEL_TITLE__ · __PUBLISHED__
 </em>
 
 __BADGE__
@@ -675,39 +492,44 @@ __BADGE__
 </button>
 """
 
-        card = (
-            card
-            .replace(
-                "__VIDEO_ID__",
-                video_id,
+            card = (
+                card
+                .replace("__VIDEO_ID__", video_id)
+                .replace("__TITLE__", title)
+                .replace("__CHANNEL_TITLE__", channel_title)
+                .replace("__PUBLISHED__", published)
+                .replace("__BADGE__", badge)
             )
-            .replace(
-                "__TITLE__",
-                title,
-            )
-            .replace(
-                "__CHANNEL_TITLE__",
-                channel_title,
-            )
-            .replace(
-                "__PUBLISHED__",
-                published,
-            )
-            .replace(
-                "__BADGE__",
-                badge,
-            )
+
+            cards.append(card)
+
+        chapter_html_parts.append(
+            """
+<section class="chapter" data-chapter="__CHAPTER_INDEX__">
+
+<h2 class="chapter-title">
+__CHAPTER_LABEL__
+<span class="chapter-count">(__CHAPTER_COUNT__)</span>
+</h2>
+
+<div class="list">
+__CARDS__
+</div>
+
+</section>
+"""
+            .replace("__CHAPTER_INDEX__", str(chapter_index))
+            .replace("__CHAPTER_LABEL__", html.escape(label))
+            .replace("__CHAPTER_COUNT__", str(len(chapter_videos)))
+            .replace("__CARDS__", "\n".join(cards))
         )
 
-        cards.append(card)
+    chapters_html = "\n".join(chapter_html_parts)
 
-    cards_html = "\n".join(cards)
-
-    if not cards_html:
-        cards_html = (
+    if not chapters_html:
+        chapters_html = (
             '<p class="empty">'
-            'Nenhum vídeo válido '
-            'nas últimas 24 horas.'
+            'Nenhum vídeo válido nas últimas 24 horas.'
             '</p>'
         )
 
@@ -717,8 +539,7 @@ __BADGE__
         warning = (
             '<p class="warn">'
             + str(len(failures))
-            + ' canal(is) falharam '
-            'nesta atualização; '
+            + ' canal(is) falharam nesta atualização; '
             'serão tentados novamente.'
             '</p>'
         )
@@ -814,7 +635,8 @@ small {
     margin-top: 10px;
 }
 
-.controls button {
+.controls button,
+.view-toggle {
     background: #242933;
     color: white;
     border:
@@ -823,6 +645,13 @@ small {
     border-radius: 9px;
     padding: 9px 12px;
     cursor: pointer;
+}
+
+.view-toggle.active {
+    background: #f2f3f5;
+    color: #111;
+    border-color: #f2f3f5;
+    font-weight: 700;
 }
 
 #status {
@@ -846,6 +675,40 @@ small {
     display: block;
 }
 
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 22px 0 6px;
+}
+
+.toolbar-info {
+    color: #aeb4bd;
+}
+
+.chapter {
+    margin-top: 24px;
+}
+
+.chapter.hidden {
+    display: none;
+}
+
+.chapter-title {
+    margin: 0 0 10px;
+    font-size: 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+}
+
+.chapter-count {
+    color: #88919c;
+    font-size: 14px;
+    font-weight: 500;
+}
+
 .list {
     display: grid;
     gap: 9px;
@@ -865,11 +728,16 @@ small {
     transition:
         border-color .15s,
         background .15s,
-        box-shadow .15s;
+        box-shadow .15s,
+        opacity .15s;
 }
 
 .card:hover {
     background: #1e222a;
+}
+
+.card.hidden {
+    display: none;
 }
 
 .card.current {
@@ -973,8 +841,18 @@ small {
     color: #eadc9b;
 }
 
-.empty {
+.empty,
+.no-unwatched {
     color: #aeb4bd;
+}
+
+.no-unwatched {
+    display: none;
+    padding: 18px 0;
+}
+
+.no-unwatched.show {
+    display: block;
 }
 
 @media (
@@ -1014,9 +892,7 @@ atualizado em __UPDATED__
 <section class="playerbox">
 
 <div id="playerwrap">
-
 <div id="player"></div>
-
 </div>
 
 <div class="controls">
@@ -1050,81 +926,173 @@ para reproduzir em ordem cronológica.
 
 __WARNING__
 
-<h2>
-Vídeos (__VIDEO_COUNT__)
-</h2>
+<div class="toolbar">
 
-<section class="list">
+<button
+    id="unwatched-toggle"
+    class="view-toggle"
+    onclick="toggleUnwatchedMode()"
+>
+Só o que ainda não vi
+</button>
 
-__CARDS_HTML__
+<span
+    id="toolbar-info"
+    class="toolbar-info"
+>
+</span>
 
-</section>
+</div>
+
+<div
+    id="no-unwatched"
+    class="no-unwatched"
+>
+Você já concluiu todos os vídeos disponíveis deste Jornal.
+</div>
+
+__CHAPTERS_HTML__
 
 </main>
 
 <script>
 
-const playlist =
-__PLAYER_IDS__;
+const VIDEOS =
+__PLAYER_VIDEOS__;
+
+const ALL_EMBEDDABLE_IDS =
+VIDEOS
+    .filter(video => video.embeddable)
+    .map(video => video.id);
 
 const RESUME_KEY =
 'jornal_do_futebol_resume_v1';
 
-let i = 0;
+const WATCHED_KEY =
+'jornal_do_futebol_watched_v1';
+
+const UNWATCHED_MODE_KEY =
+'jornal_do_futebol_only_unwatched_v1';
+
 let player = null;
 let ready = false;
+let activePlaylist = [];
+let i = 0;
 let resumeState = null;
+let watched = loadWatched();
+let onlyUnwatched = loadUnwatchedMode();
+
+
+function loadWatched() {
+    try {
+        const raw =
+            localStorage.getItem(
+                WATCHED_KEY
+            );
+
+        if (!raw) {
+            return {};
+        }
+
+        const data = JSON.parse(raw);
+        return data && typeof data === 'object'
+            ? data
+            : {};
+    }
+    catch (_) {
+        return {};
+    }
+}
+
+
+function saveWatched() {
+    try {
+        localStorage.setItem(
+            WATCHED_KEY,
+            JSON.stringify(watched)
+        );
+    }
+    catch (_) {}
+}
+
+
+function markWatched(videoId) {
+    if (!videoId) {
+        return;
+    }
+
+    watched[videoId] = Date.now();
+    saveWatched();
+}
+
+
+function isWatched(videoId) {
+    return Boolean(watched[videoId]);
+}
+
+
+function loadUnwatchedMode() {
+    try {
+        return (
+            localStorage.getItem(
+                UNWATCHED_MODE_KEY
+            )
+            === '1'
+        );
+    }
+    catch (_) {
+        return false;
+    }
+}
+
+
+function saveUnwatchedMode() {
+    try {
+        localStorage.setItem(
+            UNWATCHED_MODE_KEY,
+            onlyUnwatched ? '1' : '0'
+        );
+    }
+    catch (_) {}
+}
 
 
 function loadResume() {
-
     try {
-
         const raw =
-            localStorage
-                .getItem(
-                    RESUME_KEY
-                );
+            localStorage.getItem(
+                RESUME_KEY
+            );
 
         if (!raw) {
             return null;
         }
 
-        const data =
-            JSON.parse(raw);
+        const data = JSON.parse(raw);
 
         if (
             !data
             ||
             !data.videoId
             ||
-            !playlist.includes(
+            !ALL_EMBEDDABLE_IDS.includes(
                 data.videoId
             )
         ) {
-
-            localStorage
-                .removeItem(
-                    RESUME_KEY
-                );
+            localStorage.removeItem(
+                RESUME_KEY
+            );
 
             return null;
         }
 
         return {
-            videoId:
-                data.videoId,
-
-            seconds:
-                Math.max(
-                    0,
-                    Number(
-                        data.seconds
-                        || 0
-                    )
-                )
+            videoId: data.videoId,
+            seconds: Math.max(
+                0,
+                Number(data.seconds || 0)
+            )
         };
-
     }
     catch (_) {
         return null;
@@ -1136,11 +1104,10 @@ function saveResume(
     videoId,
     seconds
 ) {
-
     if (
         !videoId
         ||
-        !playlist.includes(
+        !ALL_EMBEDDABLE_IDS.includes(
             videoId
         )
     ) {
@@ -1148,59 +1115,36 @@ function saveResume(
     }
 
     const data = {
-        videoId:
-            videoId,
-
-        seconds:
-            Math.max(
-                0,
-                Number(
-                    seconds
-                    || 0
-                )
-            ),
-
-        savedAt:
-            Date.now()
+        videoId: videoId,
+        seconds: Math.max(
+            0,
+            Number(seconds || 0)
+        ),
+        savedAt: Date.now()
     };
 
     try {
-
-        localStorage
-            .setItem(
-                RESUME_KEY,
-                JSON.stringify(data)
-            );
-
+        localStorage.setItem(
+            RESUME_KEY,
+            JSON.stringify(data)
+        );
     }
     catch (_) {}
 
     resumeState = data;
-
-    showResumeCard(
-        videoId
-    );
+    showResumeCard(videoId);
 }
 
 
 function currentTime() {
-
-    if (
-        !player
-        ||
-        !ready
-    ) {
+    if (!player || !ready) {
         return 0;
     }
 
     try {
-        return (
-            Number(
-                player.getCurrentTime()
-            )
-            || 0
-        );
-
+        return Number(
+            player.getCurrentTime()
+        ) || 0;
     }
     catch (_) {
         return 0;
@@ -1209,17 +1153,11 @@ function currentTime() {
 
 
 function currentVideoId() {
-
-    if (
-        !player
-        ||
-        !ready
-    ) {
+    if (!player || !ready) {
         return null;
     }
 
     try {
-
         const data =
             player.getVideoData();
 
@@ -1228,7 +1166,6 @@ function currentVideoId() {
             &&
             data.video_id
         ) || null;
-
     }
     catch (_) {
         return null;
@@ -1236,52 +1173,34 @@ function currentVideoId() {
 }
 
 
-function formatTime(
-    totalSeconds
-) {
-
-    totalSeconds =
-        Math.max(
-            0,
-            Math.floor(
-                Number(
-                    totalSeconds
-                    || 0
-                )
-            )
-        );
-
-    const hours =
+function formatTime(totalSeconds) {
+    totalSeconds = Math.max(
+        0,
         Math.floor(
-            totalSeconds / 3600
-        );
+            Number(totalSeconds || 0)
+        )
+    );
 
-    const minutes =
-        Math.floor(
-            (
-                totalSeconds % 3600
-            ) / 60
-        );
+    const hours = Math.floor(
+        totalSeconds / 3600
+    );
+
+    const minutes = Math.floor(
+        (totalSeconds % 3600) / 60
+    );
 
     const seconds =
         totalSeconds % 60;
 
     if (hours > 0) {
-
         return (
             String(hours)
             + ':'
             + String(minutes)
-                .padStart(
-                    2,
-                    '0'
-                )
+                .padStart(2, '0')
             + ':'
             + String(seconds)
-                .padStart(
-                    2,
-                    '0'
-                )
+                .padStart(2, '0')
         );
     }
 
@@ -1289,84 +1208,55 @@ function formatTime(
         String(minutes)
         + ':'
         + String(seconds)
-            .padStart(
-                2,
-                '0'
-            )
+            .padStart(2, '0')
     );
 }
 
 
-function showResumeCard(
-    videoId
-) {
-
+function showResumeCard(videoId) {
     document
-        .querySelectorAll(
-            '.card'
-        )
+        .querySelectorAll('.card')
         .forEach(card => {
-
-            card
-                .classList
-                .toggle(
-                    'resume',
-                    card.dataset.videoId
-                    === videoId
-                );
+            card.classList.toggle(
+                'resume',
+                card.dataset.videoId
+                === videoId
+            );
         });
 }
 
 
-function showCurrentCard(
-    videoId
-) {
-
+function showCurrentCard(videoId) {
     document
-        .querySelectorAll(
-            '.card'
-        )
+        .querySelectorAll('.card')
         .forEach(card => {
-
-            card
-                .classList
-                .toggle(
-                    'current',
-                    card.dataset.videoId
-                    === videoId
-                );
+            card.classList.toggle(
+                'current',
+                card.dataset.videoId
+                === videoId
+            );
         });
 }
 
 
 function showResumeInfo() {
-
     const box =
-        document
-            .getElementById(
-                'resume-info'
-            );
-
-    if (!resumeState) {
-
-        box.classList.remove(
-            'show'
+        document.getElementById(
+            'resume-info'
         );
 
+    if (!resumeState) {
+        box.classList.remove('show');
         return;
     }
 
     const index =
-        playlist.indexOf(
+        activePlaylist.indexOf(
             resumeState.videoId
         );
 
     if (index < 0) {
-
-        box.classList.remove(
-            'show'
-        );
-
+        box.classList.remove('show');
         return;
     }
 
@@ -1374,100 +1264,210 @@ function showResumeInfo() {
         '▶ Você parou no vídeo '
         + (index + 1)
         + ' de '
-        + playlist.length
+        + activePlaylist.length
         + ' — ponto salvo em '
         + formatTime(
             resumeState.seconds
         )
         + '.';
 
-    box.classList.add(
-        'show'
-    );
+    box.classList.add('show');
 }
 
 
 function setStatus(text) {
-
     document
-        .getElementById(
-            'status'
-        )
+        .getElementById('status')
         .textContent = text;
 }
 
 
+function rebuildPlaylist() {
+    activePlaylist =
+        VIDEOS
+            .filter(video =>
+                video.embeddable
+                &&
+                (
+                    !onlyUnwatched
+                    ||
+                    !isWatched(video.id)
+                )
+            )
+            .map(video => video.id);
+
+    const current =
+        currentVideoId();
+
+    if (
+        current
+        &&
+        activePlaylist.includes(current)
+    ) {
+        i = activePlaylist.indexOf(
+            current
+        );
+    }
+    else if (
+        resumeState
+        &&
+        activePlaylist.includes(
+            resumeState.videoId
+        )
+    ) {
+        i = activePlaylist.indexOf(
+            resumeState.videoId
+        );
+    }
+    else {
+        i = 0;
+    }
+}
+
+
+function applyView() {
+    let visibleCount = 0;
+
+    document
+        .querySelectorAll('.card')
+        .forEach(card => {
+            const hidden =
+                onlyUnwatched
+                &&
+                isWatched(
+                    card.dataset.videoId
+                );
+
+            card.classList.toggle(
+                'hidden',
+                hidden
+            );
+
+            if (!hidden) {
+                visibleCount++;
+            }
+        });
+
+    document
+        .querySelectorAll('.chapter')
+        .forEach(chapter => {
+            const visibleCards =
+                chapter.querySelectorAll(
+                    '.card:not(.hidden)'
+                ).length;
+
+            chapter.classList.toggle(
+                'hidden',
+                visibleCards === 0
+            );
+
+            const count =
+                chapter.querySelector(
+                    '.chapter-count'
+                );
+
+            if (count) {
+                count.textContent =
+                    '(' + visibleCards + ')';
+            }
+        });
+
+    const toggle =
+        document.getElementById(
+            'unwatched-toggle'
+        );
+
+    toggle.classList.toggle(
+        'active',
+        onlyUnwatched
+    );
+
+    toggle.textContent =
+        onlyUnwatched
+        ? '✓ Só o que ainda não vi'
+        : 'Só o que ainda não vi';
+
+    document
+        .getElementById('toolbar-info')
+        .textContent =
+            'Exibindo '
+            + visibleCount
+            + ' de '
+            + VIDEOS.length
+            + ' vídeos.';
+
+    document
+        .getElementById('no-unwatched')
+        .classList.toggle(
+            'show',
+            visibleCount === 0
+        );
+
+    rebuildPlaylist();
+    showResumeInfo();
+}
+
+
+function toggleUnwatchedMode() {
+    onlyUnwatched =
+        !onlyUnwatched;
+
+    saveUnwatchedMode();
+    applyView();
+}
+
+
 const tag =
-document.createElement(
-    'script'
-);
+document.createElement('script');
 
 tag.src =
 'https://www.youtube.com/iframe_api';
 
-document.head.appendChild(
-    tag
-);
+document.head.appendChild(tag);
 
 
 resumeState = loadResume();
 
 if (resumeState) {
-
-    const savedIndex =
-        playlist.indexOf(
-            resumeState.videoId
-        );
-
-    if (savedIndex >= 0) {
-
-        i = savedIndex;
-
-        showResumeCard(
-            resumeState.videoId
-        );
-
-        showResumeInfo();
-    }
+    showResumeCard(
+        resumeState.videoId
+    );
 }
+
+applyView();
 
 
 function onYouTubeIframeAPIReady() {
-
-    if (!playlist.length) {
-
+    if (!ALL_EMBEDDABLE_IDS.length) {
         setStatus(
             'Nenhum vídeo reproduzível no player.'
         );
-
         return;
     }
 
-    const initialId =
-        (
-            resumeState
-            &&
-            playlist.includes(
-                resumeState.videoId
-            )
+    let initialId =
+        activePlaylist[0]
+        ||
+        ALL_EMBEDDABLE_IDS[0];
+
+    if (
+        resumeState
+        &&
+        activePlaylist.includes(
+            resumeState.videoId
         )
-        ?
-        resumeState.videoId
-        :
-        playlist[0];
+    ) {
+        initialId =
+            resumeState.videoId;
+    }
 
     player =
     new YT.Player(
         'player',
         {
-            videoId:
-                initialId,
-
-            width:
-                '100%',
-
-            height:
-                '100%',
+            videoId: initialId,
+            width: '100%',
+            height: '100%',
 
             playerVars: {
                 rel: 0,
@@ -1475,29 +1475,26 @@ function onYouTubeIframeAPIReady() {
             },
 
             events: {
-
                 onReady:
                     () => {
-
                         ready = true;
+                        rebuildPlaylist();
 
                         if (
                             resumeState
                             &&
-                            resumeState.videoId
-                            === initialId
+                            activePlaylist.includes(
+                                resumeState.videoId
+                            )
                         ) {
-
                             i =
-                                playlist
-                                    .indexOf(
-                                        initialId
-                                    );
+                                activePlaylist.indexOf(
+                                    resumeState.videoId
+                                );
 
                             player.cueVideoById({
                                 videoId:
-                                    initialId,
-
+                                    resumeState.videoId,
                                 startSeconds:
                                     resumeState.seconds
                             });
@@ -1509,12 +1506,13 @@ function onYouTubeIframeAPIReady() {
                                 +
                                 'para continuar.'
                             );
+
+                            showResumeInfo();
                         }
                     },
 
                 onStateChange:
                     event => {
-
                         const id =
                             currentVideoId();
 
@@ -1523,14 +1521,12 @@ function onYouTubeIframeAPIReady() {
                             ===
                             YT.PlayerState.PLAYING
                         ) {
-
                             if (id) {
-
-                                const index =
-                                    playlist.indexOf(id);
-
-                                if (index >= 0) {
-                                    i = index;
+                                if (
+                                    activePlaylist.includes(id)
+                                ) {
+                                    i =
+                                        activePlaylist.indexOf(id);
                                 }
 
                                 showCurrentCard(id);
@@ -1549,9 +1545,7 @@ function onYouTubeIframeAPIReady() {
                             ===
                             YT.PlayerState.PAUSED
                         ) {
-
                             if (id) {
-
                                 saveResume(
                                     id,
                                     currentTime()
@@ -1566,13 +1560,40 @@ function onYouTubeIframeAPIReady() {
                             ===
                             YT.PlayerState.ENDED
                         ) {
-                            next();
+                            const oldIndex =
+                                id
+                                ? activePlaylist.indexOf(id)
+                                : -1;
+
+                            if (id) {
+                                markWatched(id);
+                            }
+
+                            if (onlyUnwatched) {
+                                applyView();
+
+                                if (
+                                    oldIndex >= 0
+                                    &&
+                                    oldIndex < activePlaylist.length
+                                ) {
+                                    play(oldIndex);
+                                }
+                                else {
+                                    setStatus(
+                                        'Fim do Jornal.'
+                                    );
+                                }
+                            }
+                            else {
+                                applyView();
+                                next();
+                            }
                         }
                     },
 
                 onError:
                     () => {
-
                         setStatus(
                             'Vídeo indisponível aqui; pulando...'
                         );
@@ -1590,17 +1611,11 @@ function onYouTubeIframeAPIReady() {
 
 setInterval(
     () => {
-
-        if (
-            !player
-            ||
-            !ready
-        ) {
+        if (!player || !ready) {
             return;
         }
 
         try {
-
             if (
                 player.getPlayerState()
                 !==
@@ -1613,16 +1628,13 @@ setInterval(
                 currentVideoId();
 
             if (id) {
-
                 saveResume(
                     id,
                     currentTime()
                 );
             }
-
         }
         catch (_) {}
-
     },
     5000
 );
@@ -1632,39 +1644,36 @@ function play(
     index,
     startSeconds = 0
 ) {
-
     if (
-        !playlist.length
+        !activePlaylist.length
         ||
         !ready
+    ) {
+        setStatus(
+            'Nenhum vídeo reproduzível neste modo.'
+        );
+        return;
+    }
+
+    if (
+        index < 0
+        ||
+        index >= activePlaylist.length
     ) {
         return;
     }
 
-    i =
-        (
-            index
-            +
-            playlist.length
-        )
-        %
-        playlist.length;
+    i = index;
 
     const id =
-        playlist[i];
+        activePlaylist[i];
 
     player.loadVideoById({
-        videoId:
-            id,
-
-        startSeconds:
-            Math.max(
-                0,
-                Number(
-                    startSeconds
-                    || 0
-                )
-            )
+        videoId: id,
+        startSeconds: Math.max(
+            0,
+            Number(startSeconds || 0)
+        )
     });
 
     showCurrentCard(id);
@@ -1680,31 +1689,30 @@ function play(
         'Reproduzindo '
         + (i + 1)
         + ' de '
-        + playlist.length
+        + activePlaylist.length
     );
 }
 
 
 function start() {
+    rebuildPlaylist();
 
-    if (
-        !ready
-        ||
-        !playlist.length
-    ) {
+    if (!activePlaylist.length) {
+        setStatus(
+            'Nenhum vídeo reproduzível neste modo.'
+        );
         return;
     }
 
     if (
         resumeState
         &&
-        playlist.includes(
+        activePlaylist.includes(
             resumeState.videoId
         )
     ) {
-
         const index =
-            playlist.indexOf(
+            activePlaylist.indexOf(
                 resumeState.videoId
             );
 
@@ -1712,58 +1720,129 @@ function start() {
             index,
             resumeState.seconds
         );
-
         return;
     }
 
-    play(i);
+    play(0);
 }
 
 
 function next() {
-    play(i + 1);
+    rebuildPlaylist();
+
+    if (!activePlaylist.length) {
+        setStatus(
+            'Fim do Jornal.'
+        );
+        return;
+    }
+
+    const current =
+        currentVideoId();
+
+    if (
+        current
+        &&
+        activePlaylist.includes(current)
+    ) {
+        i =
+            activePlaylist.indexOf(current);
+    }
+
+    const nextIndex = i + 1;
+
+    if (
+        nextIndex >= activePlaylist.length
+    ) {
+        setStatus(
+            'Fim do Jornal.'
+        );
+        return;
+    }
+
+    play(nextIndex);
 }
 
 
 function prev() {
+    rebuildPlaylist();
+
+    if (!activePlaylist.length) {
+        return;
+    }
+
+    const current =
+        currentVideoId();
+
+    if (
+        current
+        &&
+        activePlaylist.includes(current)
+    ) {
+        i =
+            activePlaylist.indexOf(current);
+    }
+
+    if (i <= 0) {
+        setStatus(
+            'Você está no primeiro vídeo.'
+        );
+        return;
+    }
+
     play(i - 1);
 }
 
 
 function openVideo(id) {
+    const video =
+        VIDEOS.find(
+            item => item.id === id
+        );
 
-    const index =
-        playlist.indexOf(id);
+    if (!video) {
+        return;
+    }
+
+    if (!video.embeddable) {
+        window.open(
+            'https://www.youtube.com/watch?v='
+            + encodeURIComponent(id),
+            '_blank',
+            'noopener'
+        );
+        return;
+    }
+
+    rebuildPlaylist();
+
+    let index =
+        activePlaylist.indexOf(id);
+
+    if (index < 0) {
+        onlyUnwatched = false;
+        saveUnwatchedMode();
+        applyView();
+        index =
+            activePlaylist.indexOf(id);
+    }
 
     if (index >= 0) {
-
         play(index);
 
         window.scrollTo({
             top: 0,
             behavior: 'smooth'
         });
-
-        return;
     }
-
-    window.open(
-        'https://www.youtube.com/watch?v='
-        +
-        encodeURIComponent(id),
-        '_blank',
-        'noopener'
-    );
 }
 
 
 function saveBeforeLeaving() {
-
     const id =
         currentVideoId();
 
     if (id) {
-
         saveResume(
             id,
             currentTime()
@@ -1781,7 +1860,6 @@ window.addEventListener(
 document.addEventListener(
     'visibilitychange',
     () => {
-
         if (document.hidden) {
             saveBeforeLeaving();
         }
@@ -1797,66 +1875,31 @@ document.addEventListener(
 
     page = (
         page
-        .replace(
-            "__DATE__",
-            html.escape(date),
-        )
-        .replace(
-            "__UPDATED__",
-            html.escape(updated),
-        )
-        .replace(
-            "__WARNING__",
-            warning,
-        )
-        .replace(
-            "__VIDEO_COUNT__",
-            str(len(videos)),
-        )
-        .replace(
-            "__CARDS_HTML__",
-            cards_html,
-        )
-        .replace(
-            "__PLAYER_IDS__",
-            js_json(player_ids),
-        )
+        .replace("__DATE__", html.escape(date))
+        .replace("__UPDATED__", html.escape(updated))
+        .replace("__WARNING__", warning)
+        .replace("__CHAPTERS_HTML__", chapters_html)
+        .replace("__PLAYER_VIDEOS__", js_json(player_videos))
     )
 
     return page
 
 
 def main():
-    key = os.environ.get(
-        "YOUTUBE_API_KEY",
-        "",
-    ).strip()
+    key = os.environ.get("YOUTUBE_API_KEY", "").strip()
 
     if not key:
-        raise RuntimeError(
-            "Secret YOUTUBE_API_KEY ausente."
-        )
+        raise RuntimeError("Secret YOUTUBE_API_KEY ausente.")
 
     channels = load_channels()
+    log(f"{len(channels)} canais carregados.")
 
-    log(
-        f"{len(channels)} "
-        "canais carregados."
-    )
-
-    (
-        videos,
-        now_local,
-        failures,
-    ) = collect(
+    videos, now_local, failures = collect(
         key,
         channels,
     )
 
-    log(
-        f"{len(videos)} "
-        "vídeos válidos encontrados."
-    )
+    log(f"{len(videos)} vídeos válidos encontrados.")
 
     with open(
         "index.html",
@@ -1872,9 +1915,7 @@ def main():
             )
         )
 
-    log(
-        "index.html atualizado."
-    )
+    log("index.html atualizado.")
 
 
 if __name__ == "__main__":
