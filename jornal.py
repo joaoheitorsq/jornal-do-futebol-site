@@ -1390,13 +1390,9 @@ small {
     overflow: hidden;
 }
 
-#player-slot,
-#youtube-standard-player {
+#player-slot {
     width: 100%;
     height: 100%;
-}
-
-#youtube-standard-player {
     display: block;
     border: 0;
 }
@@ -3812,26 +3808,6 @@ if (resumeState) {
 }
 
 
-function standardEmbedUrl(videoId) {
-    const params =
-        new URLSearchParams({
-            enablejsapi: '1',
-            controls: '1',
-            playsinline: '1',
-            rel: '0',
-            fs: '1',
-            origin: window.location.origin
-        });
-
-    return (
-        'https://www.youtube.com/embed/'
-        + encodeURIComponent(videoId)
-        + '?'
-        + params.toString()
-    );
-}
-
-
 function onYouTubeIframeAPIReady() {
     if (
         !CURRENT_EMBEDDABLE_IDS.length
@@ -3865,55 +3841,65 @@ function onYouTubeIframeAPIReady() {
     }
 
     /*
-     * IMPORTANTE:
-     * Todo conteúdo, inclusive Shorts, é carregado
-     * pelo endpoint padrão /embed/VIDEO_ID.
-     * A rota /shorts/ é usada apenas no Python
-     * para identificar se um upload é Short.
+     * FORÇA CONTEXTO DE PLAYLIST DE UM ÚNICO VÍDEO.
+     *
+     * O YouTube passou a aplicar a interface de Shorts
+     * a alguns vídeos mesmo quando eles entram por /embed/.
+     * Carregar cada item como uma playlist de 1 vídeo mantém
+     * o conteúdo dentro do player incorporado normal e evita
+     * depender da rota /shorts/ para reprodução.
+     *
+     * A rota /shorts/ continua sendo usada apenas no Python
+     * para identificar uploads que são Shorts.
      */
-    const slot =
-        document.getElementById(
-            'player-slot'
-        );
-
-    const iframe =
-        document.createElement(
-            'iframe'
-        );
-
-    iframe.id =
-        'youtube-standard-player';
-
-    iframe.src =
-        standardEmbedUrl(
-            initialId
-        );
-
-    iframe.title =
-        'Player do YouTube';
-
-    iframe.allow =
-        'accelerometer; autoplay; clipboard-write; '
-        + 'encrypted-media; gyroscope; picture-in-picture; web-share';
-
-    iframe.allowFullscreen = true;
-
-    iframe.referrerPolicy =
-        'strict-origin-when-cross-origin';
-
-    slot.replaceChildren(
-        iframe
-    );
-
     player =
     new YT.Player(
-        'youtube-standard-player',
+        'player-slot',
         {
+            width: '100%',
+            height: '100%',
+
+            playerVars: {
+                controls: 1,
+                playsinline: 1,
+                rel: 0,
+                fs: 1,
+                origin: window.location.origin
+            },
+
             events: {
                 onReady:
                     () => {
                         ready = true;
                         rebuildPlaylist();
+
+                        const firstId =
+                            (
+                                resumeState
+                                &&
+                                activePlaylist.includes(
+                                    resumeState.videoId
+                                )
+                            )
+                            ? resumeState.videoId
+                            : initialId;
+
+                        const firstSeconds =
+                            (
+                                resumeState
+                                &&
+                                firstId === resumeState.videoId
+                            )
+                            ? resumeState.seconds
+                            : 0;
+
+                        if (firstId) {
+                            player.cuePlaylist(
+                                [firstId],
+                                0,
+                                firstSeconds
+                            );
+                        }
 
                         if (
                             resumeState
@@ -3926,13 +3912,6 @@ function onYouTubeIframeAPIReady() {
                                 activePlaylist.indexOf(
                                     resumeState.videoId
                                 );
-
-                            player.cueVideoById({
-                                videoId:
-                                    resumeState.videoId,
-                                startSeconds:
-                                    resumeState.seconds
-                            });
 
                             setStatus(
                                 'Ponto anterior carregado. '
@@ -4116,13 +4095,14 @@ function play(
     const id =
         activePlaylist[i];
 
-    player.loadVideoById({
-        videoId: id,
-        startSeconds: Math.max(
+    player.loadPlaylist(
+        [id],
+        0,
+        Math.max(
             0,
             Number(startSeconds || 0)
         )
-    });
+    );
 
     showCurrentCard(id);
 
