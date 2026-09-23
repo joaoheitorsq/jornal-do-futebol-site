@@ -1390,9 +1390,13 @@ small {
     overflow: hidden;
 }
 
-#player-slot {
+#player-slot,
+#youtube-standard-player {
     width: 100%;
     height: 100%;
+}
+
+#youtube-standard-player {
     display: block;
     border: 0;
 }
@@ -1445,6 +1449,52 @@ small {
 #status {
     color: #aeb4bd;
     margin-top: 9px;
+}
+
+.journal-transport {
+    display: grid;
+    grid-template-columns: auto auto auto minmax(120px, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+    padding: 9px;
+    background: #12151b;
+    border: 1px solid #303641;
+    border-radius: 10px;
+}
+
+.journal-transport button {
+    background: #242933;
+    color: white;
+    border: 1px solid #3a414d;
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.journal-progress {
+    width: 100%;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.journal-clock {
+    color: #c4cad3;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+@media (max-width: 650px) {
+    .journal-transport {
+        grid-template-columns: auto auto auto 1fr;
+    }
+
+    .journal-clock {
+        grid-column: 1 / -1;
+        text-align: right;
+    }
 }
 
 .resume-info {
@@ -2128,6 +2178,43 @@ Próximo ⏭
 
 </div>
 
+<div class="journal-transport" aria-label="Controles do Jornal">
+
+<button type="button" onclick="seekBy(-10)">
+↶ 10s
+</button>
+
+<button
+    id="journal-play-pause"
+    type="button"
+    onclick="togglePlayerPlayback()"
+>
+▶ Play
+</button>
+
+<button type="button" onclick="seekBy(10)">
+10s ↷
+</button>
+
+<input
+    id="journal-progress"
+    class="journal-progress"
+    type="range"
+    min="0"
+    max="1000"
+    value="0"
+    step="1"
+    aria-label="Posição do vídeo"
+    oninput="previewSeek(this.value)"
+    onchange="commitSeek(this.value)"
+>
+
+<span id="journal-clock" class="journal-clock">
+0:00 / 0:00
+</span>
+
+</div>
+
 <div id="status">
 Clique em “Começar jornal”
 para reproduzir em ordem cronológica.
@@ -2296,6 +2383,7 @@ let hearthpwnCollapsed = loadHearthPwnCollapsed();
 let onlyUnwatched = loadUnwatchedMode();
 let collapsedChapters = loadCollapsedChapters();
 let searchQuery = '';
+let transportDragging = false;
 
 
 function loadWatched() {
@@ -3808,6 +3896,225 @@ if (resumeState) {
 }
 
 
+function formatPlayerTime(seconds) {
+    seconds = Math.max(
+        0,
+        Math.floor(Number(seconds || 0))
+    );
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+        return (
+            String(hours)
+            + ':'
+            + String(minutes).padStart(2, '0')
+            + ':'
+            + String(secs).padStart(2, '0')
+        );
+    }
+
+    return (
+        String(minutes)
+        + ':'
+        + String(secs).padStart(2, '0')
+    );
+}
+
+
+function updateTransport() {
+    const progress =
+        document.getElementById(
+            'journal-progress'
+        );
+
+    const clock =
+        document.getElementById(
+            'journal-clock'
+        );
+
+    const playPause =
+        document.getElementById(
+            'journal-play-pause'
+        );
+
+    if (
+        !progress
+        || !clock
+        || !playPause
+    ) {
+        return;
+    }
+
+    if (!player || !ready) {
+        progress.value = '0';
+        clock.textContent = '0:00 / 0:00';
+        playPause.textContent = '▶ Play';
+        return;
+    }
+
+    try {
+        const duration =
+            Number(player.getDuration() || 0);
+
+        const current =
+            Number(player.getCurrentTime() || 0);
+
+        if (!transportDragging) {
+            progress.value =
+                duration > 0
+                ? String(
+                    Math.round(
+                        Math.min(1, current / duration)
+                        * 1000
+                    )
+                )
+                : '0';
+        }
+
+        clock.textContent =
+            formatPlayerTime(current)
+            + ' / '
+            + formatPlayerTime(duration);
+
+        const state =
+            player.getPlayerState();
+
+        playPause.textContent =
+            state === YT.PlayerState.PLAYING
+            ? '⏸ Pausar'
+            : '▶ Play';
+    }
+    catch (_) {}
+}
+
+
+function togglePlayerPlayback() {
+    if (!player || !ready) {
+        return;
+    }
+
+    try {
+        const state =
+            player.getPlayerState();
+
+        if (state === YT.PlayerState.PLAYING) {
+            player.pauseVideo();
+        }
+        else {
+            player.playVideo();
+        }
+    }
+    catch (_) {}
+}
+
+
+function seekBy(seconds) {
+    if (!player || !ready) {
+        return;
+    }
+
+    try {
+        const duration =
+            Number(player.getDuration() || 0);
+
+        const current =
+            Number(player.getCurrentTime() || 0);
+
+        const target = Math.max(
+            0,
+            duration > 0
+                ? Math.min(duration, current + seconds)
+                : current + seconds
+        );
+
+        player.seekTo(target, true);
+        updateTransport();
+    }
+    catch (_) {}
+}
+
+
+function previewSeek(value) {
+    transportDragging = true;
+
+    if (!player || !ready) {
+        return;
+    }
+
+    try {
+        const duration =
+            Number(player.getDuration() || 0);
+
+        const target =
+            duration * (Number(value || 0) / 1000);
+
+        const clock =
+            document.getElementById(
+                'journal-clock'
+            );
+
+        if (clock) {
+            clock.textContent =
+                formatPlayerTime(target)
+                + ' / '
+                + formatPlayerTime(duration);
+        }
+    }
+    catch (_) {}
+}
+
+
+function commitSeek(value) {
+    if (!player || !ready) {
+        transportDragging = false;
+        return;
+    }
+
+    try {
+        const duration =
+            Number(player.getDuration() || 0);
+
+        const target =
+            duration * (Number(value || 0) / 1000);
+
+        player.seekTo(target, true);
+    }
+    catch (_) {}
+
+    transportDragging = false;
+    updateTransport();
+}
+
+
+setInterval(
+    updateTransport,
+    500
+);
+
+
+function standardEmbedUrl(videoId) {
+    const params =
+        new URLSearchParams({
+            enablejsapi: '1',
+            controls: '1',
+            playsinline: '1',
+            rel: '0',
+            fs: '1',
+            origin: window.location.origin
+        });
+
+    return (
+        'https://www.youtube.com/embed/'
+        + encodeURIComponent(videoId)
+        + '?'
+        + params.toString()
+    );
+}
+
+
 function onYouTubeIframeAPIReady() {
     if (
         !CURRENT_EMBEDDABLE_IDS.length
@@ -3841,65 +4148,56 @@ function onYouTubeIframeAPIReady() {
     }
 
     /*
-     * FORÇA CONTEXTO DE PLAYLIST DE UM ÚNICO VÍDEO.
-     *
-     * O YouTube passou a aplicar a interface de Shorts
-     * a alguns vídeos mesmo quando eles entram por /embed/.
-     * Carregar cada item como uma playlist de 1 vídeo mantém
-     * o conteúdo dentro do player incorporado normal e evita
-     * depender da rota /shorts/ para reprodução.
-     *
-     * A rota /shorts/ continua sendo usada apenas no Python
-     * para identificar uploads que são Shorts.
+     * IMPORTANTE:
+     * Todo conteúdo, inclusive Shorts, é carregado
+     * pelo endpoint padrão /embed/VIDEO_ID.
+     * A rota /shorts/ é usada apenas no Python
+     * para identificar se um upload é Short.
      */
+    const slot =
+        document.getElementById(
+            'player-slot'
+        );
+
+    const iframe =
+        document.createElement(
+            'iframe'
+        );
+
+    iframe.id =
+        'youtube-standard-player';
+
+    iframe.src =
+        standardEmbedUrl(
+            initialId
+        );
+
+    iframe.title =
+        'Player do YouTube';
+
+    iframe.allow =
+        'accelerometer; autoplay; clipboard-write; '
+        + 'encrypted-media; gyroscope; picture-in-picture; web-share';
+
+    iframe.allowFullscreen = true;
+
+    iframe.referrerPolicy =
+        'strict-origin-when-cross-origin';
+
+    slot.replaceChildren(
+        iframe
+    );
+
     player =
     new YT.Player(
-        'player-slot',
+        'youtube-standard-player',
         {
-            width: '100%',
-            height: '100%',
-
-            playerVars: {
-                controls: 1,
-                playsinline: 1,
-                rel: 0,
-                fs: 1,
-                origin: window.location.origin
-            },
-
             events: {
                 onReady:
                     () => {
                         ready = true;
                         rebuildPlaylist();
-
-                        const firstId =
-                            (
-                                resumeState
-                                &&
-                                activePlaylist.includes(
-                                    resumeState.videoId
-                                )
-                            )
-                            ? resumeState.videoId
-                            : initialId;
-
-                        const firstSeconds =
-                            (
-                                resumeState
-                                &&
-                                firstId === resumeState.videoId
-                            )
-                            ? resumeState.seconds
-                            : 0;
-
-                        if (firstId) {
-                            player.cuePlaylist(
-                                [firstId],
-                                0,
-                                firstSeconds
-                            );
-                        }
+                        updateTransport();
 
                         if (
                             resumeState
@@ -3912,6 +4210,13 @@ function onYouTubeIframeAPIReady() {
                                 activePlaylist.indexOf(
                                     resumeState.videoId
                                 );
+
+                            player.cueVideoById({
+                                videoId:
+                                    resumeState.videoId,
+                                startSeconds:
+                                    resumeState.seconds
+                            });
 
                             setStatus(
                                 'Ponto anterior carregado. '
@@ -3929,6 +4234,8 @@ function onYouTubeIframeAPIReady() {
                     event => {
                         const id =
                             currentVideoId();
+
+                        updateTransport();
 
                         if (
                             event.data
@@ -4095,14 +4402,13 @@ function play(
     const id =
         activePlaylist[i];
 
-    player.loadPlaylist(
-        [id],
-        0,
-        Math.max(
+    player.loadVideoById({
+        videoId: id,
+        startSeconds: Math.max(
             0,
             Number(startSeconds || 0)
         )
-    );
+    });
 
     showCurrentCard(id);
 
