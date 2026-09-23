@@ -587,8 +587,8 @@ def short_confirmed(
             {
 
                 "url":
-    "https://www.youtube.com/shorts/"
-    + video_id,
+                    "https://www.youtube.com/shorts/"
+                    + video_id,
 
                 "format":
                     "json"
@@ -897,8 +897,6 @@ def collect(
             continue
 
 
-        # Exclui lives futuras,
-        # atuais e encerradas.
         if video.get(
             "liveStreamingDetails"
         ):
@@ -920,8 +918,6 @@ def collect(
             continue
 
 
-        # Nos canais onlyShorts=true,
-        # somente Shorts confirmados entram.
         if (
 
             candidate[
@@ -1156,14 +1152,27 @@ def build_page(
 
 <button
     class="card"
+    data-video-id="{html.escape(video["videoId"])}"
     onclick="openVideo('{html.escape(video["videoId"])}')"
 >
+
+<div class="thumbbox">
 
 <img
     src="https://i.ytimg.com/vi/{html.escape(video["videoId"])}/mqdefault.jpg"
     alt=""
     loading="lazy"
 >
+
+<span class="resume-badge">
+▶ CONTINUAR AQUI
+</span>
+
+<span class="playing-badge">
+▶ AGORA
+</span>
+
+</div>
 
 <span>
 
@@ -1339,6 +1348,28 @@ small {{
     margin-top: 9px;
 }}
 
+.resume-info {{
+    display: none;
+
+    margin-top: 10px;
+
+    padding: 9px 11px;
+
+    border-radius: 9px;
+
+    background: #222a34;
+
+    border:
+        1px solid
+        #47586d;
+
+    color: #e5ebf2;
+}}
+
+.resume-info.show {{
+    display: block;
+}}
+
 .list {{
     display: grid;
     gap: 9px;
@@ -1355,16 +1386,59 @@ small {{
     text-align: left;
     cursor: pointer;
     overflow: hidden;
+
+    transition:
+        border-color .15s,
+        background .15s,
+        box-shadow .15s;
 }}
 
-.card img {{
+.card:hover {{
+    background: #1e222a;
+}}
+
+.card.current {{
+    border-color: #67a9ff;
+
+    box-shadow:
+        0 0 0 1px
+        #67a9ff;
+}}
+
+.card.resume:not(.current) {{
+    border-color: #d99d43;
+
+    box-shadow:
+        0 0 0 1px
+        rgba(
+            217,
+            157,
+            67,
+            .45
+        );
+}}
+
+.thumbbox {{
+    position: relative;
+
     width: 150px;
+
     aspect-ratio:
         16 / 9;
+
+    overflow: hidden;
+
+    background: #000;
+}}
+
+.thumbbox img {{
+    width: 100%;
+    height: 100%;
+
     object-fit: cover;
 }}
 
-.card span {{
+.card > span:last-child {{
     padding:
         10px
         12px
@@ -1378,6 +1452,55 @@ small {{
 
 .card b {{
     line-height: 1.25;
+}}
+
+.resume-badge,
+.playing-badge {{
+    display: none;
+
+    position: absolute;
+
+    left: 6px;
+    bottom: 6px;
+
+    padding: 4px 7px;
+
+    border-radius: 6px;
+
+    font-size: 10px;
+    font-weight: 800;
+
+    color: white;
+}}
+
+.resume-badge {{
+    background:
+        rgba(
+            181,
+            115,
+            26,
+            .94
+        );
+}}
+
+.playing-badge {{
+    background:
+        rgba(
+            32,
+            115,
+            205,
+            .95
+        );
+}}
+
+.card.resume:not(.current)
+.resume-badge {{
+    display: block;
+}}
+
+.card.current
+.playing-badge {{
+    display: block;
 }}
 
 .warn {{
@@ -1403,7 +1526,7 @@ small {{
             110px 1fr;
     }}
 
-    .card img {{
+    .thumbbox {{
         width: 110px;
     }}
 
@@ -1461,6 +1584,13 @@ Clique em “Começar jornal”
 para reproduzir em ordem cronológica.
 </div>
 
+
+<div
+    id="resume-info"
+    class="resume-info"
+>
+</div>
+
 </section>
 
 
@@ -1486,25 +1616,503 @@ Vídeos ({len(videos)})
 const playlist =
 {js_json(player_ids)};
 
+
+const RESUME_KEY =
+'jornal_do_futebol_resume_v1';
+
+
 let i = 0;
 
 let player = null;
 
 let ready = false;
 
+let resumeState = null;
 
-const tag =
-document.createElement(
-    'script'
-);
+let resumeTimer = null;
 
-tag.src =
-'https://www.youtube.com/iframe_api';
 
-document.head.appendChild(
-    tag
-);
+/*
+==========================================================
+ CARREGA O PONTO SALVO
+==========================================================
+*/
 
+function loadResume() {{
+
+    try {{
+
+        const raw =
+            localStorage
+                .getItem(
+                    RESUME_KEY
+                );
+
+
+        if (!raw) {{
+            return null;
+        }}
+
+
+        const data =
+            JSON.parse(
+                raw
+            );
+
+
+        if (
+            !data
+            ||
+            !data.videoId
+            ||
+            !playlist.includes(
+                data.videoId
+            )
+        ) {{
+
+            localStorage
+                .removeItem(
+                    RESUME_KEY
+                );
+
+
+            return null;
+
+        }}
+
+
+        return {{
+
+            videoId:
+                data.videoId,
+
+            seconds:
+                Math.max(
+                    0,
+                    Number(
+                        data.seconds
+                        || 0
+                    )
+                )
+
+        }};
+
+    }}
+    catch (_) {{
+
+        return null;
+
+    }}
+
+}}
+
+
+/*
+==========================================================
+ SALVA O PONTO ATUAL
+==========================================================
+*/
+
+function saveResume(
+    videoId,
+    seconds
+) {{
+
+    if (
+        !videoId
+        ||
+        !playlist.includes(
+            videoId
+        )
+    ) {{
+
+        return;
+
+    }}
+
+
+    const data = {{
+
+        videoId:
+            videoId,
+
+        seconds:
+            Math.max(
+                0,
+                Number(
+                    seconds
+                    || 0
+                )
+            ),
+
+        savedAt:
+            Date.now()
+
+    }};
+
+
+    try {{
+
+        localStorage
+            .setItem(
+
+                RESUME_KEY,
+
+                JSON.stringify(
+                    data
+                )
+
+            );
+
+    }}
+    catch (_) {{}}
+
+
+    resumeState =
+        data;
+
+
+    showResumeCard(
+        videoId
+    );
+
+}}
+
+
+/*
+==========================================================
+ TEMPO ATUAL DO PLAYER
+==========================================================
+*/
+
+function currentTime() {{
+
+    if (
+        !player
+        ||
+        !ready
+    ) {{
+
+        return 0;
+
+    }}
+
+
+    try {{
+
+        return (
+            Number(
+                player
+                    .getCurrentTime()
+            )
+            ||
+            0
+        );
+
+    }}
+    catch (_) {{
+
+        return 0;
+
+    }}
+
+}}
+
+
+function currentVideoId() {{
+
+    if (
+        !player
+        ||
+        !ready
+    ) {{
+
+        return null;
+
+    }}
+
+
+    try {{
+
+        const data =
+            player
+                .getVideoData();
+
+
+        return (
+            data
+            &&
+            data.video_id
+        )
+        ||
+        null;
+
+    }}
+    catch (_) {{
+
+        return null;
+
+    }}
+
+}}
+
+
+/*
+==========================================================
+ FORMATA TEMPO
+==========================================================
+*/
+
+function formatTime(
+    totalSeconds
+) {{
+
+    totalSeconds =
+        Math.max(
+            0,
+            Math.floor(
+                Number(
+                    totalSeconds
+                    || 0
+                )
+            )
+        );
+
+
+    const hours =
+        Math.floor(
+            totalSeconds
+            / 3600
+        );
+
+
+    const minutes =
+        Math.floor(
+            (
+                totalSeconds
+                % 3600
+            )
+            / 60
+        );
+
+
+    const seconds =
+        totalSeconds
+        % 60;
+
+
+    if (hours > 0) {{
+
+        return (
+
+            String(hours)
+
+            +
+
+            ':'
+
+            +
+
+            String(minutes)
+                .padStart(
+                    2,
+                    '0'
+                )
+
+            +
+
+            ':'
+
+            +
+
+            String(seconds)
+                .padStart(
+                    2,
+                    '0'
+                )
+
+        );
+
+    }}
+
+
+    return (
+
+        String(minutes)
+
+        +
+
+        ':'
+
+        +
+
+        String(seconds)
+            .padStart(
+                2,
+                '0'
+            )
+
+    );
+
+}}
+
+
+/*
+==========================================================
+ MARCA "CONTINUAR AQUI"
+==========================================================
+*/
+
+function showResumeCard(
+    videoId
+) {{
+
+    document
+        .querySelectorAll(
+            '.card'
+        )
+        .forEach(card => {{
+
+            card
+                .classList
+                .toggle(
+
+                    'resume',
+
+                    card
+                        .dataset
+                        .videoId
+                    ===
+                    videoId
+
+                );
+
+        });
+
+}}
+
+
+/*
+==========================================================
+ MARCA "AGORA"
+==========================================================
+*/
+
+function showCurrentCard(
+    videoId
+) {{
+
+    document
+        .querySelectorAll(
+            '.card'
+        )
+        .forEach(card => {{
+
+            card
+                .classList
+                .toggle(
+
+                    'current',
+
+                    card
+                        .dataset
+                        .videoId
+                    ===
+                    videoId
+
+                );
+
+        });
+
+}}
+
+
+/*
+==========================================================
+ TEXTO DE CONTINUAÇÃO
+==========================================================
+*/
+
+function showResumeInfo() {{
+
+    const box =
+        document
+            .getElementById(
+                'resume-info'
+            );
+
+
+    if (!resumeState) {{
+
+        box.classList.remove(
+            'show'
+        );
+
+        return;
+
+    }}
+
+
+    const index =
+        playlist.indexOf(
+            resumeState.videoId
+        );
+
+
+    if (index < 0) {{
+
+        box.classList.remove(
+            'show'
+        );
+
+        return;
+
+    }}
+
+
+    box.textContent =
+
+        '▶ Você parou no vídeo '
+
+        +
+
+        (index + 1)
+
+        +
+
+        ' de '
+
+        +
+
+        playlist.length
+
+        +
+
+        ' — ponto salvo em '
+
+        +
+
+        formatTime(
+            resumeState.seconds
+        )
+
+        +
+
+        '.';
+
+
+    box.classList.add(
+        'show'
+    );
+
+}}
+
+
+/*
+==========================================================
+ STATUS
+==========================================================
+*/
 
 function setStatus(
     text
@@ -1516,6 +2124,63 @@ function setStatus(
         )
         .textContent =
             text;
+
+}}
+
+
+/*
+==========================================================
+ YOUTUBE IFRAME API
+==========================================================
+*/
+
+const tag =
+document.createElement(
+    'script'
+);
+
+
+tag.src =
+'https://www.youtube.com/iframe_api';
+
+
+document.head.appendChild(
+    tag
+);
+
+
+/*
+==========================================================
+ INICIALIZAÇÃO
+==========================================================
+*/
+
+resumeState =
+loadResume();
+
+
+if (resumeState) {{
+
+    const savedIndex =
+        playlist.indexOf(
+            resumeState.videoId
+        );
+
+
+    if (savedIndex >= 0) {{
+
+        i =
+            savedIndex;
+
+
+        showResumeCard(
+            resumeState.videoId
+        );
+
+
+        showResumeInfo();
+
+    }}
 
 }}
 
@@ -1535,6 +2200,23 @@ function onYouTubeIframeAPIReady() {{
     }}
 
 
+    const initialId =
+
+        resumeState
+        &&
+        playlist.includes(
+            resumeState.videoId
+        )
+
+        ?
+
+        resumeState.videoId
+
+        :
+
+        playlist[0];
+
+
     player =
     new YT.Player(
 
@@ -1543,7 +2225,7 @@ function onYouTubeIframeAPIReady() {{
         {{
 
             videoId:
-                playlist[0],
+                initialId,
 
             width:
                 '100%',
@@ -1562,11 +2244,130 @@ function onYouTubeIframeAPIReady() {{
             events: {{
 
                 onReady:
-                    () =>
-                        ready = true,
+                    () => {{
+
+                        ready = true;
+
+
+                        if (
+                            resumeState
+                            &&
+                            resumeState.videoId
+                            ===
+                            initialId
+                        ) {{
+
+                            i =
+                                playlist
+                                    .indexOf(
+                                        initialId
+                                    );
+
+
+                            player
+                                .cueVideoById({{
+
+                                    videoId:
+                                        initialId,
+
+                                    startSeconds:
+                                        resumeState
+                                            .seconds
+
+                                }});
+
+
+                            setStatus(
+
+                                'Ponto anterior carregado. '
+                                +
+                                'Clique em “Começar jornal” '
+                                +
+                                'para continuar.'
+
+                            );
+
+                        }}
+
+                    }},
+
 
                 onStateChange:
                     event => {{
+
+                        const id =
+                            currentVideoId();
+
+
+                        if (
+                            event.data
+                            ===
+                            YT.PlayerState.PLAYING
+                        ) {{
+
+                            if (id) {{
+
+                                const index =
+                                    playlist
+                                        .indexOf(
+                                            id
+                                        );
+
+
+                                if (
+                                    index >= 0
+                                ) {{
+
+                                    i =
+                                        index;
+
+                                }}
+
+
+                                showCurrentCard(
+                                    id
+                                );
+
+
+                                saveResume(
+
+                                    id,
+
+                                    currentTime()
+
+                                );
+
+
+                                showResumeInfo();
+
+                            }}
+
+                        }}
+
+
+                        if (
+                            event.data
+                            ===
+                            YT.PlayerState.PAUSED
+                        ) {{
+
+                            if (id) {{
+
+                                saveResume(
+
+                                    id,
+
+                                    currentTime()
+
+                                );
+
+
+                                showResumeInfo();
+
+                            }}
+
+                        }}
+
 
                         if (
                             event.data
@@ -1580,12 +2381,14 @@ function onYouTubeIframeAPIReady() {{
 
                     }},
 
+
                 onError:
                     () => {{
 
                         setStatus(
                             'Vídeo indisponível aqui; pulando...'
                         );
+
 
                         setTimeout(
                             next,
@@ -1603,8 +2406,77 @@ function onYouTubeIframeAPIReady() {{
 }}
 
 
+/*
+==========================================================
+ SALVAMENTO AUTOMÁTICO
+==========================================================
+*/
+
+resumeTimer =
+setInterval(
+
+    () => {{
+
+        if (
+            !player
+            ||
+            !ready
+        ) {{
+
+            return;
+
+        }}
+
+
+        try {{
+
+            if (
+                player
+                    .getPlayerState()
+                !==
+                YT.PlayerState.PLAYING
+            ) {{
+
+                return;
+
+            }}
+
+
+            const id =
+                currentVideoId();
+
+
+            if (id) {{
+
+                saveResume(
+
+                    id,
+
+                    currentTime()
+
+                );
+
+            }}
+
+        }}
+        catch (_) {{}}
+
+    }},
+
+    5000
+
+);
+
+
+/*
+==========================================================
+ REPRODUÇÃO
+==========================================================
+*/
+
 function play(
-    index
+    index,
+    startSeconds = 0
 ) {{
 
     if (
@@ -1628,9 +2500,39 @@ function play(
         playlist.length;
 
 
-    player.loadVideoById(
-        playlist[i]
+    const id =
+        playlist[i];
+
+
+    player.loadVideoById({{
+
+        videoId:
+            id,
+
+        startSeconds:
+            Math.max(
+                0,
+                Number(
+                    startSeconds
+                    || 0
+                )
+            )
+
+    }});
+
+
+    showCurrentCard(
+        id
     );
+
+
+    saveResume(
+        id,
+        startSeconds
+    );
+
+
+    showResumeInfo();
 
 
     setStatus(
@@ -1654,12 +2556,65 @@ function play(
 }}
 
 
+/*
+==========================================================
+ COMEÇAR
+==========================================================
+*/
+
 function start() {{
 
-    play(i);
+    if (
+        !ready
+        ||
+        !playlist.length
+    ) {{
+
+        return;
+
+    }}
+
+
+    if (
+        resumeState
+        &&
+        playlist.includes(
+            resumeState.videoId
+        )
+    ) {{
+
+        const index =
+            playlist.indexOf(
+                resumeState.videoId
+            );
+
+
+        play(
+
+            index,
+
+            resumeState.seconds
+
+        );
+
+
+        return;
+
+    }}
+
+
+    play(
+        i
+    );
 
 }}
 
+
+/*
+==========================================================
+ PRÓXIMO / ANTERIOR
+==========================================================
+*/
 
 function next() {{
 
@@ -1678,6 +2633,12 @@ function prev() {{
 
 }}
 
+
+/*
+==========================================================
+ CLICAR EM UM CARD
+==========================================================
+*/
 
 function openVideo(
     id
@@ -1698,7 +2659,7 @@ function openVideo(
         );
 
 
-        scrollTo({{
+        window.scrollTo({{
 
             top: 0,
 
@@ -1728,6 +2689,58 @@ function openVideo(
     );
 
 }}
+
+
+/*
+==========================================================
+ SALVA ANTES DE SAIR
+==========================================================
+*/
+
+function saveBeforeLeaving() {{
+
+    const id =
+        currentVideoId();
+
+
+    if (id) {{
+
+        saveResume(
+
+            id,
+
+            currentTime()
+
+        );
+
+    }}
+
+}}
+
+
+window.addEventListener(
+    'beforeunload',
+    saveBeforeLeaving
+);
+
+
+document.addEventListener(
+
+    'visibilitychange',
+
+    () => {{
+
+        if (
+            document.hidden
+        ) {{
+
+            saveBeforeLeaving();
+
+        }}
+
+    }}
+
+);
 
 </script>
 
