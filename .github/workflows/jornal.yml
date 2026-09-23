@@ -12,6 +12,12 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  ARGOS_PACKAGE_DIR: ${{ github.workspace }}/.argos-packages
+  ARGOS_DEVICE_TYPE: cpu
+  ARGOS_INTRA_THREADS: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
 jobs:
 
   build:
@@ -28,7 +34,20 @@ jobs:
       - name: Preparar Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.13'
+          python-version: '3.12'
+
+      - name: Restaurar cache do tradutor
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            .argos-packages
+          key: ${{ runner.os }}-py312-argos-1.11.0-en-pt-v1
+
+      - name: Preparar tradução local
+        continue-on-error: true
+        run: |
+          python -m pip install --quiet argostranslate==1.11.0
 
       - name: Executar Jornal do Futebol
         env:
@@ -41,6 +60,10 @@ jobs:
           mkdir -p _site
           cp index.html _site/index.html
 
+          if [ -f hearthpwn_translation_cache.json ]; then
+            cp hearthpwn_translation_cache.json _site/hearthpwn_translation_cache.json
+          fi
+
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
@@ -48,7 +71,6 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./_site
-
 
   deploy:
 
