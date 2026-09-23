@@ -1987,7 +1987,7 @@ function showResumeCard(
 
                 );
 
-        });
+        }});
 
 }}
 
