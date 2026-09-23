@@ -1384,6 +1384,7 @@ small {
 }
 
 #playerwrap {
+    position: relative;
     aspect-ratio: 16 / 9;
     background: #000;
     border-radius: 10px;
@@ -1410,10 +1411,54 @@ small {
     position: fixed;
     right: 18px;
     bottom: 18px;
-    width: min(460px, 42vw);
+    width: min(360px, 30vw);
     z-index: 1000;
     border: 1px solid #46505e;
     box-shadow: 0 16px 48px rgba(0, 0, 0, .55);
+}
+
+.mini-toggle {
+    display: none;
+}
+
+#playerwrap.mini-player .mini-toggle {
+    display: block;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 20;
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 8px;
+    background: rgba(15, 17, 21, .9);
+    color: #fff;
+    padding: 6px 9px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+}
+
+#playerwrap.mini-player.minimized {
+    width: 190px;
+    height: 46px;
+    aspect-ratio: auto;
+    background: #181b22;
+}
+
+#playerwrap.mini-player.minimized #player-slot {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+#playerwrap.mini-player.minimized .mini-toggle {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    border-radius: 10px;
+    background: #181b22;
+    font-size: 13px;
 }
 
 .playerbox.floating #player-spacer {
@@ -2090,7 +2135,12 @@ small {
     #playerwrap.mini-player {
         right: 8px;
         bottom: 8px;
-        width: calc(100vw - 16px);
+        width: min(320px, 72vw);
+    }
+
+    #playerwrap.mini-player.minimized {
+        width: 170px;
+        height: 44px;
     }
 
     .hearthpwn-news-link {
@@ -2160,6 +2210,17 @@ Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses t
 
 <div id="playerwrap">
 <div id="player-slot"></div>
+
+<button
+    id="mini-player-toggle"
+    class="mini-toggle"
+    type="button"
+    onclick="toggleMiniPlayerSize()"
+    aria-label="Minimizar player flutuante"
+>
+— Minimizar
+</button>
+
 </div>
 
 <div class="controls">
@@ -2372,6 +2433,9 @@ const UNWATCHED_MODE_KEY =
 const COLLAPSED_CHAPTERS_KEY =
 'jornal_do_futebol_collapsed_chapters_v1';
 
+const MINI_PLAYER_COLLAPSED_KEY =
+'jornal_do_futebol_mini_player_collapsed_v1';
+
 let player = null;
 let ready = false;
 let activePlaylist = [];
@@ -2382,6 +2446,7 @@ let hearthpwnSeen = loadHearthPwnSeen();
 let hearthpwnCollapsed = loadHearthPwnCollapsed();
 let onlyUnwatched = loadUnwatchedMode();
 let collapsedChapters = loadCollapsedChapters();
+let miniPlayerCollapsed = loadMiniPlayerCollapsed();
 let searchQuery = '';
 let transportDragging = false;
 
@@ -3832,6 +3897,65 @@ function toggleUnwatchedMode() {
 }
 
 
+function loadMiniPlayerCollapsed() {
+    try {
+        return (
+            localStorage.getItem(
+                MINI_PLAYER_COLLAPSED_KEY
+            )
+            === '1'
+        );
+    }
+    catch (_) {
+        return false;
+    }
+}
+
+
+function saveMiniPlayerCollapsed() {
+    try {
+        localStorage.setItem(
+            MINI_PLAYER_COLLAPSED_KEY,
+            miniPlayerCollapsed ? '1' : '0'
+        );
+    }
+    catch (_) {}
+}
+
+
+function updateMiniPlayerButton() {
+    const button =
+        document.getElementById(
+            'mini-player-toggle'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.textContent =
+        miniPlayerCollapsed
+        ? '▶ Mostrar player'
+        : '— Minimizar';
+
+    button.setAttribute(
+        'aria-label',
+        miniPlayerCollapsed
+        ? 'Restaurar player flutuante'
+        : 'Minimizar player flutuante'
+    );
+}
+
+
+function toggleMiniPlayerSize() {
+    miniPlayerCollapsed =
+        !miniPlayerCollapsed;
+
+    saveMiniPlayerCollapsed();
+    updateMiniPlayer();
+}
+
+
 function updateMiniPlayer() {
     const section =
         document.getElementById(
@@ -3859,6 +3983,14 @@ function updateMiniPlayer() {
         'mini-player',
         shouldFloat
     );
+
+    wrap.classList.toggle(
+        'minimized',
+        shouldFloat
+        && miniPlayerCollapsed
+    );
+
+    updateMiniPlayerButton();
 }
 
 
