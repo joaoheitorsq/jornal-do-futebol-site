@@ -623,9 +623,15 @@ small {
     overflow: hidden;
 }
 
-#player {
+#player-slot,
+#youtube-standard-player {
     width: 100%;
     height: 100%;
+}
+
+#youtube-standard-player {
+    display: block;
+    border: 0;
 }
 
 .controls {
@@ -892,7 +898,7 @@ atualizado em __UPDATED__
 <section class="playerbox">
 
 <div id="playerwrap">
-<div id="player"></div>
+<div id="player-slot"></div>
 </div>
 
 <div class="controls">
@@ -1437,6 +1443,26 @@ if (resumeState) {
 applyView();
 
 
+function standardEmbedUrl(videoId) {
+    const params =
+        new URLSearchParams({
+            enablejsapi: '1',
+            controls: '1',
+            playsinline: '1',
+            rel: '0',
+            fs: '1',
+            origin: window.location.origin
+        });
+
+    return (
+        'https://www.youtube.com/embed/'
+        + encodeURIComponent(videoId)
+        + '?'
+        + params.toString()
+    );
+}
+
+
 function onYouTubeIframeAPIReady() {
     if (!ALL_EMBEDDABLE_IDS.length) {
         setStatus(
@@ -1461,19 +1487,51 @@ function onYouTubeIframeAPIReady() {
             resumeState.videoId;
     }
 
+    /*
+     * IMPORTANTE:
+     * Todo conteúdo, inclusive Shorts, é carregado
+     * pelo endpoint padrão /embed/VIDEO_ID.
+     * A rota /shorts/ é usada apenas no Python
+     * para identificar se um upload é Short.
+     */
+    const slot =
+        document.getElementById(
+            'player-slot'
+        );
+
+    const iframe =
+        document.createElement(
+            'iframe'
+        );
+
+    iframe.id =
+        'youtube-standard-player';
+
+    iframe.src =
+        standardEmbedUrl(
+            initialId
+        );
+
+    iframe.title =
+        'Player do YouTube';
+
+    iframe.allow =
+        'accelerometer; autoplay; clipboard-write; '
+        + 'encrypted-media; gyroscope; picture-in-picture; web-share';
+
+    iframe.allowFullscreen = true;
+
+    iframe.referrerPolicy =
+        'strict-origin-when-cross-origin';
+
+    slot.replaceChildren(
+        iframe
+    );
+
     player =
     new YT.Player(
-        'player',
+        'youtube-standard-player',
         {
-            videoId: initialId,
-            width: '100%',
-            height: '100%',
-
-            playerVars: {
-                rel: 0,
-                playsinline: 1
-            },
-
             events: {
                 onReady:
                     () => {
