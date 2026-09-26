@@ -218,5 +218,9 @@
   {
     "handle": "@Michaelbnk",
     "onlyShorts": true
+  },
+  {
+    "handle": "@ryan_platinum",
+    "onlyShorts": false
   }
 ]
