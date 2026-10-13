@@ -26,33 +26,54 @@ Jornal do Futebol — __DATE__
 
 <main>
 
+<header class="journal-header">
+
+<div class="journal-kicker">
+RESUMO DIÁRIO
+</div>
+
 <h1>
-⚽ Jornal do Futebol — __DATE__
+⚽ Jornal do Futebol
 </h1>
 
 <div class="meta">
-Últimas 24 horas
- ·
-antigo → novo
- ·
-atualizado em __UPDATED__
+<span>__DATE__</span>
+<span>Últimas 24 h</span>
+<span>Antigo → novo</span>
+<span>Atualizado __UPDATED__</span>
 </div>
+
+</header>
 
 <section class="time-summary" aria-label="Tempo do Jornal">
 
-<div class="time-stat">
-<span>Tempo total considerado</span>
-<strong id="time-total">—</strong>
-</div>
+<div class="time-copy">
 
-<div class="time-stat">
-<span>Assistido</span>
+<div class="time-primary">
 <strong id="time-watched">—</strong>
+<span>
+assistido de
+<b id="time-total">—</b>
+</span>
 </div>
 
-<div class="time-stat">
+<div class="time-remaining">
 <span>Restante</span>
 <strong id="time-remaining">—</strong>
+</div>
+
+</div>
+
+<div
+    id="time-progress"
+    class="time-progress"
+    role="progressbar"
+    aria-label="Progresso de tempo assistido"
+    aria-valuemin="0"
+    aria-valuemax="100"
+    aria-valuenow="0"
+>
+<span id="time-progress-bar"></span>
 </div>
 
 </section>

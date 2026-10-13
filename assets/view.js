@@ -515,6 +515,36 @@ function updateTimeStats() {
         'time-remaining'
     ).textContent =
         formatDurationHuman(remaining);
+
+    const percent =
+        total > 0
+        ? Math.round(
+            (consumed / total) * 100
+        )
+        : 0;
+
+    const progress =
+        document.getElementById(
+            'time-progress'
+        );
+
+    const progressBar =
+        document.getElementById(
+            'time-progress-bar'
+        );
+
+    if (progress) {
+        progress.setAttribute(
+            'aria-valuenow',
+            String(percent)
+        );
+    }
+
+    if (progressBar) {
+        progressBar.style.width =
+            String(percent)
+            + '%';
+    }
 }
 
 
@@ -761,6 +791,18 @@ function updateWatchButtons() {
                 'watched',
                 done
             );
+
+            const card =
+                button.closest(
+                    '.card'
+                );
+
+            if (card) {
+                card.classList.toggle(
+                    'watched',
+                    done
+                );
+            }
 
             button.textContent =
                 done
