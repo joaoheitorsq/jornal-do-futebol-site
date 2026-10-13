@@ -4458,6 +4458,20 @@ function onYouTubeIframeAPIReady() {
                         updateTransport();
 
                         if (
+                            completionAdvanceInProgress
+                            &&
+                            id
+                            &&
+                            id !== completionAdvanceVideoId
+                            &&
+                            event.data
+                            !== YT.PlayerState.ENDED
+                        ) {
+                            completionAdvanceInProgress = false;
+                            completionAdvanceVideoId = null;
+                        }
+
+                        if (
                             event.data
                             ===
                             YT.PlayerState.PLAYING
@@ -4502,52 +4516,17 @@ function onYouTubeIframeAPIReady() {
                             ===
                             YT.PlayerState.ENDED
                         ) {
-                            const oldIndex =
+                            completeCurrentAndAdvance(
                                 id
-                                ? activePlaylist.indexOf(id)
-                                : -1;
-
-                            const wasCarryover =
-                                Boolean(
-                                    id
-                                    &&
-                                    !currentVideoMeta(id)
-                                );
-
-                            if (id) {
-                                markWatched(id);
-                                clearResume(id);
-                            }
-
-                            if (
-                                onlyUnwatched
-                                ||
-                                wasCarryover
-                            ) {
-                                applyView();
-
-                                if (
-                                    oldIndex >= 0
-                                    &&
-                                    oldIndex < activePlaylist.length
-                                ) {
-                                    play(oldIndex);
-                                }
-                                else {
-                                    setStatus(
-                                        'Fim do Jornal.'
-                                    );
-                                }
-                            }
-                            else {
-                                applyView();
-                                next();
-                            }
+                            );
                         }
                     },
 
                 onError:
                     () => {
+                        completionAdvanceInProgress = false;
+                        completionAdvanceVideoId = null;
+
                         setStatus(
                             'Vídeo indisponível aqui; pulando...'
                         );
@@ -4682,6 +4661,134 @@ function start() {
 }
 
 
+let completionAdvanceInProgress = false;
+let completionAdvanceVideoId = null;
+
+
+function adjacentQueuedVideoId(
+    currentId,
+    queue,
+    direction = 1
+) {
+    if (!Array.isArray(queue) || !queue.length) {
+        return null;
+    }
+
+    const directIndex =
+        queue.indexOf(currentId);
+
+    if (directIndex >= 0) {
+        const targetIndex =
+            directIndex + direction;
+
+        return (
+            targetIndex >= 0
+            &&
+            targetIndex < queue.length
+        )
+            ? queue[targetIndex]
+            : null;
+    }
+
+    const currentIndex =
+        VIDEOS.findIndex(
+            video => video.id === currentId
+        );
+
+    if (currentIndex >= 0) {
+        const allowed =
+            new Set(queue);
+
+        for (
+            let index = currentIndex + direction;
+            index >= 0 && index < VIDEOS.length;
+            index += direction
+        ) {
+            const candidate =
+                VIDEOS[index].id;
+
+            if (allowed.has(candidate)) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /*
+     * Um carryover fica logicamente antes dos vídeos
+     * do Jornal atual. Se ele já saiu da fila, o
+     * próximo válido é o primeiro item restante.
+     */
+    return direction > 0
+        ? (queue[0] || null)
+        : null;
+}
+
+
+function completeCurrentAndAdvance(
+    videoId = null
+) {
+    if (completionAdvanceInProgress) {
+        return;
+    }
+
+    const current =
+        videoId
+        ||
+        currentVideoId();
+
+    if (!current) {
+        setStatus(
+            'Nenhum vídeo está sendo reproduzido.'
+        );
+        return;
+    }
+
+    rebuildPlaylist();
+
+    const queueBefore =
+        [...activePlaylist];
+
+    const nextId =
+        adjacentQueuedVideoId(
+            current,
+            queueBefore,
+            1
+        );
+
+    completionAdvanceInProgress = true;
+    completionAdvanceVideoId = current;
+
+    markWatched(current);
+    clearResume(current);
+    applyView();
+
+    if (nextId) {
+        let nextIndex =
+            activePlaylist.indexOf(nextId);
+
+        if (nextIndex < 0) {
+            rebuildPlaylist();
+            nextIndex =
+                activePlaylist.indexOf(nextId);
+        }
+
+        if (nextIndex >= 0) {
+            play(nextIndex);
+            return;
+        }
+    }
+
+    completionAdvanceInProgress = false;
+    completionAdvanceVideoId = null;
+
+    setStatus(
+        'Vídeo marcado como visto. Fim do Jornal.'
+    );
+}
+
+
 function journalFullscreenElement() {
     return (
         document.fullscreenElement
@@ -4767,51 +4874,8 @@ async function toggleJournalFullscreen() {
 
 
 function markCurrentWatchedAndNext() {
-    rebuildPlaylist();
-
-    const current =
-        currentVideoId();
-
-    if (!current) {
-        setStatus(
-            'Nenhum vídeo está sendo reproduzido.'
-        );
-        return;
-    }
-
-    const queueBefore =
-        [...activePlaylist];
-
-    const currentIndex =
-        queueBefore.indexOf(current);
-
-    let nextId = null;
-
-    if (
-        currentIndex >= 0
-        &&
-        currentIndex + 1 < queueBefore.length
-    ) {
-        nextId =
-            queueBefore[currentIndex + 1];
-    }
-
-    markWatched(current);
-    clearResume(current);
-    applyView();
-
-    if (nextId) {
-        const nextIndex =
-            activePlaylist.indexOf(nextId);
-
-        if (nextIndex >= 0) {
-            play(nextIndex);
-            return;
-        }
-    }
-
-    setStatus(
-        'Vídeo marcado como visto. Fim do Jornal.'
+    completeCurrentAndAdvance(
+        currentVideoId()
     );
 }
 
@@ -4841,13 +4905,29 @@ function next() {
     const current =
         currentVideoId();
 
-    if (
-        current
-        &&
-        activePlaylist.includes(current)
-    ) {
-        i =
-            activePlaylist.indexOf(current);
+    if (current) {
+        const nextId =
+            adjacentQueuedVideoId(
+                current,
+                activePlaylist,
+                1
+            );
+
+        if (!nextId) {
+            setStatus(
+                'Fim do Jornal.'
+            );
+            return;
+        }
+
+        const nextIndex =
+            activePlaylist.indexOf(nextId);
+
+        if (nextIndex >= 0) {
+            play(nextIndex);
+        }
+
+        return;
     }
 
     const nextIndex = i + 1;
@@ -4875,13 +4955,31 @@ function prev() {
     const current =
         currentVideoId();
 
-    if (
-        current
-        &&
-        activePlaylist.includes(current)
-    ) {
-        i =
-            activePlaylist.indexOf(current);
+    if (current) {
+        const previousId =
+            adjacentQueuedVideoId(
+                current,
+                activePlaylist,
+                -1
+            );
+
+        if (!previousId) {
+            setStatus(
+                'Você está no primeiro vídeo.'
+            );
+            return;
+        }
+
+        const previousIndex =
+            activePlaylist.indexOf(
+                previousId
+            );
+
+        if (previousIndex >= 0) {
+            play(previousIndex);
+        }
+
+        return;
     }
 
     if (i <= 0) {
