@@ -18,6 +18,14 @@ if (resumeState) {
     );
 }
 
+requestAnimationFrame(
+    () => {
+        animateCardsIn(
+            document
+        );
+    }
+);
+
 const youtubeApiTag =
     document.createElement('script');
 
