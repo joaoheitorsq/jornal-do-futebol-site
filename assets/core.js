@@ -266,7 +266,10 @@ function toggleHearthPwnWidget() {
         !hearthpwnCollapsed;
 
     saveHearthPwnCollapsed();
-    applyHearthPwnCollapse();
+
+    animateHearthPwnCollapse(
+        hearthpwnCollapsed
+    );
 }
 
 
@@ -367,7 +370,10 @@ function toggleWatched(videoId) {
         return;
     }
 
-    if (isWatched(videoId)) {
+    const becameWatched =
+        !isWatched(videoId);
+
+    if (!becameWatched) {
         delete watched[videoId];
         saveWatched();
         setStatus('Vídeo marcado como não visto.');
@@ -387,4 +393,14 @@ function toggleWatched(videoId) {
     }
 
     applyView();
+
+    if (becameWatched) {
+        animateWatchedFeedback(
+            videoId
+        );
+
+        animateJournalProgressCompletion();
+    }
+
+    maybeCelebrateJournalCompletion();
 }
