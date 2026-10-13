@@ -15,6 +15,7 @@ JS_FILES = [
     "assets/view.js",
     "assets/player.js",
     "assets/motion.js",
+    "assets/features.js",
     "assets/bootstrap.js",
 ]
 
@@ -25,6 +26,7 @@ ASSET_VERSIONS = {
     "assets/view.js": "__VIEW_VERSION__",
     "assets/player.js": "__PLAYER_VERSION__",
     "assets/motion.js": "__MOTION_VERSION__",
+    "assets/features.js": "__FEATURES_VERSION__",
     "assets/bootstrap.js": "__BOOTSTRAP_VERSION__",
 }
 
@@ -57,6 +59,15 @@ REQUIRED_APP_FUNCTIONS = {
     "animateHearthPwnCollapse",
     "runAnimatedViewUpdate",
     "maybeCelebrateJournalCompletion",
+    "loadFeatureState",
+    "toggleDeferred",
+    "toggleManualQueue",
+    "toggleFinishLater",
+    "skipChannelToday",
+    "exportJournalBackup",
+    "importJournalBackup",
+    "showUndoToast",
+    "initializeFeatureUI",
 }
 
 REQUIRED_HTML_IDS = {
@@ -73,6 +84,11 @@ REQUIRED_HTML_IDS = {
     "header-progress-count",
     "player-loading",
     "journal-complete-animation",
+    "session-summary",
+    "carryover-list",
+    "smart-header",
+    "undo-toast",
+    "backup-import",
 }
 
 
