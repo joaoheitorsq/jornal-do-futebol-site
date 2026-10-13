@@ -358,13 +358,17 @@ function shouldHideVideoForFeatures(
         return false;
     }
 
-    return skippedChannelsToday()
-        .includes(
-            String(
-                video.channelTitle
-                || ''
-            )
-        );
+    // O canal pulado só oculta vídeos normais confirmados.
+    // Shorts e uploads de tipo desconhecido continuam disponíveis.
+    return video.isShort === false
+        &&
+        skippedChannelsToday()
+            .includes(
+                String(
+                    video.channelTitle
+                    || ''
+                )
+            );
 }
 
 
@@ -653,6 +657,12 @@ function metadataSnapshot(videoId) {
         countForTime:
             video.countForTime
             !== false,
+        isShort:
+            video.isShort === true
+            ? true
+            : video.isShort === false
+                ? false
+                : null,
         embeddable:
             video.embeddable
             !== false,
@@ -760,8 +770,9 @@ function skipChannelToday(
     maybeCelebrateJournalCompletion();
 
     showUndoToast(
-        channel
-        + ' ocultado nesta edição.',
+        'Vídeos normais de '
+        + channel
+        + ' ocultados nesta edição; Shorts preservados.',
         () => {
             setSkippedChannelsToday(
                 skippedChannelsToday()
@@ -1254,7 +1265,11 @@ function ensureCardFeatureUI(card) {
                         videoId
                     );
 
-                if (meta) {
+                if (
+                    meta
+                    &&
+                    meta.isShort === false
+                ) {
                     skipChannelToday(
                         meta.channelTitle
                     );
@@ -1375,8 +1390,20 @@ function updateCardFeatureUI() {
             }
 
             if (skip) {
+                const meta =
+                    videoIdentityMeta(id);
+
+                // Não oferecer ação de pular em Shorts.
+                skip.hidden =
+                    !meta
+                    ||
+                    meta.isShort !== false;
+
                 skip.textContent =
                     'Pular canal hoje';
+
+                skip.title =
+                    'Oculta apenas vídeos normais deste canal; Shorts permanecem.';
             }
         });
 }

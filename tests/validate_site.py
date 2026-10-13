@@ -262,6 +262,15 @@ def validate_sources():
         "JavaScript não pode conter dados dinâmicos do Jornal.",
     )
 
+    require(
+        "is_short = short_confirmed(video_id, video)" in backend
+        and '"isShort": is_short' in backend
+        and '"isShort": video["isShort"]' in backend
+        and "video.isShort === false" in javascript
+        and "skip.hidden =" in javascript,
+        "Pular canal hoje deve ocultar só vídeos normais, nunca Shorts.",
+    )
+
     function_names = declared_functions(
         javascript
     )
@@ -421,6 +430,17 @@ def validate_generated():
         isinstance(videos, list),
         "journal-data deve conter uma lista JSON.",
     )
+
+    for video in videos:
+        require(
+            isinstance(video, dict)
+            and "isShort" in video
+            and (
+                video["isShort"] is None
+                or isinstance(video["isShort"], bool)
+            ),
+            "Cada vídeo precisa declarar isShort como true/false/null.",
+        )
 
     ids = re.findall(
         r'(?<![\\w-])id="([^"]+)"',

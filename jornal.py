@@ -821,7 +821,10 @@ def short_confirmed(video_id, video):
         video.get("contentDetails", {}).get("duration")
     )
 
-    if seconds is None or seconds > 180:
+    if seconds is None:
+        return None
+
+    if seconds > 180:
         return False
 
     try:
@@ -841,7 +844,7 @@ def short_confirmed(video_id, video):
 
     except Exception as erro:
         log(f"Short não confirmado ({video_id}): {erro}")
-        return False
+        return None
 
 
 def collect(key, configs):
@@ -926,18 +929,11 @@ def collect(key, configs):
 
         handle_key = candidate["channelHandle"].casefold()
 
-        # Só precisamos confirmar o formato Short quando isso afeta
-        # alguma regra: canais onlyShorts ou as duas exceções de tempo.
-        needs_short_check = (
-            candidate["onlyShorts"]
-            or handle_key in TIME_EXCLUDED_NORMAL_HANDLES
-        )
-
-        is_short = (
-            short_confirmed(video_id, video)
-            if needs_short_check
-            else False
-        )
+        # Identifica Shorts também nos canais mistos. Sem essa verificação,
+        # "Pular canal hoje" ocultaria Shorts desses canais.
+        # Em caso de falha na classificação, is_short=None: o filtro
+        # preserva o vídeo para evitar esconder um possível Short.
+        is_short = short_confirmed(video_id, video)
 
         if candidate["onlyShorts"] and not is_short:
             log(
@@ -950,7 +946,7 @@ def collect(key, configs):
         # no tempo. Shorts desses mesmos canais continuam contando.
         count_for_time = not (
             handle_key in TIME_EXCLUDED_NORMAL_HANDLES
-            and not is_short
+            and is_short is False
         )
 
         accepted.append(
@@ -965,6 +961,7 @@ def collect(key, configs):
                 "publishedDt": candidate["publishedDt"],
                 "durationSeconds": duration,
                 "countForTime": count_for_time,
+                "isShort": is_short,
                 "embeddable": bool(
                     video.get("status", {}).get("embeddable", True)
                 ),
@@ -1180,6 +1177,7 @@ def build_page(videos, now_local, failures, hearthpwn_news=None):
             "publishedAt": video["publishedDt"].astimezone(TZ).isoformat(),
             "duration": video["durationSeconds"],
             "countForTime": video["countForTime"],
+            "isShort": video["isShort"],
             "embeddable": video["embeddable"],
         }
         for video in videos

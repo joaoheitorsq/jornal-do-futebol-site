@@ -113,7 +113,8 @@ O pacote avançado mantém as seguintes regras:
 - "Ver depois" apenas muda a ordem da edição atual;
 - a fila manual usa `sessionStorage` e não altera a ordem original;
 - "Terminar depois" persiste metadados em `localStorage` para sobreviver à janela de 24 h;
-- canais podem ser ocultados somente na edição atual;
+- "Pular canal hoje" oculta somente vídeos normais confirmados na edição; Shorts (inclusive em canais mistos) e vídeos com formato indeterminado permanecem visíveis;
+- o campo `isShort` (true/false/null) é gerado em `jornal.py` e usado pelo filtro em `features.js`;
 - backup/restauração exporta apenas chaves do próprio Jornal;
 - cards entram com `IntersectionObserver`, somente ao chegar à viewport;
 - animações contínuas devem priorizar `transform` e `opacity`;
