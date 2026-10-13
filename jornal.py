@@ -1463,6 +1463,10 @@ small {
 
 .fullscreen-next {
     display: none;
+    --hold-progress: 0%;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
 }
 
 #playerwrap:fullscreen,
@@ -1500,7 +1504,13 @@ small {
     z-index: 50;
     border: 1px solid rgba(255, 255, 255, .34);
     border-radius: 12px;
-    background: rgba(15, 17, 21, .92);
+    background:
+        linear-gradient(
+            90deg,
+            rgba(255, 255, 255, .18) var(--hold-progress),
+            transparent var(--hold-progress)
+        ),
+        rgba(15, 17, 21, .92);
     color: #fff;
     padding: 11px 15px;
     font: inherit;
@@ -1519,6 +1529,11 @@ small {
 #playerwrap:fullscreen .fullscreen-next:active,
 #playerwrap:-webkit-full-screen .fullscreen-next:active {
     transform: translateY(1px);
+}
+
+#playerwrap:fullscreen .fullscreen-next.holding,
+#playerwrap:-webkit-full-screen .fullscreen-next.holding {
+    border-color: rgba(255, 255, 255, .72);
 }
 
 @media (max-width: 600px) {
@@ -2295,10 +2310,9 @@ Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses t
     id="fullscreen-next"
     class="fullscreen-next"
     type="button"
-    onclick="markCurrentWatchedAndNext()"
-    aria-label="Marcar vídeo atual como visto e ir para o próximo"
+    aria-label="Segure por 3 segundos para marcar o vídeo atual como visto e ir para o próximo"
 >
-✓ Visto · Próximo ⏭
+Segure 3s · Visto + Próximo ⏭
 </button>
 
 </div>
@@ -4873,6 +4887,18 @@ async function toggleJournalFullscreen() {
 }
 
 
+const FULLSCREEN_NEXT_HOLD_MS = 3000;
+const FULLSCREEN_NEXT_MOVE_TOLERANCE = 22;
+
+let fullscreenNextHoldTimer = null;
+let fullscreenNextHoldFrame = null;
+let fullscreenNextHoldStartedAt = 0;
+let fullscreenNextHoldPointerId = null;
+let fullscreenNextHoldStartX = 0;
+let fullscreenNextHoldStartY = 0;
+let fullscreenNextHoldTriggered = false;
+
+
 function markCurrentWatchedAndNext() {
     completeCurrentAndAdvance(
         currentVideoId()
@@ -4880,15 +4906,307 @@ function markCurrentWatchedAndNext() {
 }
 
 
+function resetFullscreenNextHoldVisual() {
+    const button =
+        document.getElementById(
+            'fullscreen-next'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.classList.remove(
+        'holding'
+    );
+
+    button.style.setProperty(
+        '--hold-progress',
+        '0%'
+    );
+
+    button.textContent =
+        'Segure 3s · Visto + Próximo ⏭';
+}
+
+
+function cancelFullscreenNextHold() {
+    if (fullscreenNextHoldTimer) {
+        clearTimeout(
+            fullscreenNextHoldTimer
+        );
+    }
+
+    if (fullscreenNextHoldFrame) {
+        cancelAnimationFrame(
+            fullscreenNextHoldFrame
+        );
+    }
+
+    fullscreenNextHoldTimer = null;
+    fullscreenNextHoldFrame = null;
+    fullscreenNextHoldStartedAt = 0;
+    fullscreenNextHoldPointerId = null;
+    fullscreenNextHoldTriggered = false;
+
+    resetFullscreenNextHoldVisual();
+}
+
+
+function updateFullscreenNextHoldProgress() {
+    const button =
+        document.getElementById(
+            'fullscreen-next'
+        );
+
+    if (
+        !button
+        ||
+        !fullscreenNextHoldStartedAt
+        ||
+        fullscreenNextHoldTriggered
+    ) {
+        return;
+    }
+
+    const elapsed =
+        performance.now()
+        - fullscreenNextHoldStartedAt;
+
+    const progress =
+        Math.min(
+            1,
+            elapsed / FULLSCREEN_NEXT_HOLD_MS
+        );
+
+    button.style.setProperty(
+        '--hold-progress',
+        String(
+            Math.round(progress * 100)
+        ) + '%'
+    );
+
+    const remaining =
+        Math.max(
+            0,
+            FULLSCREEN_NEXT_HOLD_MS - elapsed
+        );
+
+    button.textContent =
+        'Continue segurando · '
+        + (remaining / 1000).toFixed(1)
+        + 's';
+
+    if (progress < 1) {
+        fullscreenNextHoldFrame =
+            requestAnimationFrame(
+                updateFullscreenNextHoldProgress
+            );
+    }
+}
+
+
+function beginFullscreenNextHold(event) {
+    if (
+        !isJournalFullscreen()
+        ||
+        completionAdvanceInProgress
+    ) {
+        return;
+    }
+
+    if (
+        event.pointerType === 'mouse'
+        &&
+        event.button !== 0
+    ) {
+        return;
+    }
+
+    const button =
+        document.getElementById(
+            'fullscreen-next'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+
+    cancelFullscreenNextHold();
+
+    fullscreenNextHoldPointerId =
+        event.pointerId;
+
+    fullscreenNextHoldStartX =
+        event.clientX;
+
+    fullscreenNextHoldStartY =
+        event.clientY;
+
+    fullscreenNextHoldStartedAt =
+        performance.now();
+
+    fullscreenNextHoldTriggered = false;
+
+    button.classList.add(
+        'holding'
+    );
+
+    try {
+        button.setPointerCapture(
+            event.pointerId
+        );
+    }
+    catch (_) {}
+
+    updateFullscreenNextHoldProgress();
+
+    fullscreenNextHoldTimer =
+        setTimeout(
+            () => {
+                fullscreenNextHoldTriggered = true;
+
+                if (fullscreenNextHoldFrame) {
+                    cancelAnimationFrame(
+                        fullscreenNextHoldFrame
+                    );
+                }
+
+                fullscreenNextHoldFrame = null;
+                fullscreenNextHoldTimer = null;
+
+                button.style.setProperty(
+                    '--hold-progress',
+                    '100%'
+                );
+
+                button.textContent =
+                    '✓ Marcado · avançando…';
+
+                markCurrentWatchedAndNext();
+
+                setTimeout(
+                    cancelFullscreenNextHold,
+                    350
+                );
+            },
+            FULLSCREEN_NEXT_HOLD_MS
+        );
+}
+
+
+function moveFullscreenNextHold(event) {
+    if (
+        fullscreenNextHoldPointerId === null
+        ||
+        event.pointerId !== fullscreenNextHoldPointerId
+        ||
+        fullscreenNextHoldTriggered
+    ) {
+        return;
+    }
+
+    const deltaX =
+        event.clientX
+        - fullscreenNextHoldStartX;
+
+    const deltaY =
+        event.clientY
+        - fullscreenNextHoldStartY;
+
+    const distance =
+        Math.hypot(
+            deltaX,
+            deltaY
+        );
+
+    if (
+        distance
+        >
+        FULLSCREEN_NEXT_MOVE_TOLERANCE
+    ) {
+        cancelFullscreenNextHold();
+    }
+}
+
+
+function endFullscreenNextHold(event) {
+    if (
+        fullscreenNextHoldPointerId !== null
+        &&
+        event.pointerId !== fullscreenNextHoldPointerId
+    ) {
+        return;
+    }
+
+    if (!fullscreenNextHoldTriggered) {
+        cancelFullscreenNextHold();
+    }
+}
+
+
+function initFullscreenNextHold() {
+    const button =
+        document.getElementById(
+            'fullscreen-next'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.addEventListener(
+        'pointerdown',
+        beginFullscreenNextHold
+    );
+
+    button.addEventListener(
+        'pointermove',
+        moveFullscreenNextHold
+    );
+
+    button.addEventListener(
+        'pointerup',
+        endFullscreenNextHold
+    );
+
+    button.addEventListener(
+        'pointercancel',
+        endFullscreenNextHold
+    );
+
+    button.addEventListener(
+        'contextmenu',
+        event => event.preventDefault()
+    );
+
+    button.addEventListener(
+        'click',
+        event => event.preventDefault()
+    );
+}
+
+
+initFullscreenNextHold();
+
+
 document.addEventListener(
     'fullscreenchange',
-    updateJournalFullscreenButton
+    () => {
+        cancelFullscreenNextHold();
+        updateJournalFullscreenButton();
+    }
 );
 
 
 document.addEventListener(
     'webkitfullscreenchange',
-    updateJournalFullscreenButton
+    () => {
+        cancelFullscreenNextHold();
+        updateJournalFullscreenButton();
+    }
 );
 
 
