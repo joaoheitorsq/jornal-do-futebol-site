@@ -34,9 +34,98 @@ function stopMotionAnimation(element) {
 }
 
 
+function runCompositorAnimation(
+    element,
+    keyframes,
+    options,
+    onFinish = null
+) {
+    if (
+        !element
+        ||
+        prefersReducedMotion()
+        ||
+        typeof element.animate
+        !== 'function'
+    ) {
+        if (
+            typeof onFinish
+            === 'function'
+        ) {
+            onFinish();
+        }
+
+        return null;
+    }
+
+    stopMotionAnimation(element);
+
+    element.style.willChange =
+        'transform, opacity';
+
+    const animation =
+        element.animate(
+            keyframes,
+            options
+        );
+
+    motionAnimationRegistry.set(
+        element,
+        animation
+    );
+
+    const finish =
+        () => {
+            if (
+                motionAnimationRegistry.get(
+                    element
+                )
+                === animation
+            ) {
+                motionAnimationRegistry.delete(
+                    element
+                );
+            }
+
+            element.style.removeProperty(
+                'will-change'
+            );
+
+            if (
+                typeof onFinish
+                === 'function'
+            ) {
+                onFinish();
+            }
+        };
+
+    animation.onfinish = finish;
+
+    animation.oncancel =
+        () => {
+            if (
+                motionAnimationRegistry.get(
+                    element
+                )
+                === animation
+            ) {
+                motionAnimationRegistry.delete(
+                    element
+                );
+            }
+
+            element.style.removeProperty(
+                'will-change'
+            );
+        };
+
+    return animation;
+}
+
+
 function animateCardsIn(
     scope = document,
-    maxDelay = 420
+    maxDelay = 180
 ) {
     if (prefersReducedMotion()) {
         return;
@@ -52,42 +141,38 @@ function animateCardsIn(
             !card.closest(
                 '.chapter.collapsed'
             )
-        );
+        )
+        .slice(0, 16);
 
     cards.forEach(
         (card, index) => {
             const delay =
                 Math.min(
-                    index * 42,
+                    index * 24,
                     maxDelay
                 );
 
-            card.classList.remove(
-                'card-entering'
-            );
-
-            card.style.setProperty(
-                '--card-enter-delay',
-                String(delay) + 'ms'
-            );
-
-            void card.offsetWidth;
-
-            card.classList.add(
-                'card-entering'
-            );
-
-            setTimeout(
-                () => {
-                    card.classList.remove(
-                        'card-entering'
-                    );
-
-                    card.style.removeProperty(
-                        '--card-enter-delay'
-                    );
-                },
-                620 + delay
+            runCompositorAnimation(
+                card,
+                [
+                    {
+                        opacity: 0,
+                        transform:
+                            'translate3d(0, 9px, 0) scale(.99)'
+                    },
+                    {
+                        opacity: 1,
+                        transform:
+                            'translate3d(0, 0, 0) scale(1)'
+                    }
+                ],
+                {
+                    duration: 260,
+                    delay,
+                    easing:
+                        'cubic-bezier(.2,.72,.25,1)',
+                    fill: 'both'
+                }
             );
         }
     );
@@ -124,23 +209,36 @@ function animateWatchedFeedback(videoId) {
         return;
     }
 
-    card.classList.remove(
-        'just-watched'
-    );
-
-    void card.offsetWidth;
-
     card.classList.add(
         'just-watched'
     );
 
-    setTimeout(
+    runCompositorAnimation(
+        card,
+        [
+            {
+                transform:
+                    'translate3d(0,0,0) scale(1)'
+            },
+            {
+                transform:
+                    'translate3d(0,0,0) scale(.992)'
+            },
+            {
+                transform:
+                    'translate3d(0,0,0) scale(1)'
+            }
+        ],
+        {
+            duration: 420,
+            easing:
+                'cubic-bezier(.2,.78,.25,1)'
+        },
         () => {
             card.classList.remove(
                 'just-watched'
             );
-        },
-        720
+        }
     );
 }
 
@@ -161,44 +259,52 @@ function animateJournalProgressCompletion() {
         );
 
     if (progress) {
-        progress.classList.remove(
-            'completion-pulse'
-        );
-
-        void progress.offsetWidth;
-
-        progress.classList.add(
-            'completion-pulse'
-        );
-
-        setTimeout(
-            () => {
-                progress.classList.remove(
-                    'completion-pulse'
-                );
-            },
-            760
+        runCompositorAnimation(
+            progress,
+            [
+                {
+                    transform:
+                        'translate3d(0,0,0) scaleY(1)'
+                },
+                {
+                    transform:
+                        'translate3d(0,0,0) scaleY(1.45)'
+                },
+                {
+                    transform:
+                        'translate3d(0,0,0) scaleY(1)'
+                }
+            ],
+            {
+                duration: 360,
+                easing:
+                    'cubic-bezier(.2,.8,.2,1)'
+            }
         );
     }
 
     if (pill) {
-        pill.classList.remove(
-            'progress-bump'
-        );
-
-        void pill.offsetWidth;
-
-        pill.classList.add(
-            'progress-bump'
-        );
-
-        setTimeout(
-            () => {
-                pill.classList.remove(
-                    'progress-bump'
-                );
-            },
-            520
+        runCompositorAnimation(
+            pill,
+            [
+                {
+                    transform:
+                        'translate3d(0,0,0) scale(1)'
+                },
+                {
+                    transform:
+                        'translate3d(0,0,0) scale(1.06)'
+                },
+                {
+                    transform:
+                        'translate3d(0,0,0) scale(1)'
+                }
+            ],
+            {
+                duration: 320,
+                easing:
+                    'cubic-bezier(.2,.8,.2,1)'
+            }
         );
     }
 }
@@ -233,12 +339,6 @@ function maybeCelebrateJournalCompletion() {
         return;
     }
 
-    overlay.classList.remove(
-        'show'
-    );
-
-    void overlay.offsetWidth;
-
     overlay.classList.add(
         'show'
     );
@@ -261,7 +361,7 @@ function maybeCelebrateJournalCompletion() {
         },
         prefersReducedMotion()
         ? 500
-        : 2300
+        : 2100
     );
 }
 
@@ -295,116 +395,78 @@ function animateChapterToggle(
     stopMotionAnimation(list);
 
     if (collapse) {
-        const height =
-            list.getBoundingClientRect().height
-            ||
-            list.scrollHeight;
-
         chapter.classList.add(
             'chapter-closing'
         );
 
-        const animation =
-            list.animate(
-                [
-                    {
-                        height:
-                            String(height)
-                            + 'px',
-                        opacity: 1,
-                        transform:
-                            'translateY(0)'
-                    },
-                    {
-                        height: '0px',
-                        opacity: 0,
-                        transform:
-                            'translateY(-5px)'
-                    }
-                ],
-                {
-                    duration: 240,
-                    easing:
-                        'cubic-bezier(.4,0,.2,1)'
-                }
-            );
-
-        motionAnimationRegistry.set(
+        runCompositorAnimation(
             list,
-            animation
-        );
-
-        animation.onfinish =
+            [
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0)'
+                },
+                {
+                    opacity: 0,
+                    transform:
+                        'translate3d(0,-6px,0)'
+                }
+            ],
+            {
+                duration: 190,
+                easing:
+                    'cubic-bezier(.4,0,.2,1)'
+            },
             () => {
-                motionAnimationRegistry.delete(
-                    list
-                );
-
                 chapter.classList.remove(
                     'chapter-closing'
                 );
 
                 applyChapterCollapse();
-            };
+            }
+        );
 
         return;
     }
 
     applyChapterCollapse();
 
-    const height =
-        list.scrollHeight;
-
     chapter.classList.add(
         'chapter-opening'
     );
 
-    const animation =
-        list.animate(
-            [
-                {
-                    height: '0px',
-                    opacity: 0,
-                    transform:
-                        'translateY(-5px)'
-                },
-                {
-                    height:
-                        String(height)
-                        + 'px',
-                    opacity: 1,
-                    transform:
-                        'translateY(0)'
-                }
-            ],
-            {
-                duration: 290,
-                easing:
-                    'cubic-bezier(.2,.75,.25,1)'
-            }
-        );
-
-    motionAnimationRegistry.set(
+    runCompositorAnimation(
         list,
-        animation
-    );
-
-    animation.onfinish =
+        [
+            {
+                opacity: 0,
+                transform:
+                    'translate3d(0,-6px,0)'
+            },
+            {
+                opacity: 1,
+                transform:
+                    'translate3d(0,0,0)'
+            }
+        ],
+        {
+            duration: 220,
+            easing:
+                'cubic-bezier(.2,.72,.25,1)'
+        },
         () => {
-            motionAnimationRegistry.delete(
-                list
-            );
-
             chapter.classList.remove(
                 'chapter-opening'
             );
-        };
+        }
+    );
 
     requestAnimationFrame(
         () => {
             animateCardsIn(
                 chapter,
-                260
+                120
             );
         }
     );
@@ -443,117 +505,63 @@ function animateHearthPwnCollapse(
     stopMotionAnimation(list);
 
     if (collapse) {
-        const height =
-            list.getBoundingClientRect().height
-            ||
-            list.scrollHeight;
-
         widget.classList.add(
             'collapsing'
         );
 
-        const animation =
-            list.animate(
-                [
-                    {
-                        height:
-                            String(height)
-                            + 'px',
-                        opacity: 1,
-                        transform:
-                            'translateY(0)'
-                    },
-                    {
-                        height: '0px',
-                        opacity: 0,
-                        transform:
-                            'translateY(-7px)'
-                    }
-                ],
-                {
-                    duration: 260,
-                    easing:
-                        'cubic-bezier(.4,0,.2,1)'
-                }
-            );
-
-        motionAnimationRegistry.set(
+        runCompositorAnimation(
             list,
-            animation
-        );
-
-        animation.onfinish =
+            [
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0)'
+                },
+                {
+                    opacity: 0,
+                    transform:
+                        'translate3d(0,-6px,0)'
+                }
+            ],
+            {
+                duration: 190,
+                easing:
+                    'cubic-bezier(.4,0,.2,1)'
+            },
             () => {
-                motionAnimationRegistry.delete(
-                    list
-                );
-
                 widget.classList.remove(
                     'collapsing'
                 );
 
                 applyHearthPwnCollapse();
-            };
+            }
+        );
 
         return;
     }
 
     applyHearthPwnCollapse();
 
-    const height =
-        list.scrollHeight;
-
-    const animation =
-        list.animate(
-            [
-                {
-                    height: '0px',
-                    opacity: 0,
-                    transform:
-                        'translateY(-7px)'
-                },
-                {
-                    height:
-                        String(height)
-                        + 'px',
-                    opacity: 1,
-                    transform:
-                        'translateY(0)'
-                }
-            ],
-            {
-                duration: 300,
-                easing:
-                    'cubic-bezier(.2,.75,.25,1)'
-            }
-        );
-
-    motionAnimationRegistry.set(
+    runCompositorAnimation(
         list,
-        animation
-    );
-
-    animation.onfinish =
-        () => {
-            motionAnimationRegistry.delete(
-                list
-            );
-        };
-}
-
-
-function prepareCardViewTransitions() {
-    document
-        .querySelectorAll(
-            '.card[data-video-id]'
-        )
-        .forEach(
-            (card, index) => {
-                card.style.viewTransitionName =
-                    'journal-card-'
-                    + String(index);
+        [
+            {
+                opacity: 0,
+                transform:
+                    'translate3d(0,-6px,0)'
+            },
+            {
+                opacity: 1,
+                transform:
+                    'translate3d(0,0,0)'
             }
-        );
+        ],
+        {
+            duration: 220,
+            easing:
+                'cubic-bezier(.2,.72,.25,1)'
+        }
+    );
 }
 
 
@@ -564,45 +572,14 @@ function runAnimatedViewUpdate(update) {
         return;
     }
 
-    if (
-        prefersReducedMotion()
-        ||
-        typeof document.startViewTransition
-        !== 'function'
-    ) {
-        update();
+    update();
 
-        requestAnimationFrame(
-            () => {
-                animateCardsIn(
-                    document,
-                    180
-                );
-            }
-        );
-
-        return;
-    }
-
-    prepareCardViewTransitions();
-
-    const transition =
-        document.startViewTransition(
-            () => {
-                update();
-            }
-        );
-
-    transition.finished
-        .then(
-            () => {
-                animateCardsIn(
-                    document,
-                    180
-                );
-            }
-        )
-        .catch(
-            () => {}
-        );
+    requestAnimationFrame(
+        () => {
+            animateCardsIn(
+                document,
+                100
+            );
+        }
+    );
 }
