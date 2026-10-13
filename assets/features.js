@@ -2176,6 +2176,38 @@ async function importJournalBackup(
             );
         }
 
+        const existingKeys = [];
+
+        for (
+            let index = 0;
+            index < localStorage.length;
+            index++
+        ) {
+            const key =
+                localStorage.key(
+                    index
+                );
+
+            if (
+                key
+                &&
+                key.startsWith(
+                    'jornal_do_futebol_'
+                )
+            ) {
+                existingKeys.push(
+                    key
+                );
+            }
+        }
+
+        existingKeys.forEach(
+            key =>
+                localStorage.removeItem(
+                    key
+                )
+        );
+
         for (
             const [
                 key,
@@ -2199,6 +2231,10 @@ async function importJournalBackup(
                 );
             }
         }
+
+        sessionStorage.removeItem(
+            MANUAL_QUEUE_SESSION_KEY
+        );
 
         if (
             payload.session
