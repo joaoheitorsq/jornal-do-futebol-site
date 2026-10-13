@@ -50,7 +50,9 @@ jobs:
       - name: Validar código-fonte
         run: |
           python -m py_compile jornal.py tests/validate_site.py
-          node --check assets/app.js
+          for file in assets/*.js; do
+            node --check "$file"
+          done
           python tests/validate_site.py --source-only
 
       - name: Restaurar cache do tradutor
@@ -80,7 +82,7 @@ jobs:
         run: |
           mkdir -p _site/assets
           cp index.html _site/index.html
-          cp assets/app.js _site/assets/app.js
+          cp assets/*.js _site/assets/
           cp assets/style.css _site/assets/style.css
 
           if [ -f hearthpwn_translation_cache.json ]; then
