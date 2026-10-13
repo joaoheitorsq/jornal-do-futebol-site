@@ -1192,6 +1192,22 @@ def build_page(videos, now_local, failures, hearthpwn_news=None):
     chapter_html_parts = []
 
     for chapter_index, (label, chapter_videos) in enumerate(chapters.items()):
+        period = (
+            label.split(" • ", 1)[1]
+            if " • " in label
+            else ""
+        )
+
+        chapter_icon = {
+            "Madrugada": "☾",
+            "Manhã": "☀",
+            "Tarde": "◐",
+            "Noite": "☾",
+        }.get(
+            period,
+            "•",
+        )
+
         cards = []
 
         for video in chapter_videos:
@@ -1295,6 +1311,12 @@ Marcar como visto
     onclick="toggleChapter(this.closest('.chapter').dataset.chapterKey)"
 >
 <span class="chapter-title-text">
+<span
+    class="chapter-period-icon"
+    aria-hidden="true"
+>
+__CHAPTER_ICON__
+</span>
 __CHAPTER_LABEL__
 <span class="chapter-count">(__CHAPTER_COUNT__)</span>
 </span>
@@ -1310,6 +1332,7 @@ __CARDS__
             .replace("__CHAPTER_INDEX__", str(chapter_index))
             .replace("__CHAPTER_KEY__", html.escape(date + "|" + label, quote=True))
             .replace("__CHAPTER_LABEL__", html.escape(label))
+            .replace("__CHAPTER_ICON__", chapter_icon)
             .replace("__CHAPTER_COUNT__", str(len(chapter_videos)))
             .replace("__CARDS__", "\n".join(cards))
         )

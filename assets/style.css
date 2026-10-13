@@ -1621,3 +1621,348 @@ a:focus-visible {
         transition-duration: .01ms !important;
     }
 }
+
+
+/* =========================================================
+   POLIMENTO VISUAL — acabamento final
+   ========================================================= */
+
+/* 1. Miniaturas: integração mais suave com o card */
+.thumbbox::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(8, 11, 16, .12),
+            transparent 30%,
+            rgba(8, 11, 16, .20)
+        ),
+        linear-gradient(
+            180deg,
+            transparent 62%,
+            rgba(8, 11, 16, .16)
+        );
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, .025);
+    transition:
+        box-shadow 180ms ease,
+        background 180ms ease;
+}
+
+.card.current .thumbbox::after {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(58, 137, 230, .12),
+            transparent 44%
+        ),
+        linear-gradient(
+            180deg,
+            transparent 62%,
+            rgba(8, 11, 16, .14)
+        );
+    box-shadow:
+        inset 0 0 0 1px rgba(105, 170, 255, .20),
+        inset 0 0 22px rgba(105, 170, 255, .11);
+}
+
+/* 2. Badges com uma única linguagem visual */
+.resume-badge,
+.playing-badge,
+.chapter-count,
+.hearthpwn-seen-badge {
+    border-radius: 999px;
+    font-weight: 800;
+    letter-spacing: .035em;
+    backdrop-filter: blur(5px);
+}
+
+.resume-badge,
+.playing-badge {
+    z-index: 4;
+    min-height: 22px;
+    align-items: center;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, .11);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+}
+
+.card.resume:not(.current) .resume-badge,
+.card.current .playing-badge {
+    display: inline-flex;
+}
+
+.resume-badge {
+    background: rgba(145, 93, 25, .86);
+}
+
+.playing-badge {
+    background: rgba(39, 111, 196, .88);
+}
+
+/* 3. Ícones discretos para os períodos da timeline */
+.chapter-title-text {
+    align-items: center;
+}
+
+.chapter-period-icon {
+    display: inline-grid;
+    width: 22px;
+    height: 22px;
+    place-items: center;
+    flex: 0 0 auto;
+    margin-right: 1px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface-soft);
+    color: var(--warning);
+    font-size: 12px;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+}
+
+/* 4. Barra de progresso com ponto luminoso */
+.time-progress {
+    overflow: hidden;
+    box-shadow:
+        inset 0 1px 2px rgba(0, 0, 0, .28);
+}
+
+.time-progress span {
+    position: relative;
+    box-shadow:
+        0 0 10px rgba(105, 170, 255, .30);
+    transition:
+        width 260ms cubic-bezier(.22, .72, .25, 1);
+}
+
+.time-progress span::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 0;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #d9ebff;
+    box-shadow:
+        0 0 7px rgba(139, 192, 255, .95),
+        0 0 13px rgba(105, 170, 255, .52);
+    transform: translate(1px, -50%);
+}
+
+/* 5 e 10. Estado assistido + feedback suave com check */
+.thumbbox::before {
+    content: "✓";
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    z-index: 5;
+    display: grid;
+    width: 25px;
+    height: 25px;
+    place-items: center;
+    border: 1px solid rgba(189, 235, 204, .28);
+    border-radius: 50%;
+    background: rgba(32, 87, 51, .88);
+    color: #d7f4e1;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+    opacity: 0;
+    transform: scale(.68);
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, .26);
+    pointer-events: none;
+    transition:
+        opacity 170ms ease,
+        transform 190ms cubic-bezier(.2, .8, .2, 1.15);
+}
+
+.card.watched .thumbbox::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.card.watched:not(.current) {
+    opacity: .62;
+    filter: saturate(.66);
+}
+
+.card.watched:not(.current):hover {
+    opacity: .82;
+    filter: saturate(.86);
+}
+
+.card.watched .card-info {
+    transition: opacity 180ms ease;
+}
+
+/* 6. Player como elemento visual principal */
+.playerbox {
+    position: relative;
+    isolation: isolate;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(105, 170, 255, .055),
+            transparent 30%
+        ),
+        #141920;
+    box-shadow:
+        0 18px 48px rgba(0, 0, 0, .34),
+        0 0 0 1px rgba(105, 170, 255, .07);
+}
+
+.playerbox::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    left: 18px;
+    right: 18px;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(105, 170, 255, .46),
+        transparent
+    );
+}
+
+#playerwrap {
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, .28);
+}
+
+/* 7. Toolbar como uma única unidade visual */
+.toolbar {
+    gap: 6px;
+    padding: 7px;
+    border: 1px solid rgba(255, 255, 255, .035);
+    border-radius: 13px;
+    background: var(--surface);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, .12);
+}
+
+.toolbar .view-toggle,
+.toolbar .search-box {
+    min-height: 38px;
+    border-color: transparent;
+    background: var(--surface-soft);
+}
+
+.toolbar .view-toggle:hover,
+.toolbar .search-box:focus {
+    background: var(--surface-strong);
+}
+
+.toolbar .search-box {
+    max-width: none;
+}
+
+.toolbar-info {
+    padding: 0 7px;
+    color: var(--muted-2);
+    font-size: 12px;
+}
+
+/* 8. HearthPwn com identidade própria, sem competir com o Jornal */
+.hearthpwn-widget {
+    position: relative;
+    box-shadow:
+        inset 3px 0 0 rgba(217, 160, 75, .72),
+        inset 0 0 0 1px rgba(217, 160, 75, .055);
+}
+
+.hearthpwn-widget::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 3px;
+    right: 0;
+    height: 46px;
+    pointer-events: none;
+    background: linear-gradient(
+        90deg,
+        rgba(217, 160, 75, .065),
+        transparent 44%
+    );
+}
+
+.hearthpwn-head,
+.hearthpwn-news-list {
+    position: relative;
+    z-index: 1;
+}
+
+.widget-kicker {
+    color: #e5ae58;
+}
+
+/* 9. Scrollbar discreta apenas em dispositivos com ponteiro fino */
+@media (pointer: fine) {
+    html {
+        scrollbar-width: thin;
+        scrollbar-color:
+            var(--border-strong)
+            var(--bg);
+    }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        border: 3px solid var(--bg);
+        border-radius: 999px;
+        background: var(--border-strong);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #55606f;
+    }
+}
+
+@media (max-width: 650px) {
+    .chapter-period-icon {
+        width: 19px;
+        height: 19px;
+        font-size: 10px;
+    }
+
+    .toolbar {
+        padding: 6px;
+        border-radius: 11px;
+    }
+
+    .toolbar .view-toggle,
+    .toolbar .search-box {
+        min-height: 37px;
+    }
+
+    .thumbbox::before {
+        top: 5px;
+        right: 5px;
+        width: 22px;
+        height: 22px;
+        font-size: 12px;
+    }
+
+    .resume-badge,
+    .playing-badge {
+        min-height: 19px;
+        padding: 3px 6px;
+        font-size: 9px;
+    }
+}
