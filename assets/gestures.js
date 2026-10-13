@@ -2,6 +2,8 @@ const WATCH_ACTION_HOLD_MS = 2000;
 const WATCH_ACTION_MOVE_TOLERANCE = 18;
 
 let watchActionHoldTimer = null;
+let watchActionHoldFrame = null;
+let watchActionHoldStartedAt = 0;
 let watchActionHoldButton = null;
 let watchActionHoldPointerId = null;
 let watchActionHoldStartX = 0;
@@ -16,18 +18,68 @@ function cancelWatchActionHold() {
         );
     }
 
+    if (watchActionHoldFrame) {
+        cancelAnimationFrame(
+            watchActionHoldFrame
+        );
+    }
+
     if (watchActionHoldButton) {
         watchActionHoldButton.classList.remove(
             'holding'
         );
+
+        watchActionHoldButton.style.setProperty(
+            '--hold-progress',
+            '0%'
+        );
     }
 
     watchActionHoldTimer = null;
+    watchActionHoldFrame = null;
+    watchActionHoldStartedAt = 0;
     watchActionHoldButton = null;
     watchActionHoldPointerId = null;
     watchActionHoldStartX = 0;
     watchActionHoldStartY = 0;
     watchActionHoldTriggered = false;
+}
+
+
+function updateWatchActionHoldProgress() {
+    if (
+        !watchActionHoldButton
+        ||
+        !watchActionHoldStartedAt
+        ||
+        watchActionHoldTriggered
+    ) {
+        return;
+    }
+
+    const elapsed =
+        performance.now()
+        - watchActionHoldStartedAt;
+
+    const progress =
+        Math.min(
+            1,
+            elapsed / WATCH_ACTION_HOLD_MS
+        );
+
+    watchActionHoldButton.style.setProperty(
+        '--hold-progress',
+        String(
+            Math.round(progress * 100)
+        ) + '%'
+    );
+
+    if (progress < 1) {
+        watchActionHoldFrame =
+            requestAnimationFrame(
+                updateWatchActionHoldProgress
+            );
+    }
 }
 
 
@@ -66,6 +118,11 @@ function beginWatchActionHold(event) {
     button.classList.add(
         'holding'
     );
+
+    watchActionHoldStartedAt =
+        performance.now();
+
+    updateWatchActionHoldProgress();
 
     watchActionHoldTimer =
         setTimeout(
