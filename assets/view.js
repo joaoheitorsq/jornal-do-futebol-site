@@ -239,6 +239,20 @@ function metadataForVideo(videoId) {
     }
 
     if (
+        typeof featureVideoMeta
+        === 'function'
+    ) {
+        const featureMeta =
+            featureVideoMeta(
+                videoId
+            );
+
+        if (featureMeta) {
+            return featureMeta;
+        }
+    }
+
+    if (
         resumeState
         &&
         resumeState.videoId === videoId
@@ -322,6 +336,17 @@ function saveResume(
     catch (_) {}
 
     resumeState = data;
+
+    if (
+        typeof saveResumePosition
+        === 'function'
+    ) {
+        saveResumePosition(
+            videoId,
+            data
+        );
+    }
+
     renderCarryover();
     showResumeCard(videoId);
     updateTimeStats();
@@ -333,10 +358,24 @@ function clearResume(videoId = null) {
     if (
         videoId
         &&
-        resumeState
-        &&
-        resumeState.videoId !== videoId
+        typeof removeResumePosition
+        === 'function'
     ) {
+        removeResumePosition(
+            videoId
+        );
+    }
+
+    const clearsPrimary =
+        !videoId
+        ||
+        !resumeState
+        ||
+        resumeState.videoId
+        === videoId;
+
+    if (!clearsPrimary) {
+        updateTimeStats();
         return;
     }
 
@@ -480,17 +519,35 @@ function updateTimeStats() {
             0
         );
 
-    const headerProgress =
+    const watchedNumber =
         document.getElementById(
-            'header-progress-count'
+            'header-progress-watched'
         );
 
-    if (headerProgress) {
-        headerProgress.textContent =
-            String(watchedCount)
-            + ' / '
-            + String(VIDEOS.length)
-            + ' vídeos';
+    const totalNumber =
+        document.getElementById(
+            'header-progress-total'
+        );
+
+    if (watchedNumber) {
+        if (
+            typeof animateNumberChange
+            === 'function'
+        ) {
+            animateNumberChange(
+                watchedNumber,
+                watchedCount
+            );
+        }
+        else {
+            watchedNumber.textContent =
+                String(watchedCount);
+        }
+    }
+
+    if (totalNumber) {
+        totalNumber.textContent =
+            String(VIDEOS.length);
     }
 
     const playingId =
@@ -525,6 +582,15 @@ function updateTimeStats() {
             playingId === video.id
         ) {
             partial = currentTime();
+        }
+        else if (
+            typeof getResumeSeconds
+            === 'function'
+        ) {
+            partial =
+                getResumeSeconds(
+                    video.id
+                );
         }
         else if (
             resumeState
@@ -610,95 +676,31 @@ function updateTimeStats() {
             )
         );
     }
+
+    if (
+        typeof updateSessionSummary
+        === 'function'
+    ) {
+        updateSessionSummary();
+    }
+
+    if (
+        typeof updateSmartHeader
+        === 'function'
+    ) {
+        updateSmartHeader();
+    }
 }
 
 
 function renderCarryover() {
-    const box =
-        document.getElementById(
-            'carryover'
-        );
-
-    const card =
-        document.getElementById(
-            'carryover-card'
-        );
-
-    const openButton =
-        document.getElementById(
-            'carryover-open'
-        );
-
-    const watchButton =
-        document.getElementById(
-            'carryover-watch-toggle'
-        );
-
     if (
-        !resumeState
-        ||
-        !resumeOutsideCurrentJournal()
-        ||
-        isWatched(resumeState.videoId)
-        ||
-        resumeState.embeddable === false
+        typeof renderFeatureCarryover
+        === 'function'
     ) {
-        box.classList.add('hidden');
-        card.removeAttribute(
-            'data-video-id'
-        );
-        openButton.onclick = null;
-        watchButton.onclick = null;
-        watchButton.removeAttribute(
-            'data-video-id'
-        );
-        return;
+        renderFeatureCarryover();
     }
-
-    box.classList.remove('hidden');
-
-    card.dataset.videoId =
-        resumeState.videoId;
-
-    openButton.onclick = () =>
-        openVideo(
-            resumeState.videoId
-        );
-
-    watchButton.dataset.videoId =
-        resumeState.videoId;
-
-    watchButton.onclick = null;
-
-    document.getElementById(
-        'carryover-title'
-    ).textContent =
-        resumeState.title
-        || 'Vídeo anterior em andamento';
-
-    document.getElementById(
-        'carryover-channel'
-    ).textContent =
-        (
-            resumeState.channelTitle
-            ? resumeState.channelTitle + ' · '
-            : ''
-        )
-        + 'ponto salvo em '
-        + formatTime(
-            resumeState.seconds
-        );
-
-    document.getElementById(
-        'carryover-thumb'
-    ).src =
-        'https://i.ytimg.com/vi/'
-        + encodeURIComponent(
-            resumeState.videoId
-        )
-        + '/mqdefault.jpg';
 }
-
 
 function showResumeCard(videoId) {
     document
@@ -723,6 +725,13 @@ function showCurrentCard(videoId) {
                 === videoId
             );
         });
+
+    if (
+        typeof updateCurrentChapterHighlight
+        === 'function'
+    ) {
+        updateCurrentChapterHighlight();
+    }
 }
 
 
@@ -782,7 +791,7 @@ function setStatus(text) {
 
 
 function rebuildPlaylist() {
-    activePlaylist =
+    const basePlaylist =
         VIDEOS
             .filter(video =>
                 video.embeddable
@@ -794,22 +803,25 @@ function rebuildPlaylist() {
                 )
                 &&
                 videoMatchesSearch(video)
+                &&
+                (
+                    typeof shouldHideVideoForFeatures
+                    !== 'function'
+                    ||
+                    !shouldHideVideoForFeatures(
+                        video
+                    )
+                )
             )
             .map(video => video.id);
 
-    if (
-        resumeState
-        &&
-        resumeOutsideCurrentJournal()
-        &&
-        resumeState.embeddable !== false
-        &&
-        !isWatched(resumeState.videoId)
-    ) {
-        activePlaylist.unshift(
-            resumeState.videoId
-        );
-    }
+    activePlaylist =
+        typeof orderPlaylistWithFeatures
+        === 'function'
+        ? orderPlaylistWithFeatures(
+            basePlaylist
+        )
+        : basePlaylist;
 
     const current =
         currentVideoId();
@@ -838,7 +850,6 @@ function rebuildPlaylist() {
         i = 0;
     }
 }
-
 
 function updateWatchButtons() {
     document
@@ -874,6 +885,13 @@ function updateWatchButtons() {
                 ? '↶ Marcar como não visto'
                 : '✓ Marcar como visto';
         });
+
+    if (
+        typeof updateCardFeatureUI
+        === 'function'
+    ) {
+        updateCardFeatureUI();
+    }
 }
 
 
@@ -912,10 +930,19 @@ function renderQueueButton(
     if (!video) {
         button.hidden = true;
         button.onclick = null;
+        delete button.dataset.videoId;
         return;
     }
 
     button.hidden = false;
+    button.dataset.videoId =
+        videoId;
+
+    button.classList.toggle(
+        'primary-next',
+        label === 'PRÓXIMO'
+    );
+
     button.onclick = () =>
         openVideo(videoId);
 
@@ -1037,17 +1064,38 @@ function updateUpNext(
         ||
         null;
 
+    const previousFirst =
+        box.dataset.firstVideo
+        || '';
+
     renderQueueButton(
         firstButton,
         first,
-        'A seguir'
+        'PRÓXIMO'
     );
 
     renderQueueButton(
         secondButton,
         second,
-        'Depois'
+        'DEPOIS'
     );
+
+    box.dataset.firstVideo =
+        first || '';
+
+    if (
+        first
+        &&
+        first !== previousFirst
+        &&
+        typeof animateQueueAdvance
+        === 'function'
+    ) {
+        animateQueueAdvance(
+            firstButton,
+            secondButton
+        );
+    }
 
     box.classList.toggle(
         'empty',
@@ -1170,7 +1218,16 @@ function applyView() {
                     isWatched(videoId)
                 )
                 ||
-                !videoMatchesSearch(video);
+                !videoMatchesSearch(video)
+                ||
+                (
+                    typeof shouldHideVideoForFeatures
+                    === 'function'
+                    &&
+                    shouldHideVideoForFeatures(
+                        video
+                    )
+                );
 
             card.classList.toggle(
                 'hidden',
@@ -1269,6 +1326,43 @@ function applyView() {
     updateTimeStats();
     updateResumeJumpButton();
     updateUpNext();
+
+    if (
+        typeof updateFeatureToolbar
+        === 'function'
+    ) {
+        updateFeatureToolbar();
+    }
+
+    if (
+        typeof updateChapterProgress
+        === 'function'
+    ) {
+        updateChapterProgress();
+    }
+
+    if (
+        typeof updateSessionSummary
+        === 'function'
+    ) {
+        updateSessionSummary();
+    }
+
+    if (
+        typeof updateSmartHeader
+        === 'function'
+    ) {
+        updateSmartHeader();
+    }
+
+    if (
+        typeof observeAnimatedCards
+        === 'function'
+    ) {
+        observeAnimatedCards(
+            document
+        );
+    }
 }
 
 
