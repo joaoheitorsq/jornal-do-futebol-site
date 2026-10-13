@@ -1497,27 +1497,32 @@ small {
 
 #playerwrap:fullscreen .fullscreen-next,
 #playerwrap:-webkit-full-screen .fullscreen-next {
-    display: block;
+    display: flex;
     position: absolute;
-    right: 24px;
-    bottom: 24px;
+    right: 14px;
+    bottom: 14px;
     z-index: 50;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
     border: 1px solid rgba(255, 255, 255, .34);
-    border-radius: 12px;
+    border-radius: 10px;
     background:
         linear-gradient(
             90deg,
-            rgba(255, 255, 255, .18) var(--hold-progress),
+            rgba(255, 255, 255, .22) var(--hold-progress),
             transparent var(--hold-progress)
         ),
-        rgba(15, 17, 21, .92);
+        rgba(15, 17, 21, .88);
     color: #fff;
-    padding: 11px 15px;
+    padding: 0;
     font: inherit;
-    font-size: 14px;
+    font-size: 22px;
+    line-height: 1;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, .42);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .38);
     backdrop-filter: blur(7px);
 }
 
@@ -1539,10 +1544,12 @@ small {
 @media (max-width: 600px) {
     #playerwrap:fullscreen .fullscreen-next,
     #playerwrap:-webkit-full-screen .fullscreen-next {
-        right: 12px;
-        bottom: 16px;
-        padding: 10px 12px;
-        font-size: 13px;
+        right: 10px;
+        bottom: 10px;
+        width: 42px;
+        height: 42px;
+        padding: 0;
+        font-size: 21px;
     }
 }
 
@@ -2312,7 +2319,7 @@ Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses t
     type="button"
     aria-label="Segure por 3 segundos para marcar o vídeo atual como visto e ir para o próximo"
 >
-Segure 3s · Visto + Próximo ⏭
+⏭
 </button>
 
 </div>
@@ -4926,7 +4933,7 @@ function resetFullscreenNextHoldVisual() {
     );
 
     button.textContent =
-        'Segure 3s · Visto + Próximo ⏭';
+        '⏭';
 }
 
 
@@ -4985,17 +4992,6 @@ function updateFullscreenNextHoldProgress() {
             Math.round(progress * 100)
         ) + '%'
     );
-
-    const remaining =
-        Math.max(
-            0,
-            FULLSCREEN_NEXT_HOLD_MS - elapsed
-        );
-
-    button.textContent =
-        'Continue segurando · '
-        + (remaining / 1000).toFixed(1)
-        + 's';
 
     if (progress < 1) {
         fullscreenNextHoldFrame =
@@ -5083,7 +5079,7 @@ function beginFullscreenNextHold(event) {
                 );
 
                 button.textContent =
-                    '✓ Marcado · avançando…';
+                    '✓';
 
                 markCurrentWatchedAndNext();
 
