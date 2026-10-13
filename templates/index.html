@@ -22,7 +22,7 @@ Jornal do Futebol — __DATE__
 
 </head>
 
-<body>
+<body data-journal-date="__DATE__">
 
 <main>
 
@@ -45,7 +45,10 @@ RESUMO DIÁRIO
     id="header-progress-count"
     class="journal-progress-pill"
 >
-0 / 0 vídeos
+<span id="header-progress-watched">0</span>
+<span aria-hidden="true">/</span>
+<span id="header-progress-total">0</span>
+<span>vídeos</span>
 </span>
 </div>
 
@@ -86,6 +89,14 @@ assistido de
 
 <div class="time-note">
 Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses tempos; Shorts desses canais entram normalmente.
+</div>
+
+<div
+    id="session-summary"
+    class="session-summary"
+    aria-live="polite"
+>
+Hoje: —
 </div>
 
 <section id="player-section" class="playerbox">
@@ -231,58 +242,16 @@ __HEARTHPWN_WIDGET__
     class="carryover hidden"
 >
 
-<h2>Continuação pendente</h2>
+<h2>Continuações pendentes</h2>
 
 <p>
-Este vídeo saiu das últimas 24 horas, mas foi mantido até você terminar de assistir.
+Vídeos marcados para terminar depois continuam disponíveis mesmo quando saem das últimas 24 horas.
 </p>
 
-<article
-    id="carryover-card"
-    class="card"
->
-
-<button
-    id="carryover-open"
-    class="card-open"
-    type="button"
->
-
-<div class="thumbbox">
-
-<img
-    id="carryover-thumb"
-    src=""
-    alt=""
->
-
-<span class="resume-badge">
-▶ CONTINUAR AQUI
-</span>
-
-<span class="playing-badge">
-▶ AGORA
-</span>
-
-</div>
-
-<span class="card-info">
-<b id="carryover-title">Vídeo anterior</b>
-<em id="carryover-channel"></em>
-</span>
-
-</button>
-
-<button
-    id="carryover-watch-toggle"
-    class="watch-action"
-    type="button"
-    aria-label="Segure por 2 segundos para alterar o status de assistido"
->
-Marcar como visto
-</button>
-
-</article>
+<div
+    id="carryover-list"
+    class="carryover-list"
+></div>
 
 </section>
 
@@ -322,6 +291,54 @@ Só o que ainda não vi
 
 </div>
 
+<div class="feature-tools" aria-label="Ferramentas do Jornal">
+<span
+    id="manual-queue-summary"
+    class="feature-tools-summary"
+>
+Fila manual vazia
+</span>
+
+<button
+    id="clear-manual-queue"
+    type="button"
+    onclick="clearManualQueue()"
+>
+Limpar fila
+</button>
+
+<button
+    id="restore-skipped-channels"
+    type="button"
+    onclick="restoreSkippedChannels()"
+    hidden
+>
+Restaurar canais
+</button>
+
+<button
+    type="button"
+    onclick="exportJournalBackup()"
+>
+Exportar backup
+</button>
+
+<button
+    type="button"
+    onclick="openBackupImport()"
+>
+Restaurar backup
+</button>
+
+<input
+    id="backup-import"
+    class="backup-import"
+    type="file"
+    accept="application/json,.json"
+    onchange="importJournalBackup(this)"
+>
+</div>
+
 <div
     id="no-unwatched"
     class="no-unwatched"
@@ -332,6 +349,32 @@ Você já concluiu todos os vídeos disponíveis deste Jornal.
 __CHAPTERS_HTML__
 
 </main>
+
+<div
+    id="smart-header"
+    class="smart-header"
+    aria-hidden="true"
+>
+<strong>⚽ Jornal do Futebol</strong>
+<span id="smart-header-progress">0 / 0 vídeos</span>
+<span id="smart-header-remaining">— restantes</span>
+</div>
+
+<div
+    id="undo-toast"
+    class="undo-toast"
+    role="status"
+    aria-live="polite"
+>
+<span id="undo-toast-text"></span>
+<button
+    id="undo-toast-button"
+    type="button"
+    onclick="performUndo()"
+>
+DESFAZER
+</button>
+</div>
 
 <div
     id="journal-complete-animation"
@@ -362,6 +405,7 @@ __PLAYER_VIDEOS__
 <script src="assets/view.js?v=__VIEW_VERSION__"></script>
 <script src="assets/player.js?v=__PLAYER_VERSION__"></script>
 <script src="assets/motion.js?v=__MOTION_VERSION__"></script>
+<script src="assets/features.js?v=__FEATURES_VERSION__"></script>
 <script src="assets/bootstrap.js?v=__BOOTSTRAP_VERSION__"></script>
 
 </body>
