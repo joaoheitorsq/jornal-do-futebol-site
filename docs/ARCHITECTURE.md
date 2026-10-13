@@ -126,3 +126,10 @@ O pacote avançado mantém as seguintes regras:
 Todo elemento `button` dentro de `.card` exige pressão contínua de pelo menos 2 segundos para executar sua ação. Isso inclui abrir o vídeo, marcar como visto/não visto, fila manual, Ver depois, Terminar depois e Pular canal por hoje.
 
 O bloqueio é feito em fase de captura de `click`, portanto novos botões adicionados futuramente dentro de um card também ficam protegidos automaticamente. Movimento acima da tolerância cancela a ação para preservar a rolagem no celular. Teclado também exige manter Espaço ou Enter pelo mesmo período.
+
+
+## Regra permanente para animações
+
+Toda animação nova do Jornal deve ser implementada com meta de fluidez de 60 FPS. Sempre que possível, movimento contínuo deve usar apenas `transform` e `opacity`, preferencialmente via compositor/WAAPI, evitando animar `width`, `height`, `top`, `left`, `filter`, `backdrop-filter` ou `box-shadow`. Reflows forçados durante animações também devem ser evitados.
+
+Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o Jornal mostra um ✓ animado no canto superior esquerdo. Esse feedback reutiliza um único elemento e anima somente `transform` e `opacity`.

@@ -3190,3 +3190,59 @@ main {
         transition: none !important;
     }
 }
+
+
+/* =========================================================
+   CARD HOLD SUCCESS — feedback global no canto superior esquerdo
+   ========================================================= */
+
+.card-hold-success {
+    position: fixed;
+    top:
+        max(
+            12px,
+            env(safe-area-inset-top)
+        );
+    left:
+        max(
+            12px,
+            env(safe-area-inset-left)
+        );
+    z-index: var(--z-overlay);
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border: 1px solid rgba(191, 231, 204, .24);
+    border-radius: 50%;
+    background: rgba(28, 83, 47, .96);
+    color: #daf4e2;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+    opacity: 0;
+    transform:
+        translate3d(-4px,-4px,0)
+        scale(.86);
+    pointer-events: none;
+    contain: layout paint;
+}
+
+.card-hold-success span {
+    display: block;
+    transform: translate3d(0,0,0);
+}
+
+@media (max-width: 650px) {
+    .card-hold-success {
+        width: 34px;
+        height: 34px;
+        font-size: 20px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card-hold-success {
+        transition: none !important;
+    }
+}

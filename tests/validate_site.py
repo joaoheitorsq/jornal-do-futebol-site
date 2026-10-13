@@ -78,6 +78,7 @@ REQUIRED_APP_FUNCTIONS = {
     "animateQueueAdvance",
     "animateNumberChange",
     "animateChapterComplete",
+    "animateCardHoldSuccessFeedback",
     "performUndo",
 }
 
@@ -100,6 +101,7 @@ REQUIRED_HTML_IDS = {
     "smart-header",
     "undo-toast",
     "backup-import",
+    "card-hold-success",
 }
 
 
@@ -235,6 +237,19 @@ def validate_sources():
         "CARD SAFETY PROTOCOL" in css
         and ".card button.holding::after" in css,
         "Feedback visual do protocolo de segurança dos cards está ausente.",
+    )
+
+    require(
+        "animateCardHoldSuccessFeedback" in javascript
+        and 'id="card-hold-success"' in template
+        and "CARD HOLD SUCCESS" in css,
+        "Feedback global de sucesso do toque longo está ausente.",
+    )
+
+    require(
+        "feedback.animate(" in javascript
+        and "'transform, opacity'" in javascript,
+        "Feedback de sucesso deve usar animação otimizada por transform/opacity.",
     )
 
     require(

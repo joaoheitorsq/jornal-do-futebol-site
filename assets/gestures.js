@@ -200,6 +200,13 @@ function completeCardButtonHold() {
         button
     );
 
+    if (
+        typeof animateCardHoldSuccessFeedback
+        === 'function'
+    ) {
+        animateCardHoldSuccessFeedback();
+    }
+
     setTimeout(
         () => {
             button.classList.remove(

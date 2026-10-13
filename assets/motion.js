@@ -876,3 +876,127 @@ function animateChapterComplete(
         }
     );
 }
+
+
+
+let cardHoldSuccessAnimation = null;
+
+
+function animateCardHoldSuccessFeedback() {
+    const feedback =
+        document.getElementById(
+            'card-hold-success'
+        );
+
+    if (!feedback) {
+        return;
+    }
+
+    if (cardHoldSuccessAnimation) {
+        try {
+            cardHoldSuccessAnimation.cancel();
+        }
+        catch (_) {}
+
+        cardHoldSuccessAnimation = null;
+    }
+
+    feedback.setAttribute(
+        'aria-hidden',
+        'false'
+    );
+
+    if (
+        prefersReducedMotion()
+        ||
+        typeof feedback.animate
+        !== 'function'
+    ) {
+        feedback.style.opacity = '1';
+        feedback.style.transform =
+            'translate3d(0,0,0) scale(1)';
+
+        setTimeout(
+            () => {
+                feedback.style.opacity = '0';
+                feedback.style.transform =
+                    'translate3d(-4px,-4px,0) scale(.86)';
+
+                feedback.setAttribute(
+                    'aria-hidden',
+                    'true'
+                );
+            },
+            420
+        );
+
+        return;
+    }
+
+    feedback.style.willChange =
+        'transform, opacity';
+
+    cardHoldSuccessAnimation =
+        feedback.animate(
+            [
+                {
+                    opacity: 0,
+                    transform:
+                        'translate3d(-5px,-5px,0) scale(.72)'
+                },
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0) scale(1.08)',
+                    offset: .34
+                },
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0) scale(1)',
+                    offset: .64
+                },
+                {
+                    opacity: 0,
+                    transform:
+                        'translate3d(0,-3px,0) scale(.96)'
+                }
+            ],
+            {
+                duration: 620,
+                easing:
+                    'cubic-bezier(.2,.78,.24,1)',
+                fill: 'both'
+            }
+        );
+
+    const animation =
+        cardHoldSuccessAnimation;
+
+    animation.onfinish =
+        () => {
+            if (
+                cardHoldSuccessAnimation
+                === animation
+            ) {
+                cardHoldSuccessAnimation =
+                    null;
+            }
+
+            feedback.style.removeProperty(
+                'will-change'
+            );
+
+            feedback.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+        };
+
+    animation.oncancel =
+        () => {
+            feedback.style.removeProperty(
+                'will-change'
+            );
+        };
+}
