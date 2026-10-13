@@ -175,7 +175,7 @@ small {
 
 .fullscreen-next {
     display: none;
-    --hold-progress: 0%;
+    --hold-scale: 0;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
@@ -270,8 +270,8 @@ small {
     background:
         linear-gradient(
             90deg,
-            rgba(255, 255, 255, .22) var(--hold-progress),
-            transparent var(--hold-progress)
+            rgba(255, 255, 255, .22) var(--hold-scale),
+            transparent var(--hold-scale)
         ),
         rgba(15, 17, 21, .88);
     color: #fff;
@@ -2249,131 +2249,123 @@ main {
 
 
 /* =========================================================
-   MOTION SYSTEM — animações e microinterações
+   MOTION SYSTEM — compositor-first / alvo de 60 FPS
    ========================================================= */
 
-/* 1. Entrada em cascata dos cards */
-.card.card-entering {
-    animation:
-        journal-card-enter
-        380ms
-        cubic-bezier(.2,.78,.24,1)
-        both;
-    animation-delay:
-        var(--card-enter-delay, 0ms);
+/*
+ * Regra: animações contínuas usam somente transform e opacity.
+ * Evitamos height, width, filter, backdrop-filter e box-shadow
+ * animados, que forçam layout/paint e causam engasgos no celular.
+ */
+
+.card {
+    transition:
+        opacity 170ms ease,
+        transform 150ms ease;
 }
 
-@keyframes journal-card-enter {
-    from {
-        opacity: 0;
-        transform:
-            translateY(12px)
-            scale(.985);
-    }
+.card.watched:not(.current),
+.card.watched:not(.current):hover {
+    filter: none;
 }
 
-/* 2. Conclusão visual ao marcar como visto */
-.card.just-watched {
-    animation:
-        watched-card-complete
-        620ms
-        cubic-bezier(.2,.8,.2,1);
+.thumbbox img,
+.card.watched:not(.current) .thumbbox img {
+    filter: none;
+    transition:
+        transform 180ms ease,
+        opacity 180ms ease;
 }
 
-.card.just-watched .thumbbox::after {
+.card.just-watched::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    border-radius: inherit;
+    box-shadow:
+        inset 3px 0 0
+        var(--success),
+        inset 0 0 0 1px
+        rgba(127,208,154,.24);
+    opacity: 0;
+    pointer-events: none;
     animation:
-        watched-thumbnail-flash
-        520ms
+        watched-glow-opacity
+        420ms
         ease-out;
+    will-change: opacity;
 }
 
-@keyframes watched-card-complete {
-    0% {
-        transform: scale(1);
-    }
-
-    35% {
-        transform: scale(.992);
-        box-shadow:
-            inset 3px 0 0
-            var(--success),
-            0 0 0 1px
-            rgba(127,208,154,.30),
-            0 0 26px
-            rgba(127,208,154,.16);
-    }
-
-    100% {
-        transform: scale(1);
-    }
-}
-
-@keyframes watched-thumbnail-flash {
+@keyframes watched-glow-opacity {
     0%,
     100% {
-        background-color:
-            transparent;
+        opacity: 0;
     }
 
-    35% {
-        background-color:
-            rgba(86,183,119,.20);
+    30% {
+        opacity: 1;
     }
 }
 
-/* 3. Troca cinematográfica do vídeo */
+/* Troca de vídeo: somente transform + opacity. */
 #youtube-standard-player {
     transition:
-        opacity 180ms ease,
-        transform 240ms
-        cubic-bezier(.2,.75,.25,1),
-        filter 180ms ease;
+        opacity 160ms ease,
+        transform 200ms
+        cubic-bezier(.2,.72,.25,1);
+    backface-visibility: hidden;
 }
 
 #playerwrap.switching-video
 #youtube-standard-player {
-    opacity: .34;
-    transform: scale(.992);
-    filter:
-        brightness(.62)
-        saturate(.78);
+    opacity: .38;
+    transform:
+        translate3d(0,0,0)
+        scale(.994);
 }
 
-.player-loading {
-    backdrop-filter:
-        blur(2px);
+.player-loading,
+.resume-badge,
+.playing-badge,
+.mini-toggle,
+.journal-complete-animation {
+    backdrop-filter: none;
 }
 
-/* 4. Badge AGORA respirando */
+/* Pulso do AGORA sem animar sombra. */
 .card.current .playing-badge {
     animation:
         now-badge-breathe
-        2.7s
+        2.8s
         ease-in-out
         infinite;
+    transform-origin: center;
+    will-change:
+        transform,
+        opacity;
 }
 
 @keyframes now-badge-breathe {
     0%,
     100% {
-        box-shadow:
-            0 4px 12px
-            rgba(0,0,0,.18),
-            0 0 0
-            rgba(105,170,255,0);
+        transform:
+            translate3d(0,0,0)
+            scale(1);
+        opacity: .92;
     }
 
     50% {
-        box-shadow:
-            0 4px 12px
-            rgba(0,0,0,.18),
-            0 0 16px
-            rgba(105,170,255,.32);
+        transform:
+            translate3d(0,0,0)
+            scale(1.035);
+        opacity: 1;
     }
 }
 
-/* 5. Timeline e expansão dos capítulos */
-.chapter-list {
+/* Capítulos e HearthPwn: JS anima conteúdo via transform/opacity. */
+.chapter-list,
+.hearthpwn-news-list {
     overflow: hidden;
 }
 
@@ -2381,108 +2373,68 @@ main {
     transform-origin: top;
     animation:
         timeline-grow
-        320ms
-        cubic-bezier(.2,.75,.25,1);
+        240ms
+        cubic-bezier(.2,.72,.25,1);
+    will-change:
+        transform,
+        opacity;
 }
 
 .chapter.chapter-closing::before {
-    opacity: .52;
+    opacity: .55;
 }
 
 @keyframes timeline-grow {
     from {
-        transform: scaleY(0);
+        transform:
+            scaleY(0);
         opacity: .2;
     }
 
     to {
-        transform: scaleY(1);
+        transform:
+            scaleY(1);
         opacity: 1;
     }
 }
 
-/* 6. Feedback animado da barra de progresso */
+/* Barra de tempo: largura fixa, progresso via scaleX. */
 .time-progress {
     position: relative;
+    transform-origin: center;
 }
 
-.time-progress.completion-pulse {
-    animation:
-        progress-track-pulse
-        680ms
-        ease-out;
-}
-
-.time-progress.completion-pulse::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(
-            100deg,
-            transparent 10%,
-            rgba(220,238,255,.70) 48%,
-            transparent 82%
-        );
+.time-progress span {
+    width: 100%;
     transform:
-        translateX(-120%);
-    animation:
-        progress-shimmer
-        650ms
-        ease-out;
+        scaleX(
+            var(--progress-ratio, 0)
+        );
+    transform-origin: left center;
+    transition:
+        transform 220ms
+        cubic-bezier(.2,.72,.25,1);
+    will-change: transform;
 }
 
 .time-progress.complete span {
-    box-shadow:
-        0 0 14px
-        rgba(105,170,255,.52);
+    opacity: 1;
 }
 
-.journal-progress-pill.progress-bump {
-    animation:
-        progress-pill-bump
-        460ms
-        cubic-bezier(.2,.8,.2,1.2);
-}
-
-@keyframes progress-track-pulse {
-    40% {
-        box-shadow:
-            inset 0 1px 2px
-            rgba(0,0,0,.28),
-            0 0 18px
-            rgba(105,170,255,.20);
-    }
-}
-
-@keyframes progress-shimmer {
-    to {
-        transform:
-            translateX(120%);
-    }
-}
-
-@keyframes progress-pill-bump {
-    50% {
-        transform:
-            scale(1.07);
-        border-color:
-            rgba(105,170,255,.52);
-    }
-}
-
-/* 8. Microinterações + anel do toque longo */
+/* Botões: transform é barato para o compositor. */
 .controls button:active,
 .view-toggle:active,
 .journal-transport button:active,
 .hearthpwn-collapse-toggle:active,
 .hearthpwn-watch-action:active {
     transform:
-        scale(.965);
+        translate3d(0,0,0)
+        scale(.97);
 }
 
+/* Toque longo: barra de progresso usa scaleX, não conic-gradient. */
 .watch-action {
-    --hold-progress: 0%;
+    --hold-scale: 0;
 }
 
 .watch-action.standalone {
@@ -2496,29 +2448,24 @@ main {
 .fullscreen-next::before {
     content: "";
     position: absolute;
-    inset: -3px;
-    z-index: 1;
-    padding: 2px;
-    border-radius: inherit;
-    background:
-        conic-gradient(
-            var(--accent)
-            var(--hold-progress),
-            rgba(105,170,255,.08)
-            0
-        );
+    left: 3px;
+    right: 3px;
+    bottom: -3px;
+    z-index: 3;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--accent);
     opacity: 0;
+    transform:
+        translate3d(0,0,0)
+        scaleX(
+            var(--hold-scale, 0)
+        );
+    transform-origin: left center;
     pointer-events: none;
-    -webkit-mask:
-        linear-gradient(#000 0 0)
-        content-box,
-        linear-gradient(#000 0 0);
-    -webkit-mask-composite:
-        xor;
-    mask-composite:
-        exclude;
-    transition:
-        opacity 120ms ease;
+    will-change:
+        transform,
+        opacity;
 }
 
 .watch-action.holding::before,
@@ -2531,16 +2478,11 @@ main {
 
 .watch-action.holding {
     transform:
-        scale(.985);
+        translate3d(0,0,0)
+        scale(.99);
 }
 
-/* 9. Busca/filtros com transição de layout */
-::view-transition-old(root),
-::view-transition-new(root) {
-    animation-duration: 0s;
-}
-
-/* 10. Celebração de Jornal concluído */
+/* Conclusão: sem blur animado; overlay e card usam opacity/transform. */
 .journal-complete-animation {
     position: fixed;
     inset: 0;
@@ -2549,23 +2491,18 @@ main {
     place-items: center;
     padding: 20px;
     background:
-        rgba(5,8,12,.40);
+        rgba(5,8,12,.66);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    backdrop-filter:
-        blur(0);
     transition:
-        opacity 180ms ease,
-        visibility 180ms ease,
-        backdrop-filter 320ms ease;
+        opacity 170ms ease,
+        visibility 170ms ease;
 }
 
 .journal-complete-animation.show {
     opacity: 1;
     visibility: visible;
-    backdrop-filter:
-        blur(5px);
 }
 
 .journal-complete-card {
@@ -2587,25 +2524,31 @@ main {
             rgba(127,208,154,.10),
             transparent 52%
         ),
-        rgba(19,24,30,.96);
+        rgba(19,24,30,.98);
     color:
         var(--text);
     box-shadow:
         0 26px 80px
         rgba(0,0,0,.46);
     transform:
-        translateY(14px)
-        scale(.94);
+        translate3d(0,12px,0)
+        scale(.96);
     opacity: 0;
+    transition:
+        transform 360ms
+        cubic-bezier(.18,.82,.25,1),
+        opacity 250ms ease;
+    will-change:
+        transform,
+        opacity;
 }
 
 .journal-complete-animation.show
 .journal-complete-card {
-    animation:
-        journal-complete-card-in
-        520ms
-        cubic-bezier(.18,.85,.25,1.12)
-        forwards;
+    transform:
+        translate3d(0,0,0)
+        scale(1);
+    opacity: 1;
 }
 
 .journal-complete-check {
@@ -2639,38 +2582,11 @@ main {
     text-align: center;
 }
 
-@keyframes journal-complete-card-in {
-    0% {
-        transform:
-            translateY(14px)
-            scale(.94);
-        opacity: 0;
-    }
-
-    58% {
-        transform:
-            translateY(-3px)
-            scale(1.015);
-        opacity: 1;
-    }
-
-    100% {
-        transform:
-            translateY(0)
-            scale(1);
-        opacity: 1;
-    }
-}
-
-/* 11. Expansão elegante do HearthPwn */
-.hearthpwn-news-list {
-    overflow: hidden;
-}
-
 .hearthpwn-collapse-chevron {
     transition:
-        transform 240ms
-        cubic-bezier(.2,.75,.25,1);
+        transform 200ms
+        cubic-bezier(.2,.72,.25,1);
+    will-change: transform;
 }
 
 .hearthpwn-widget.collapsing
@@ -2691,7 +2607,6 @@ main {
         font-size: 30px;
     }
 }
-
 
 /* =========================================================
    STACKING CONTRACT — mini-player sempre acima do conteúdo
