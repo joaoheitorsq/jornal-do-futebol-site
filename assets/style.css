@@ -2242,3 +2242,472 @@ main {
         left: 11px;
     }
 }
+
+
+/* =========================================================
+   MOTION SYSTEM — animações e microinterações
+   ========================================================= */
+
+/* 1. Entrada em cascata dos cards */
+.card.card-entering {
+    animation:
+        journal-card-enter
+        380ms
+        cubic-bezier(.2,.78,.24,1)
+        both;
+    animation-delay:
+        var(--card-enter-delay, 0ms);
+}
+
+@keyframes journal-card-enter {
+    from {
+        opacity: 0;
+        transform:
+            translateY(12px)
+            scale(.985);
+    }
+}
+
+/* 2. Conclusão visual ao marcar como visto */
+.card.just-watched {
+    animation:
+        watched-card-complete
+        620ms
+        cubic-bezier(.2,.8,.2,1);
+}
+
+.card.just-watched .thumbbox::after {
+    animation:
+        watched-thumbnail-flash
+        520ms
+        ease-out;
+}
+
+@keyframes watched-card-complete {
+    0% {
+        transform: scale(1);
+    }
+
+    35% {
+        transform: scale(.992);
+        box-shadow:
+            inset 3px 0 0
+            var(--success),
+            0 0 0 1px
+            rgba(127,208,154,.30),
+            0 0 26px
+            rgba(127,208,154,.16);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes watched-thumbnail-flash {
+    0%,
+    100% {
+        background-color:
+            transparent;
+    }
+
+    35% {
+        background-color:
+            rgba(86,183,119,.20);
+    }
+}
+
+/* 3. Troca cinematográfica do vídeo */
+#youtube-standard-player {
+    transition:
+        opacity 180ms ease,
+        transform 240ms
+        cubic-bezier(.2,.75,.25,1),
+        filter 180ms ease;
+}
+
+#playerwrap.switching-video
+#youtube-standard-player {
+    opacity: .34;
+    transform: scale(.992);
+    filter:
+        brightness(.62)
+        saturate(.78);
+}
+
+.player-loading {
+    backdrop-filter:
+        blur(2px);
+}
+
+/* 4. Badge AGORA respirando */
+.card.current .playing-badge {
+    animation:
+        now-badge-breathe
+        2.7s
+        ease-in-out
+        infinite;
+}
+
+@keyframes now-badge-breathe {
+    0%,
+    100% {
+        box-shadow:
+            0 4px 12px
+            rgba(0,0,0,.18),
+            0 0 0
+            rgba(105,170,255,0);
+    }
+
+    50% {
+        box-shadow:
+            0 4px 12px
+            rgba(0,0,0,.18),
+            0 0 16px
+            rgba(105,170,255,.32);
+    }
+}
+
+/* 5. Timeline e expansão dos capítulos */
+.chapter-list {
+    overflow: hidden;
+}
+
+.chapter.chapter-opening::before {
+    transform-origin: top;
+    animation:
+        timeline-grow
+        320ms
+        cubic-bezier(.2,.75,.25,1);
+}
+
+.chapter.chapter-closing::before {
+    opacity: .52;
+}
+
+@keyframes timeline-grow {
+    from {
+        transform: scaleY(0);
+        opacity: .2;
+    }
+
+    to {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+
+/* 6. Feedback animado da barra de progresso */
+.time-progress {
+    position: relative;
+}
+
+.time-progress.completion-pulse {
+    animation:
+        progress-track-pulse
+        680ms
+        ease-out;
+}
+
+.time-progress.completion-pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(
+            100deg,
+            transparent 10%,
+            rgba(220,238,255,.70) 48%,
+            transparent 82%
+        );
+    transform:
+        translateX(-120%);
+    animation:
+        progress-shimmer
+        650ms
+        ease-out;
+}
+
+.time-progress.complete span {
+    box-shadow:
+        0 0 14px
+        rgba(105,170,255,.52);
+}
+
+.journal-progress-pill.progress-bump {
+    animation:
+        progress-pill-bump
+        460ms
+        cubic-bezier(.2,.8,.2,1.2);
+}
+
+@keyframes progress-track-pulse {
+    40% {
+        box-shadow:
+            inset 0 1px 2px
+            rgba(0,0,0,.28),
+            0 0 18px
+            rgba(105,170,255,.20);
+    }
+}
+
+@keyframes progress-shimmer {
+    to {
+        transform:
+            translateX(120%);
+    }
+}
+
+@keyframes progress-pill-bump {
+    50% {
+        transform:
+            scale(1.07);
+        border-color:
+            rgba(105,170,255,.52);
+    }
+}
+
+/* 7 e 12. Morph do mini-player e do estado minimizado */
+#playerwrap {
+    will-change:
+        transform;
+}
+
+#playerwrap.mini-player {
+    transition:
+        box-shadow 220ms ease,
+        border-color 220ms ease,
+        border-radius 220ms ease;
+}
+
+#playerwrap.mini-player.minimized {
+    transition:
+        width 260ms
+        cubic-bezier(.2,.78,.24,1),
+        height 260ms
+        cubic-bezier(.2,.78,.24,1),
+        box-shadow 220ms ease,
+        border-radius 220ms ease;
+}
+
+/* 8. Microinterações + anel do toque longo */
+.controls button:active,
+.view-toggle:active,
+.journal-transport button:active,
+.hearthpwn-collapse-toggle:active,
+.hearthpwn-watch-action:active,
+.mini-toggle:active {
+    transform:
+        scale(.965);
+}
+
+.watch-action {
+    --hold-progress: 0%;
+}
+
+.watch-action.standalone {
+    position: relative;
+}
+
+.watch-action::before,
+#playerwrap:fullscreen
+.fullscreen-next::before,
+#playerwrap:-webkit-full-screen
+.fullscreen-next::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    z-index: 1;
+    padding: 2px;
+    border-radius: inherit;
+    background:
+        conic-gradient(
+            var(--accent)
+            var(--hold-progress),
+            rgba(105,170,255,.08)
+            0
+        );
+    opacity: 0;
+    pointer-events: none;
+    -webkit-mask:
+        linear-gradient(#000 0 0)
+        content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite:
+        xor;
+    mask-composite:
+        exclude;
+    transition:
+        opacity 120ms ease;
+}
+
+.watch-action.holding::before,
+#playerwrap:fullscreen
+.fullscreen-next.holding::before,
+#playerwrap:-webkit-full-screen
+.fullscreen-next.holding::before {
+    opacity: 1;
+}
+
+.watch-action.holding {
+    transform:
+        scale(.985);
+}
+
+/* 9. Busca/filtros com transição de layout */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0s;
+}
+
+/* 10. Celebração de Jornal concluído */
+.journal-complete-animation {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background:
+        rgba(5,8,12,.40);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    backdrop-filter:
+        blur(0);
+    transition:
+        opacity 180ms ease,
+        visibility 180ms ease,
+        backdrop-filter 320ms ease;
+}
+
+.journal-complete-animation.show {
+    opacity: 1;
+    visibility: visible;
+    backdrop-filter:
+        blur(5px);
+}
+
+.journal-complete-card {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    min-width:
+        min(340px, 88vw);
+    padding:
+        26px 30px;
+    border:
+        1px solid
+        rgba(127,208,154,.24);
+    border-radius:
+        var(--radius-lg);
+    background:
+        linear-gradient(
+            145deg,
+            rgba(127,208,154,.10),
+            transparent 52%
+        ),
+        rgba(19,24,30,.96);
+    color:
+        var(--text);
+    box-shadow:
+        0 26px 80px
+        rgba(0,0,0,.46);
+    transform:
+        translateY(14px)
+        scale(.94);
+    opacity: 0;
+}
+
+.journal-complete-animation.show
+.journal-complete-card {
+    animation:
+        journal-complete-card-in
+        520ms
+        cubic-bezier(.18,.85,.25,1.12)
+        forwards;
+}
+
+.journal-complete-check {
+    display: grid;
+    width: 64px;
+    height: 64px;
+    place-items: center;
+    margin-bottom: 5px;
+    border-radius: 50%;
+    background:
+        var(--success-soft);
+    color:
+        #c8f0d5;
+    font-size: 34px;
+    font-weight: 900;
+    box-shadow:
+        0 0 0 1px
+        rgba(127,208,154,.26),
+        0 0 34px
+        rgba(127,208,154,.18);
+}
+
+.journal-complete-card strong {
+    font-size: 20px;
+}
+
+.journal-complete-card > span:last-child {
+    color:
+        var(--muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+@keyframes journal-complete-card-in {
+    0% {
+        transform:
+            translateY(14px)
+            scale(.94);
+        opacity: 0;
+    }
+
+    58% {
+        transform:
+            translateY(-3px)
+            scale(1.015);
+        opacity: 1;
+    }
+
+    100% {
+        transform:
+            translateY(0)
+            scale(1);
+        opacity: 1;
+    }
+}
+
+/* 11. Expansão elegante do HearthPwn */
+.hearthpwn-news-list {
+    overflow: hidden;
+}
+
+.hearthpwn-collapse-chevron {
+    transition:
+        transform 240ms
+        cubic-bezier(.2,.75,.25,1);
+}
+
+.hearthpwn-widget.collapsing
+.hearthpwn-collapse-chevron {
+    transform:
+        rotate(-70deg);
+}
+
+@media (max-width: 650px) {
+    .journal-complete-card {
+        padding:
+            22px 20px;
+    }
+
+    .journal-complete-check {
+        width: 56px;
+        height: 56px;
+        font-size: 30px;
+    }
+}
