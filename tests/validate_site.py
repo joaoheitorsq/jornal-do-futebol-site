@@ -14,6 +14,7 @@ JS_FILES = [
     "assets/gestures.js",
     "assets/view.js",
     "assets/player.js",
+    "assets/motion.js",
     "assets/bootstrap.js",
 ]
 
@@ -23,6 +24,7 @@ ASSET_VERSIONS = {
     "assets/gestures.js": "__GESTURES_VERSION__",
     "assets/view.js": "__VIEW_VERSION__",
     "assets/player.js": "__PLAYER_VERSION__",
+    "assets/motion.js": "__MOTION_VERSION__",
     "assets/bootstrap.js": "__BOOTSTRAP_VERSION__",
 }
 
@@ -49,6 +51,13 @@ REQUIRED_APP_FUNCTIONS = {
     "beginFullscreenNextHold",
     "migrateStorage",
     "setPlayerLoading",
+    "animateCardsIn",
+    "animateWatchedFeedback",
+    "animateChapterToggle",
+    "animateHearthPwnCollapse",
+    "morphElement",
+    "runAnimatedViewUpdate",
+    "maybeCelebrateJournalCompletion",
 }
 
 REQUIRED_HTML_IDS = {
@@ -64,6 +73,7 @@ REQUIRED_HTML_IDS = {
     "video-search",
     "header-progress-count",
     "player-loading",
+    "journal-complete-animation",
 }
 
 
