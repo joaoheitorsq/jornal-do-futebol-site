@@ -519,7 +519,7 @@ setInterval(
 
 function play(
     index,
-    startSeconds = 0
+    startSeconds = null
 ) {
     if (
         !activePlaylist.length
@@ -545,21 +545,32 @@ function play(
     const id =
         activePlaylist[i];
 
+    const resolvedStart =
+        startSeconds === null
+        &&
+        typeof getResumeSeconds
+        === 'function'
+        ? getResumeSeconds(id)
+        : Math.max(
+            0,
+            Number(
+                startSeconds || 0
+            )
+        );
+
     setPlayerLoading(true);
 
     player.loadVideoById({
         videoId: id,
-        startSeconds: Math.max(
-            0,
-            Number(startSeconds || 0)
-        )
+        startSeconds:
+            resolvedStart
     });
 
     showCurrentCard(id);
 
     saveResume(
         id,
-        startSeconds
+        resolvedStart
     );
 
     showResumeInfo();
@@ -706,7 +717,25 @@ function completeCurrentAndAdvance(
     completionAdvanceInProgress = true;
     completionAdvanceVideoId = current;
 
+    const undoSnapshot =
+        typeof captureWatchedUndoState
+        === 'function'
+        ? captureWatchedUndoState(
+            current
+        )
+        : null;
+
     markWatched(current);
+
+    if (
+        typeof handleVideoWatched
+        === 'function'
+    ) {
+        handleVideoWatched(
+            current
+        );
+    }
+
     clearResume(current);
     applyView();
 
@@ -715,6 +744,17 @@ function completeCurrentAndAdvance(
     );
 
     animateJournalProgressCompletion();
+
+    if (
+        typeof offerUndoWatched
+        === 'function'
+    ) {
+        offerUndoWatched(
+            current,
+            undoSnapshot
+        );
+    }
+
     maybeCelebrateJournalCompletion();
 
     if (nextId) {
@@ -1383,7 +1423,13 @@ function openVideo(id) {
     }
 
     if (index >= 0) {
-        play(index);
+        play(
+            index,
+            typeof getResumeSeconds
+            === 'function'
+            ? getResumeSeconds(id)
+            : 0
+        );
 
         window.scrollTo({
             top: 0,
