@@ -168,6 +168,13 @@ def validate_sources():
     )
 
     require(
+        "--z-floating-player:" in css
+        and ".playerbox.floating {" in css
+        and "z-index: var(--z-floating-player);" in css,
+        "Contrato de camada do mini-player está ausente.",
+    )
+
+    require(
         not (ROOT / "assets/app.js").exists(),
         "assets/app.js é legado e não deve voltar ao projeto.",
     )

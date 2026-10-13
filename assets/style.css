@@ -23,6 +23,10 @@
     --shadow-soft: 0 12px 34px rgba(0, 0, 0, .22);
     --transition-fast: 160ms ease;
 
+    /* Camadas globais: conteúdo < mini-player < overlays */
+    --z-floating-player: 4000;
+    --z-overlay: 5000;
+
     --font-display: clamp(27px, 5vw, 39px);
     --font-section: 18px;
     --font-title: 15px;
@@ -2564,7 +2568,7 @@ main {
 .journal-complete-animation {
     position: fixed;
     inset: 0;
-    z-index: 5000;
+    z-index: var(--z-overlay);
     display: grid;
     place-items: center;
     padding: 20px;
@@ -2710,4 +2714,38 @@ main {
         height: 56px;
         font-size: 30px;
     }
+}
+
+
+/* =========================================================
+   STACKING CONTRACT — mini-player sempre acima do conteúdo
+   ========================================================= */
+
+/*
+ * .playerbox usa isolation:isolate para o acabamento visual.
+ * Isso cria um stacking context próprio. Sem elevar o PAI
+ * quando o player flutua, o z-index do filho fixo não consegue
+ * escapar dessa camada e cards animados podem pintar por cima.
+ */
+.playerbox.floating {
+    position: relative;
+    z-index: var(--z-floating-player);
+}
+
+/*
+ * Dentro da camada elevada do player, basta manter o wrap acima
+ * dos controles/pseudo-elementos locais. O nível global pertence
+ * ao .playerbox.floating.
+ */
+.playerbox.floating #playerwrap.mini-player {
+    z-index: 10;
+    isolation: isolate;
+}
+
+/* Conteúdo normal nunca deve competir com a camada flutuante. */
+.chapter,
+.card,
+.toolbar,
+.hearthpwn-widget {
+    z-index: auto;
 }
