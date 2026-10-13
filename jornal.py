@@ -1461,6 +1461,76 @@ small {
     font-size: 13px;
 }
 
+.fullscreen-next {
+    display: none;
+}
+
+#playerwrap:fullscreen,
+#playerwrap:-webkit-full-screen {
+    position: relative !important;
+    inset: auto !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    aspect-ratio: auto;
+    border: 0;
+    border-radius: 0;
+    background: #000;
+}
+
+#playerwrap:fullscreen #player-slot,
+#playerwrap:fullscreen #youtube-standard-player,
+#playerwrap:-webkit-full-screen #player-slot,
+#playerwrap:-webkit-full-screen #youtube-standard-player {
+    width: 100%;
+    height: 100%;
+}
+
+#playerwrap:fullscreen .mini-toggle,
+#playerwrap:-webkit-full-screen .mini-toggle {
+    display: none !important;
+}
+
+#playerwrap:fullscreen .fullscreen-next,
+#playerwrap:-webkit-full-screen .fullscreen-next {
+    display: block;
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    z-index: 50;
+    border: 1px solid rgba(255, 255, 255, .34);
+    border-radius: 12px;
+    background: rgba(15, 17, 21, .92);
+    color: #fff;
+    padding: 11px 15px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .42);
+    backdrop-filter: blur(7px);
+}
+
+#playerwrap:fullscreen .fullscreen-next:hover,
+#playerwrap:-webkit-full-screen .fullscreen-next:hover {
+    background: rgba(36, 41, 51, .96);
+}
+
+#playerwrap:fullscreen .fullscreen-next:active,
+#playerwrap:-webkit-full-screen .fullscreen-next:active {
+    transform: translateY(1px);
+}
+
+@media (max-width: 600px) {
+    #playerwrap:fullscreen .fullscreen-next,
+    #playerwrap:-webkit-full-screen .fullscreen-next {
+        right: 12px;
+        bottom: 16px;
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+}
+
 .playerbox.floating #player-spacer {
     display: block;
 }
@@ -2221,6 +2291,16 @@ Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses t
 — Minimizar
 </button>
 
+<button
+    id="fullscreen-next"
+    class="fullscreen-next"
+    type="button"
+    onclick="markCurrentWatchedAndNext()"
+    aria-label="Marcar vídeo atual como visto e ir para o próximo"
+>
+✓ Visto · Próximo ⏭
+</button>
+
 </div>
 
 <div class="controls">
@@ -2235,6 +2315,14 @@ Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses t
 
 <button onclick="next()">
 Próximo ⏭
+</button>
+
+<button
+    id="journal-fullscreen-toggle"
+    type="button"
+    onclick="toggleJournalFullscreen()"
+>
+⛶ Tela cheia do Jornal
 </button>
 
 </div>
@@ -4592,6 +4680,152 @@ function start() {
 
     play(0);
 }
+
+
+function journalFullscreenElement() {
+    return (
+        document.fullscreenElement
+        ||
+        document.webkitFullscreenElement
+        ||
+        null
+    );
+}
+
+
+function isJournalFullscreen() {
+    const wrap =
+        document.getElementById(
+            'playerwrap'
+        );
+
+    return Boolean(
+        wrap
+        &&
+        journalFullscreenElement() === wrap
+    );
+}
+
+
+function updateJournalFullscreenButton() {
+    const button =
+        document.getElementById(
+            'journal-fullscreen-toggle'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.textContent =
+        isJournalFullscreen()
+        ? '↙ Sair da tela cheia'
+        : '⛶ Tela cheia do Jornal';
+}
+
+
+async function toggleJournalFullscreen() {
+    const wrap =
+        document.getElementById(
+            'playerwrap'
+        );
+
+    if (!wrap) {
+        return;
+    }
+
+    try {
+        if (isJournalFullscreen()) {
+            if (document.exitFullscreen) {
+                await document.exitFullscreen();
+            }
+            else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+
+            return;
+        }
+
+        if (wrap.requestFullscreen) {
+            await wrap.requestFullscreen();
+        }
+        else if (wrap.webkitRequestFullscreen) {
+            wrap.webkitRequestFullscreen();
+        }
+        else {
+            setStatus(
+                'Este navegador não permite tela cheia do Jornal.'
+            );
+        }
+    }
+    catch (_) {
+        setStatus(
+            'Não foi possível abrir a tela cheia do Jornal.'
+        );
+    }
+}
+
+
+function markCurrentWatchedAndNext() {
+    rebuildPlaylist();
+
+    const current =
+        currentVideoId();
+
+    if (!current) {
+        setStatus(
+            'Nenhum vídeo está sendo reproduzido.'
+        );
+        return;
+    }
+
+    const queueBefore =
+        [...activePlaylist];
+
+    const currentIndex =
+        queueBefore.indexOf(current);
+
+    let nextId = null;
+
+    if (
+        currentIndex >= 0
+        &&
+        currentIndex + 1 < queueBefore.length
+    ) {
+        nextId =
+            queueBefore[currentIndex + 1];
+    }
+
+    markWatched(current);
+    clearResume(current);
+    applyView();
+
+    if (nextId) {
+        const nextIndex =
+            activePlaylist.indexOf(nextId);
+
+        if (nextIndex >= 0) {
+            play(nextIndex);
+            return;
+        }
+    }
+
+    setStatus(
+        'Vídeo marcado como visto. Fim do Jornal.'
+    );
+}
+
+
+document.addEventListener(
+    'fullscreenchange',
+    updateJournalFullscreenButton
+);
+
+
+document.addEventListener(
+    'webkitfullscreenchange',
+    updateJournalFullscreenButton
+);
 
 
 function next() {
