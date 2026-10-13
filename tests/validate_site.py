@@ -68,6 +68,14 @@ REQUIRED_APP_FUNCTIONS = {
     "importJournalBackup",
     "showUndoToast",
     "initializeFeatureUI",
+    "getResumeSeconds",
+    "orderPlaylistWithFeatures",
+    "updateChapterProgress",
+    "initCardViewportAnimations",
+    "animateQueueAdvance",
+    "animateNumberChange",
+    "animateChapterComplete",
+    "performUndo",
 }
 
 REQUIRED_HTML_IDS = {
