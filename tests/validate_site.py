@@ -110,9 +110,9 @@ def validate_sources():
 
     for function_name in REQUIRED_APP_FUNCTIONS:
         pattern = (
-            r"\\b(?:async\\s+)?function\\s+"
+            r"\b(?:async\s+)?function\s+"
             + re.escape(function_name)
-            + r"\\s*\\("
+            + r"\s*\("
         )
         require(
             re.search(pattern, app),
@@ -143,16 +143,16 @@ def validate_sources():
 
     handlers = set(
         re.findall(
-            r'on(?:click|input|change)="([A-Za-z_$][\\w$]*)\\s*\\(',
+            r'on(?:click|input|change)="([A-Za-z_$][\w$]*)\s*\(',
             template + "\n" + backend,
         )
     )
 
     for handler in handlers:
         pattern = (
-            r"\\b(?:async\\s+)?function\\s+"
+            r"\b(?:async\s+)?function\s+"
             + re.escape(handler)
-            + r"\\s*\\("
+            + r"\s*\("
         )
         require(
             re.search(pattern, app),
@@ -185,7 +185,7 @@ def validate_generated():
 
     require(
         re.search(
-            r'assets/style\\.css\\?v=[0-9a-f]{12}',
+            r'assets/style\.css\?v=[0-9a-f]{12}',
             html,
         ),
         "index.html não contém versão válida do CSS.",
@@ -193,14 +193,14 @@ def validate_generated():
 
     require(
         re.search(
-            r'assets/app\\.js\\?v=[0-9a-f]{12}',
+            r'assets/app\.js\?v=[0-9a-f]{12}',
             html,
         ),
         "index.html não contém versão válida do JS.",
     )
 
     match = re.search(
-        r'<script\\s+id="journal-data"\\s+type="application/json"\\s*>'
+        r'<script\s+id="journal-data"\s+type="application/json"\s*>'
         r'(.*?)'
         r'</script>',
         html,
@@ -219,7 +219,7 @@ def validate_generated():
         "journal-data deve conter uma lista JSON.",
     )
 
-    ids = re.findall(r'\\bid="([^"]+)"', html)
+    ids = re.findall(r'\bid="([^"]+)"', html)
     duplicates = sorted(
         value
         for value in set(ids)
@@ -241,16 +241,16 @@ def validate_generated():
 
     handlers = set(
         re.findall(
-            r'on(?:click|input|change)="([A-Za-z_$][\\w$]*)\\s*\\(',
+            r'on(?:click|input|change)="([A-Za-z_$][\w$]*)\s*\(',
             html,
         )
     )
 
     for handler in handlers:
         pattern = (
-            r"\\b(?:async\\s+)?function\\s+"
+            r"\b(?:async\s+)?function\s+"
             + re.escape(handler)
-            + r"\\s*\\("
+            + r"\s*\("
         )
         require(
             re.search(pattern, app),
