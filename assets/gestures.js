@@ -30,8 +30,8 @@ function cancelWatchActionHold() {
         );
 
         watchActionHoldButton.style.setProperty(
-            '--hold-progress',
-            '0%'
+            '--hold-scale',
+            '0'
         );
     }
 
@@ -68,10 +68,8 @@ function updateWatchActionHoldProgress() {
         );
 
     watchActionHoldButton.style.setProperty(
-        '--hold-progress',
-        String(
-            Math.round(progress * 100)
-        ) + '%'
+        '--hold-scale',
+        String(progress)
     );
 
     if (progress < 1) {
