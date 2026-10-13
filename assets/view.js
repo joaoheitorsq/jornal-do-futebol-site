@@ -507,8 +507,19 @@ function updateTimeStats() {
     let total = 0;
     let consumed = 0;
 
+    const progressVideos =
+        VIDEOS.filter(
+            video =>
+                typeof shouldHideVideoForFeatures
+                !== 'function'
+                ||
+                !shouldHideVideoForFeatures(
+                    video
+                )
+        );
+
     const watchedCount =
-        VIDEOS.reduce(
+        progressVideos.reduce(
             (count, video) =>
                 count
                 + (
@@ -553,7 +564,7 @@ function updateTimeStats() {
     const playingId =
         currentVideoId();
 
-    for (const video of VIDEOS) {
+    for (const video of progressVideos) {
         if (
             !video.countForTime
             ||
