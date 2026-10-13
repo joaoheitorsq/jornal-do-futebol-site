@@ -751,6 +751,7 @@ function skipChannelToday(
     );
 
     applyView();
+    maybeCelebrateJournalCompletion();
 
     showUndoToast(
         channel
@@ -1383,7 +1384,22 @@ function updateChapterProgress() {
                     chapter.querySelectorAll(
                         '.card[data-video-id]'
                     )
-                );
+                )
+                .filter(card => {
+                    const meta =
+                        currentVideoMeta(
+                            card.dataset.videoId
+                        );
+
+                    return (
+                        typeof shouldHideVideoForFeatures
+                        !== 'function'
+                        ||
+                        !shouldHideVideoForFeatures(
+                            meta
+                        )
+                    );
+                });
 
             const total =
                 cards.length;
@@ -1969,9 +1985,19 @@ function initSmartHeader() {
                 const entry =
                     entries[0];
 
+                const show =
+                    !entry.isIntersecting;
+
                 smart.classList.toggle(
                     'show',
-                    !entry.isIntersecting
+                    show
+                );
+
+                smart.setAttribute(
+                    'aria-hidden',
+                    show
+                    ? 'false'
+                    : 'true'
                 );
             },
             {
