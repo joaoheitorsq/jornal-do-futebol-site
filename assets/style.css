@@ -2640,3 +2640,493 @@ main {
 .hearthpwn-widget {
     z-index: auto;
 }
+
+
+/* =========================================================
+   ADVANCED UI — mecânicas, progresso e acabamento
+   ========================================================= */
+
+/* Resumo da sessão */
+.session-summary {
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: var(--font-small);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Barra superior inteligente */
+.smart-header {
+    position: fixed;
+    top: 8px;
+    left: 50%;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100vw - 20px);
+    padding: 7px 10px;
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 999px;
+    background: rgba(18,22,28,.96);
+    color: var(--text);
+    box-shadow: 0 10px 28px rgba(0,0,0,.28);
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(-50%,-8px,0);
+    transition:
+        opacity 150ms ease,
+        transform 180ms cubic-bezier(.2,.72,.25,1);
+}
+
+.smart-header.show {
+    opacity: 1;
+    transform: translate3d(-50%,0,0);
+}
+
+.smart-header strong {
+    font-size: 12px;
+}
+
+.smart-header span {
+    color: var(--muted);
+}
+
+/* Ferramentas: fila, canais e backup */
+.feature-tools {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 7px;
+    padding: 7px;
+    border: 1px solid rgba(255,255,255,.035);
+    border-radius: var(--radius-md);
+    background: rgba(23,27,34,.72);
+}
+
+.feature-tools-summary {
+    margin-right: auto;
+    padding: 0 5px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.feature-tools button,
+.feature-action {
+    min-height: 30px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-soft);
+    color: var(--muted);
+    padding: 5px 8px;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+        transform 130ms ease,
+        background 130ms ease,
+        color 130ms ease,
+        border-color 130ms ease;
+}
+
+.feature-tools button:hover,
+.feature-action:hover,
+.feature-action.active {
+    border-color: rgba(105,170,255,.24);
+    background: var(--surface-strong);
+    color: var(--text);
+}
+
+.feature-tools button:active,
+.feature-action:active {
+    transform: scale(.97);
+}
+
+.feature-tools button:disabled {
+    opacity: .38;
+    cursor: default;
+}
+
+.backup-import {
+    display: none;
+}
+
+/* Ações adicionais do card */
+.card-feature-actions {
+    display: flex;
+    gap: 5px;
+    padding: 6px 8px 5px;
+    overflow-x: auto;
+    border-top: 1px solid rgba(255,255,255,.035);
+    scrollbar-width: none;
+}
+
+.card-feature-actions::-webkit-scrollbar {
+    display: none;
+}
+
+.card-feature-actions .feature-action {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding: 4px 7px;
+}
+
+.card .watch-action {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: calc(100% - 16px);
+    margin: 0 8px 8px;
+    padding: 6px 8px;
+}
+
+.card .card-info {
+    padding-bottom: 10px;
+}
+
+/* Progresso individual na miniatura */
+.thumb-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 6;
+    height: 3px;
+    overflow: hidden;
+    background: rgba(255,255,255,.10);
+    pointer-events: none;
+}
+
+.thumb-progress > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: var(--accent);
+    transform:
+        scaleX(
+            var(--video-progress, 0)
+        );
+    transform-origin: left center;
+    transition:
+        transform 220ms cubic-bezier(.2,.72,.25,1);
+    will-change: transform;
+}
+
+.card.partially-watched .thumb-progress {
+    height: 4px;
+}
+
+/* Check SVG: substitui o pseudo-elemento textual antigo */
+.thumbbox::before {
+    content: none !important;
+}
+
+.watched-check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 7;
+    width: 27px;
+    height: 27px;
+    opacity: 0;
+    transform: scale(.84);
+    pointer-events: none;
+    transition:
+        opacity 150ms ease,
+        transform 180ms cubic-bezier(.2,.8,.2,1);
+}
+
+.watched-check svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.watched-check circle {
+    fill: rgba(31,91,51,.92);
+    stroke: rgba(191,231,204,.32);
+    stroke-width: 1.2;
+}
+
+.watched-check path {
+    fill: none;
+    stroke: #d7f4e1;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 24;
+    stroke-dashoffset: 0;
+}
+
+.card.watched .watched-check {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.card.just-watched .watched-check path {
+    animation:
+        draw-watched-check
+        360ms
+        cubic-bezier(.2,.72,.25,1);
+}
+
+@keyframes draw-watched-check {
+    from {
+        stroke-dashoffset: 24;
+    }
+
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Capítulos: progresso, atual e concluído */
+.chapter-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 2px;
+}
+
+.chapter-progress-count,
+.chapter-done {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.chapter-progress-count {
+    background: rgba(105,170,255,.10);
+    color: #b8d7ff;
+}
+
+.chapter-done {
+    background: var(--success-soft);
+    color: #bfe7cc;
+}
+
+.chapter.current-chapter .chapter-title {
+    color: #cfe5ff;
+}
+
+.chapter.current-chapter::before {
+    width: 2px;
+    background: linear-gradient(
+        var(--accent),
+        rgba(105,170,255,.12),
+        transparent
+    );
+}
+
+.chapter.current-chapter .chapter-title::before {
+    box-shadow:
+        0 0 0 2px rgba(105,170,255,.16),
+        0 0 14px rgba(105,170,255,.24);
+}
+
+.chapter.chapter-complete:not(.current-chapter) .chapter-title {
+    color: #c7e8d1;
+}
+
+.chapter.chapter-complete .chapter-title::before {
+    background: var(--success);
+}
+
+/* Fila: primeiro item é claramente o próximo */
+.up-next {
+    overflow: hidden;
+}
+
+.next-row.primary-next {
+    grid-template-columns: 92px 1fr auto;
+    padding: 8px;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(105,170,255,.10),
+            transparent 46%
+        ),
+        var(--surface-soft);
+    border-color: rgba(105,170,255,.13);
+}
+
+.next-row.primary-next img {
+    width: 92px;
+}
+
+.next-row.primary-next strong {
+    font-size: 13px;
+}
+
+#up-next-second {
+    opacity: .72;
+    transform: scale(.985);
+    transform-origin: left center;
+}
+
+/* Carryover pode conter vários vídeos */
+.carryover-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Undo */
+.undo-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    z-index: 4500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: calc(100vw - 24px);
+    padding: 9px 10px 9px 13px;
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 999px;
+    background: rgba(20,24,30,.98);
+    color: var(--text);
+    box-shadow: 0 18px 50px rgba(0,0,0,.38);
+    font-size: 12px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate3d(-50%,8px,0);
+    transition:
+        opacity 150ms ease,
+        transform 180ms cubic-bezier(.2,.72,.25,1),
+        visibility 150ms ease;
+}
+
+.undo-toast.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate3d(-50%,0,0);
+}
+
+.undo-toast button {
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: #bddcff;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+/* Counter digits do cabeçalho */
+.journal-progress-pill {
+    gap: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+#header-progress-watched,
+#header-progress-total {
+    display: inline-block;
+    min-width: 1ch;
+    text-align: center;
+}
+
+/* Não introduzir animações no mini-player. */
+#playerwrap.mini-player,
+#playerwrap.mini-player.minimized,
+#playerwrap.mini-player .mini-toggle {
+    animation: none !important;
+    transition: none !important;
+}
+
+@media (max-width: 650px) {
+    .smart-header {
+        top: 6px;
+        gap: 7px;
+        max-width: calc(100vw - 12px);
+        padding: 6px 8px;
+        font-size: 10px;
+    }
+
+    .smart-header strong {
+        display: none;
+    }
+
+    .feature-tools {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 5px;
+    }
+
+    .feature-tools-summary {
+        grid-column: 1 / -1;
+        margin-right: 0;
+    }
+
+    .feature-tools button {
+        width: 100%;
+    }
+
+    .card-feature-actions {
+        padding:
+            5px
+            6px
+            4px;
+    }
+
+    .card-feature-actions .feature-action {
+        min-height: 27px;
+        padding: 4px 6px;
+        font-size: 9px;
+    }
+
+    .card .watch-action {
+        width: calc(100% - 12px);
+        margin: 0 6px 6px;
+    }
+
+    .watched-check {
+        top: 5px;
+        right: 5px;
+        width: 23px;
+        height: 23px;
+    }
+
+    .chapter-progress {
+        gap: 3px;
+    }
+
+    .chapter-progress-count,
+    .chapter-done {
+        min-height: 18px;
+        padding: 0 5px;
+        font-size: 9px;
+    }
+
+    .chapter-done {
+        display: none;
+    }
+
+    .next-row.primary-next {
+        grid-template-columns: 76px 1fr auto;
+    }
+
+    .next-row.primary-next img {
+        width: 76px;
+    }
+
+    .undo-toast {
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        justify-content: space-between;
+        border-radius: var(--radius-md);
+    }
+}
