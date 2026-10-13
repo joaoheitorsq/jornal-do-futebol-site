@@ -255,6 +255,8 @@ function standardEmbedUrl(videoId) {
 
 function onYouTubeIframeAPIReady() {
     if (
+        !activePlaylist.length
+        &&
         !CURRENT_EMBEDDABLE_IDS.length
         &&
         !(
