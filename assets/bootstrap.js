@@ -1,5 +1,8 @@
 migrateStorage();
 
+featureState = loadFeatureState();
+manualQueue = loadManualQueue();
+
 watched = loadWatched();
 hearthpwnSeen = loadHearthPwnSeen();
 hearthpwnCollapsed = loadHearthPwnCollapsed();
@@ -11,20 +14,13 @@ resumeState = loadResume();
 applyView();
 updateHearthPwnSeenUI();
 applyHearthPwnCollapse();
+initializeFeatureUI();
 
 if (resumeState) {
     showResumeCard(
         resumeState.videoId
     );
 }
-
-requestAnimationFrame(
-    () => {
-        animateCardsIn(
-            document
-        );
-    }
-);
 
 const youtubeApiTag =
     document.createElement('script');
