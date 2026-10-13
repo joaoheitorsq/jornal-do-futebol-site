@@ -1469,6 +1469,53 @@ small {
     touch-action: none;
 }
 
+.fullscreen-hold-countdown {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 45;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.fullscreen-hold-countdown.show {
+    display: flex;
+}
+
+.fullscreen-hold-countdown-number {
+    min-width: 1.25em;
+    text-align: center;
+    color: #fff;
+    font-size: clamp(96px, 24vw, 180px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -.04em;
+    text-shadow:
+        0 3px 10px rgba(0, 0, 0, .9),
+        0 0 34px rgba(0, 0, 0, .72);
+    transform: scale(1);
+    opacity: .96;
+}
+
+.fullscreen-hold-countdown-number.tick {
+    animation: fullscreen-countdown-tick 180ms ease-out;
+}
+
+@keyframes fullscreen-countdown-tick {
+    from {
+        transform: scale(1.18);
+        opacity: .72;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: .96;
+    }
+}
+
 #playerwrap:fullscreen,
 #playerwrap:-webkit-full-screen {
     position: relative !important;
@@ -2321,6 +2368,19 @@ Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses t
 >
 ⏭
 </button>
+
+<div
+    id="fullscreen-hold-countdown"
+    class="fullscreen-hold-countdown"
+    aria-hidden="true"
+>
+<span
+    id="fullscreen-hold-countdown-number"
+    class="fullscreen-hold-countdown-number"
+>
+3
+</span>
+</div>
 
 </div>
 
@@ -4919,21 +4979,44 @@ function resetFullscreenNextHoldVisual() {
             'fullscreen-next'
         );
 
-    if (!button) {
-        return;
+    const countdown =
+        document.getElementById(
+            'fullscreen-hold-countdown'
+        );
+
+    const countdownNumber =
+        document.getElementById(
+            'fullscreen-hold-countdown-number'
+        );
+
+    if (button) {
+        button.classList.remove(
+            'holding'
+        );
+
+        button.style.setProperty(
+            '--hold-progress',
+            '0%'
+        );
+
+        button.textContent =
+            '⏭';
     }
 
-    button.classList.remove(
-        'holding'
-    );
+    if (countdown) {
+        countdown.classList.remove(
+            'show'
+        );
+    }
 
-    button.style.setProperty(
-        '--hold-progress',
-        '0%'
-    );
+    if (countdownNumber) {
+        countdownNumber.textContent =
+            '3';
 
-    button.textContent =
-        '⏭';
+        countdownNumber.classList.remove(
+            'tick'
+        );
+    }
 }
 
 
@@ -4966,6 +5049,16 @@ function updateFullscreenNextHoldProgress() {
             'fullscreen-next'
         );
 
+    const countdown =
+        document.getElementById(
+            'fullscreen-hold-countdown'
+        );
+
+    const countdownNumber =
+        document.getElementById(
+            'fullscreen-hold-countdown-number'
+        );
+
     if (
         !button
         ||
@@ -4992,6 +5085,47 @@ function updateFullscreenNextHoldProgress() {
             Math.round(progress * 100)
         ) + '%'
     );
+
+    if (countdown) {
+        countdown.classList.add(
+            'show'
+        );
+    }
+
+    if (countdownNumber) {
+        const remaining =
+            Math.max(
+                1,
+                Math.ceil(
+                    (
+                        FULLSCREEN_NEXT_HOLD_MS
+                        - elapsed
+                    )
+                    / 1000
+                )
+            );
+
+        const nextText =
+            String(remaining);
+
+        if (
+            countdownNumber.textContent
+            !== nextText
+        ) {
+            countdownNumber.textContent =
+                nextText;
+
+            countdownNumber.classList.remove(
+                'tick'
+            );
+
+            void countdownNumber.offsetWidth;
+
+            countdownNumber.classList.add(
+                'tick'
+            );
+        }
+    }
 
     if (progress < 1) {
         fullscreenNextHoldFrame =
@@ -5080,6 +5214,17 @@ function beginFullscreenNextHold(event) {
 
                 button.textContent =
                     '✓';
+
+                const countdown =
+                    document.getElementById(
+                        'fullscreen-hold-countdown'
+                    );
+
+                if (countdown) {
+                    countdown.classList.remove(
+                        'show'
+                    );
+                }
 
                 markCurrentWatchedAndNext();
 
