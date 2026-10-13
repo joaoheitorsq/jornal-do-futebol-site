@@ -407,10 +407,21 @@ function animateJournalProgressCompletion() {
 
 
 function maybeCelebrateJournalCompletion() {
+    const relevantVideos =
+        VIDEOS.filter(
+            video =>
+                typeof shouldHideVideoForFeatures
+                !== 'function'
+                ||
+                !shouldHideVideoForFeatures(
+                    video
+                )
+        );
+
     const complete =
-        VIDEOS.length > 0
+        relevantVideos.length > 0
         &&
-        VIDEOS.every(
+        relevantVideos.every(
             video =>
                 isWatched(video.id)
         );
