@@ -597,9 +597,18 @@ function updateTimeStats() {
     }
 
     if (progressBar) {
-        progressBar.style.width =
-            String(percent)
-            + '%';
+        progressBar.style.setProperty(
+            '--progress-ratio',
+            String(
+                Math.max(
+                    0,
+                    Math.min(
+                        1,
+                        percent / 100
+                    )
+                )
+            )
+        );
     }
 }
 
@@ -1376,13 +1385,31 @@ function updateMiniPlayer() {
 }
 
 
+let miniPlayerFrame = null;
+
+
+function scheduleMiniPlayerUpdate() {
+    if (miniPlayerFrame !== null) {
+        return;
+    }
+
+    miniPlayerFrame =
+        requestAnimationFrame(
+            () => {
+                miniPlayerFrame = null;
+                updateMiniPlayer();
+            }
+        );
+}
+
+
 window.addEventListener(
     'scroll',
-    updateMiniPlayer,
+    scheduleMiniPlayerUpdate,
     {passive: true}
 );
 
 window.addEventListener(
     'resize',
-    updateMiniPlayer
+    scheduleMiniPlayerUpdate
 );
