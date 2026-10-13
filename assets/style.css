@@ -2471,36 +2471,12 @@ main {
     }
 }
 
-/* 7 e 12. Morph do mini-player e do estado minimizado */
-#playerwrap {
-    will-change:
-        transform;
-}
-
-#playerwrap.mini-player {
-    transition:
-        box-shadow 220ms ease,
-        border-color 220ms ease,
-        border-radius 220ms ease;
-}
-
-#playerwrap.mini-player.minimized {
-    transition:
-        width 260ms
-        cubic-bezier(.2,.78,.24,1),
-        height 260ms
-        cubic-bezier(.2,.78,.24,1),
-        box-shadow 220ms ease,
-        border-radius 220ms ease;
-}
-
 /* 8. Microinterações + anel do toque longo */
 .controls button:active,
 .view-toggle:active,
 .journal-transport button:active,
 .hearthpwn-collapse-toggle:active,
-.hearthpwn-watch-action:active,
-.mini-toggle:active {
+.hearthpwn-watch-action:active {
     transform:
         scale(.965);
 }

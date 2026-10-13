@@ -55,7 +55,6 @@ REQUIRED_APP_FUNCTIONS = {
     "animateWatchedFeedback",
     "animateChapterToggle",
     "animateHearthPwnCollapse",
-    "morphElement",
     "runAnimatedViewUpdate",
     "maybeCelebrateJournalCompletion",
 }

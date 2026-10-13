@@ -1357,47 +1357,20 @@ function updateMiniPlayer() {
         &&
         miniPlayerCollapsed;
 
-    const changed =
-        wrap.classList.contains(
-            'mini-player'
-        )
-        !== shouldFloat
-        ||
-        wrap.classList.contains(
-            'minimized'
-        )
-        !== shouldMinimize;
+    section.classList.toggle(
+        'floating',
+        shouldFloat
+    );
 
-    const applyState =
-        () => {
-            section.classList.toggle(
-                'floating',
-                shouldFloat
-            );
+    wrap.classList.toggle(
+        'mini-player',
+        shouldFloat
+    );
 
-            wrap.classList.toggle(
-                'mini-player',
-                shouldFloat
-            );
-
-            wrap.classList.toggle(
-                'minimized',
-                shouldMinimize
-            );
-        };
-
-    if (changed) {
-        morphElement(
-            wrap,
-            applyState,
-            shouldMinimize
-            ? 260
-            : 320
-        );
-    }
-    else {
-        applyState();
-    }
+    wrap.classList.toggle(
+        'minimized',
+        shouldMinimize
+    );
 
     updateMiniPlayerButton();
 }
