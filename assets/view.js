@@ -349,6 +349,14 @@ function saveResume(
 
     renderCarryover();
     showResumeCard(videoId);
+
+    if (
+        typeof updateCardFeatureUI
+        === 'function'
+    ) {
+        updateCardFeatureUI();
+    }
+
     updateTimeStats();
     updateResumeJumpButton();
 }
