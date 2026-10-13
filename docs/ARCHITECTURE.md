@@ -119,3 +119,10 @@ O pacote avançado mantém as seguintes regras:
 - animações contínuas devem priorizar `transform` e `opacity`;
 - o mini-player permanece sem animações de entrada, saída, resize ou morph;
 - o contrato de z-index do mini-player deve ser preservado.
+
+
+## Protocolo de segurança dos cards
+
+Todo elemento `button` dentro de `.card` exige pressão contínua de pelo menos 2 segundos para executar sua ação. Isso inclui abrir o vídeo, marcar como visto/não visto, fila manual, Ver depois, Terminar depois e Pular canal por hoje.
+
+O bloqueio é feito em fase de captura de `click`, portanto novos botões adicionados futuramente dentro de um card também ficam protegidos automaticamente. Movimento acima da tolerância cancela a ação para preservar a rolagem no celular. Teclado também exige manter Espaço ou Enter pelo mesmo período.

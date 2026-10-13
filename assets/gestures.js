@@ -1,5 +1,5 @@
-const WATCH_ACTION_HOLD_MS = 2000;
-const WATCH_ACTION_MOVE_TOLERANCE = 18;
+const CARD_ACTION_HOLD_MS = 2000;
+const CARD_ACTION_MOVE_TOLERANCE = 18;
 
 let watchActionHoldTimer = null;
 let watchActionHoldFrame = null;
@@ -9,6 +9,52 @@ let watchActionHoldPointerId = null;
 let watchActionHoldStartX = 0;
 let watchActionHoldStartY = 0;
 let watchActionHoldTriggered = false;
+let cardHoldActivationButton = null;
+
+
+function cardButtonFromEvent(event) {
+    if (
+        !event
+        ||
+        !event.target
+        ||
+        typeof event.target.closest
+        !== 'function'
+    ) {
+        return null;
+    }
+
+    const button =
+        event.target.closest(
+            '.card button'
+        );
+
+    if (
+        !button
+        ||
+        button.disabled
+    ) {
+        return null;
+    }
+
+    return button;
+}
+
+
+function resetCardHoldVisual(button) {
+    if (!button) {
+        return;
+    }
+
+    button.classList.remove(
+        'holding'
+    );
+
+    button.style.setProperty(
+        '--hold-scale',
+        '0'
+    );
+}
 
 
 function cancelWatchActionHold() {
@@ -24,16 +70,9 @@ function cancelWatchActionHold() {
         );
     }
 
-    if (watchActionHoldButton) {
-        watchActionHoldButton.classList.remove(
-            'holding'
-        );
-
-        watchActionHoldButton.style.setProperty(
-            '--hold-scale',
-            '0'
-        );
-    }
+    resetCardHoldVisual(
+        watchActionHoldButton
+    );
 
     watchActionHoldTimer = null;
     watchActionHoldFrame = null;
@@ -64,7 +103,7 @@ function updateWatchActionHoldProgress() {
     const progress =
         Math.min(
             1,
-            elapsed / WATCH_ACTION_HOLD_MS
+            elapsed / CARD_ACTION_HOLD_MS
         );
 
     watchActionHoldButton.style.setProperty(
@@ -81,10 +120,171 @@ function updateWatchActionHoldProgress() {
 }
 
 
+function activateHeldCardButton(button) {
+    if (
+        !button
+        ||
+        button.disabled
+    ) {
+        return;
+    }
+
+    /*
+     * O botão de status não possui onclick próprio:
+     * ele é acionado diretamente depois dos 2 segundos.
+     */
+    if (
+        button.matches(
+            '.watch-action[data-video-id]'
+        )
+    ) {
+        toggleWatched(
+            button.dataset.videoId
+        );
+        return;
+    }
+
+    /*
+     * Os demais botões dos cards já possuem seus handlers
+     * normais (inline ou atribuídos por features.js).
+     * Liberamos exatamente UM click sintético, somente após
+     * o protocolo de segurança ter sido cumprido.
+     */
+    cardHoldActivationButton =
+        button;
+
+    try {
+        button.click();
+    }
+    finally {
+        cardHoldActivationButton =
+            null;
+    }
+}
+
+
+function completeCardButtonHold() {
+    const button =
+        watchActionHoldButton;
+
+    if (
+        !button
+        ||
+        watchActionHoldTriggered
+    ) {
+        return;
+    }
+
+    watchActionHoldTriggered = true;
+
+    button.style.setProperty(
+        '--hold-scale',
+        '1'
+    );
+
+    button.classList.add(
+        'hold-confirmed'
+    );
+
+    if (watchActionHoldFrame) {
+        cancelAnimationFrame(
+            watchActionHoldFrame
+        );
+
+        watchActionHoldFrame = null;
+    }
+
+    watchActionHoldTimer = null;
+
+    activateHeldCardButton(
+        button
+    );
+
+    setTimeout(
+        () => {
+            button.classList.remove(
+                'hold-confirmed'
+            );
+
+            if (
+                watchActionHoldButton
+                === button
+            ) {
+                cancelWatchActionHold();
+            }
+            else {
+                resetCardHoldVisual(
+                    button
+                );
+            }
+        },
+        160
+    );
+}
+
+
+function beginCardButtonHold(
+    button,
+    pointerId = null,
+    startX = 0,
+    startY = 0
+) {
+    if (
+        !button
+        ||
+        button.disabled
+    ) {
+        return;
+    }
+
+    cancelWatchActionHold();
+
+    watchActionHoldButton =
+        button;
+
+    watchActionHoldPointerId =
+        pointerId;
+
+    watchActionHoldStartX =
+        startX;
+
+    watchActionHoldStartY =
+        startY;
+
+    watchActionHoldTriggered =
+        false;
+
+    button.classList.add(
+        'holding'
+    );
+
+    button.style.setProperty(
+        '--hold-scale',
+        '0'
+    );
+
+    watchActionHoldStartedAt =
+        performance.now();
+
+    updateWatchActionHoldProgress();
+
+    watchActionHoldTimer =
+        setTimeout(
+            completeCardButtonHold,
+            CARD_ACTION_HOLD_MS
+        );
+}
+
+
+/*
+ * Mantemos este nome por compatibilidade com o contrato
+ * estrutural antigo, mas agora ele protege TODOS os botões
+ * dentro de .card, não apenas "Marcar como visto".
+ */
 function beginWatchActionHold(event) {
     const button =
-        event.target.closest(
-            '.watch-action[data-video-id]'
+        cardButtonFromEvent(
+            event
         );
 
     if (!button) {
@@ -99,54 +299,19 @@ function beginWatchActionHold(event) {
         return;
     }
 
-    cancelWatchActionHold();
-
-    watchActionHoldButton = button;
-    watchActionHoldPointerId =
-        event.pointerId;
-
-    watchActionHoldStartX =
-        event.clientX;
-
-    watchActionHoldStartY =
-        event.clientY;
-
-    watchActionHoldTriggered = false;
-
-    button.classList.add(
-        'holding'
+    beginCardButtonHold(
+        button,
+        event.pointerId,
+        event.clientX,
+        event.clientY
     );
 
-    watchActionHoldStartedAt =
-        performance.now();
-
-    updateWatchActionHoldProgress();
-
-    watchActionHoldTimer =
-        setTimeout(
-            () => {
-                if (
-                    !watchActionHoldButton
-                    ||
-                    watchActionHoldTriggered
-                ) {
-                    return;
-                }
-
-                const videoId =
-                    watchActionHoldButton
-                        .dataset.videoId;
-
-                watchActionHoldTriggered = true;
-
-                toggleWatched(
-                    videoId
-                );
-
-                cancelWatchActionHold();
-            },
-            WATCH_ACTION_HOLD_MS
+    try {
+        button.setPointerCapture(
+            event.pointerId
         );
+    }
+    catch (_) {}
 }
 
 
@@ -156,7 +321,8 @@ function moveWatchActionHold(event) {
         ||
         watchActionHoldPointerId === null
         ||
-        event.pointerId !== watchActionHoldPointerId
+        event.pointerId
+        !== watchActionHoldPointerId
         ||
         watchActionHoldTriggered
     ) {
@@ -174,7 +340,7 @@ function moveWatchActionHold(event) {
     if (
         distance
         >
-        WATCH_ACTION_MOVE_TOLERANCE
+        CARD_ACTION_MOVE_TOLERANCE
     ) {
         cancelWatchActionHold();
     }
@@ -185,13 +351,99 @@ function endWatchActionHold(event) {
     if (
         watchActionHoldPointerId !== null
         &&
-        event.pointerId !== watchActionHoldPointerId
+        event.pointerId
+        !== watchActionHoldPointerId
     ) {
         return;
     }
 
-    if (!watchActionHoldTriggered) {
-        cancelWatchActionHold();
+    cancelWatchActionHold();
+}
+
+
+function beginCardKeyboardHold(event) {
+    if (
+        event.repeat
+        ||
+        (
+            event.key !== ' '
+            &&
+            event.key !== 'Enter'
+        )
+    ) {
+        return;
+    }
+
+    const button =
+        cardButtonFromEvent(
+            event
+        );
+
+    if (!button) {
+        return;
+    }
+
+    event.preventDefault();
+
+    beginCardButtonHold(
+        button
+    );
+}
+
+
+function endCardKeyboardHold(event) {
+    if (
+        event.key !== ' '
+        &&
+        event.key !== 'Enter'
+    ) {
+        return;
+    }
+
+    if (!watchActionHoldButton) {
+        return;
+    }
+
+    event.preventDefault();
+    cancelWatchActionHold();
+}
+
+
+function blockUnprotectedCardClick(event) {
+    const button =
+        cardButtonFromEvent(
+            event
+        );
+
+    if (!button) {
+        return;
+    }
+
+    if (
+        button
+        === cardHoldActivationButton
+    ) {
+        return;
+    }
+
+    /*
+     * Qualquer tap/click normal é bloqueado em fase de captura.
+     * Portanto um handler inline, onclick dinâmico ou listener
+     * futuro também fica sujeito ao mesmo mínimo de 2 segundos.
+     */
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+}
+
+
+function blockCardContextMenu(event) {
+    if (
+        cardButtonFromEvent(
+            event
+        )
+    ) {
+        event.preventDefault();
     }
 }
 
@@ -222,14 +474,29 @@ document.addEventListener(
 
 
 document.addEventListener(
+    'keydown',
+    beginCardKeyboardHold
+);
+
+
+document.addEventListener(
+    'keyup',
+    endCardKeyboardHold
+);
+
+
+/*
+ * Captura é proposital: bloqueia inclusive onclick inline antes
+ * que ele alcance o próprio botão.
+ */
+document.addEventListener(
     'click',
-    event => {
-        if (
-            event.target.closest(
-                '.watch-action[data-video-id]'
-            )
-        ) {
-            event.preventDefault();
-        }
-    }
+    blockUnprotectedCardClick,
+    true
+);
+
+
+document.addEventListener(
+    'contextmenu',
+    blockCardContextMenu
 );

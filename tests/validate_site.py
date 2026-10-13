@@ -50,6 +50,9 @@ REQUIRED_APP_FUNCTIONS = {
     "toggleJournalFullscreen",
     "markCurrentWatchedAndNext",
     "beginWatchActionHold",
+    "beginCardButtonHold",
+    "activateHeldCardButton",
+    "blockUnprotectedCardClick",
     "beginFullscreenNextHold",
     "migrateStorage",
     "setPlayerLoading",
@@ -218,6 +221,20 @@ def validate_sources():
         "jornal-do-futebol-backup" in javascript
         and "FEATURE_STATE_KEY" in javascript,
         "Backup ou estado avançado está ausente.",
+    )
+
+    require(
+        "const CARD_ACTION_HOLD_MS = 2000;" in javascript
+        and "'.card button'" in javascript
+        and "blockUnprotectedCardClick" in javascript
+        and "activateHeldCardButton" in javascript,
+        "Protocolo universal de 2 segundos dos cards está ausente.",
+    )
+
+    require(
+        "CARD SAFETY PROTOCOL" in css
+        and ".card button.holding::after" in css,
+        "Feedback visual do protocolo de segurança dos cards está ausente.",
     )
 
     require(

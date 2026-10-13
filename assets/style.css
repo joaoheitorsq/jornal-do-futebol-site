@@ -3130,3 +3130,63 @@ main {
         border-radius: var(--radius-md);
     }
 }
+
+
+/* =========================================================
+   CARD SAFETY PROTOCOL — segurar 2 s para qualquer botão
+   ========================================================= */
+
+.card button {
+    --hold-scale: 0;
+    -webkit-touch-callout: none;
+    touch-action: pan-y;
+}
+
+.card button::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    bottom: 1px;
+    z-index: 20;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--accent);
+    opacity: 0;
+    transform:
+        translate3d(0,0,0)
+        scaleX(
+            var(--hold-scale, 0)
+        );
+    transform-origin: left center;
+    pointer-events: none;
+    will-change:
+        transform,
+        opacity;
+}
+
+.card button.holding::after {
+    opacity: .92;
+}
+
+.card button.hold-confirmed::after {
+    background: var(--success);
+    opacity: 1;
+}
+
+.card .card-open,
+.card .feature-action,
+.card .watch-action {
+    position: relative;
+}
+
+/* Evita duas barras simultâneas no botão legado de assistido. */
+.card .watch-action::before {
+    content: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card button::after {
+        transition: none !important;
+    }
+}
