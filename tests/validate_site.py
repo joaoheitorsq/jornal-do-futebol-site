@@ -325,7 +325,7 @@ def validate_generated():
     )
 
     ids = re.findall(
-        r'\bid="([^"]+)"',
+        r'(?<![\\w-])id="([^"]+)"',
         html,
     )
 

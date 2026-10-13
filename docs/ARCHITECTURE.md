@@ -55,7 +55,7 @@ A versão 1 apenas formaliza as chaves legadas existentes e não altera o progre
 8. Cópia dos assets para `_site`.
 9. Publicação no GitHub Pages.
 
-O cron externo de 30 minutos continua usando `workflow_dispatch`. Alterações relevantes em código também publicam automaticamente por `push`.
+O cron externo de 30 minutos continua usando `workflow_dispatch`. Alterações relevantes em código também publicam automaticamente por `push`. Execuções antigas são canceladas quando uma versão mais nova entra na mesma fila, evitando gastar tempo publicando código já ultrapassado.
 
 ## Cache
 
