@@ -1,3 +1,27 @@
+function setPlayerLoading(isLoading) {
+    const loading =
+        document.getElementById(
+            'player-loading'
+        );
+
+    if (!loading) {
+        return;
+    }
+
+    loading.classList.toggle(
+        'show',
+        Boolean(isLoading)
+    );
+
+    loading.setAttribute(
+        'aria-hidden',
+        isLoading
+        ? 'false'
+        : 'true'
+    );
+}
+
+
 function formatPlayerTime(seconds) {
     seconds = Math.max(
         0,
@@ -230,6 +254,7 @@ function onYouTubeIframeAPIReady() {
         setStatus(
             'Nenhum vídeo reproduzível no player.'
         );
+        setPlayerLoading(false);
         return;
     }
 
@@ -298,6 +323,7 @@ function onYouTubeIframeAPIReady() {
                 onReady:
                     () => {
                         ready = true;
+                        setPlayerLoading(false);
                         rebuildPlaylist();
                         updateTransport();
 
@@ -338,6 +364,29 @@ function onYouTubeIframeAPIReady() {
                             currentVideoId();
 
                         updateTransport();
+
+                        if (
+                            event.data
+                            ===
+                            YT.PlayerState.BUFFERING
+                        ) {
+                            setPlayerLoading(true);
+                        }
+                        else if (
+                            event.data
+                            === YT.PlayerState.PLAYING
+                            ||
+                            event.data
+                            === YT.PlayerState.PAUSED
+                            ||
+                            event.data
+                            === YT.PlayerState.CUED
+                            ||
+                            event.data
+                            === YT.PlayerState.ENDED
+                        ) {
+                            setPlayerLoading(false);
+                        }
 
                         if (
                             completionAdvanceInProgress
@@ -406,6 +455,7 @@ function onYouTubeIframeAPIReady() {
 
                 onError:
                     () => {
+                        setPlayerLoading(false);
                         completionAdvanceInProgress = false;
                         completionAdvanceVideoId = null;
 
@@ -482,6 +532,8 @@ function play(
 
     const id =
         activePlaylist[i];
+
+    setPlayerLoading(true);
 
     player.loadVideoById({
         videoId: id,

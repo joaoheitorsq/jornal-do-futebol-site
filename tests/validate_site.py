@@ -48,6 +48,7 @@ REQUIRED_APP_FUNCTIONS = {
     "beginWatchActionHold",
     "beginFullscreenNextHold",
     "migrateStorage",
+    "setPlayerLoading",
 }
 
 REQUIRED_HTML_IDS = {
@@ -61,6 +62,8 @@ REQUIRED_HTML_IDS = {
     "status",
     "up-next",
     "video-search",
+    "header-progress-count",
+    "player-loading",
 }
 
 

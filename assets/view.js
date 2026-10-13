@@ -444,6 +444,31 @@ function updateTimeStats() {
     let total = 0;
     let consumed = 0;
 
+    const watchedCount =
+        VIDEOS.reduce(
+            (count, video) =>
+                count
+                + (
+                    isWatched(video.id)
+                    ? 1
+                    : 0
+                ),
+            0
+        );
+
+    const headerProgress =
+        document.getElementById(
+            'header-progress-count'
+        );
+
+    if (headerProgress) {
+        headerProgress.textContent =
+            String(watchedCount)
+            + ' / '
+            + String(VIDEOS.length)
+            + ' vídeos';
+    }
+
     const playingId =
         currentVideoId();
 
