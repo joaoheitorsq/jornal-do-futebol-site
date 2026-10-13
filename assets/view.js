@@ -60,15 +60,35 @@ function toggleChapter(key) {
         return;
     }
 
-    if (collapsedChapters[key]) {
-        delete collapsedChapters[key];
+    const chapter =
+        Array.from(
+            document.querySelectorAll(
+                '.chapter'
+            )
+        )
+        .find(item =>
+            item.dataset.chapterKey
+            === key
+        );
+
+    const collapse =
+        !Boolean(
+            collapsedChapters[key]
+        );
+
+    if (collapse) {
+        collapsedChapters[key] = true;
     }
     else {
-        collapsedChapters[key] = true;
+        delete collapsedChapters[key];
     }
 
     saveCollapsedChapters();
-    applyChapterCollapse();
+
+    animateChapterToggle(
+        chapter,
+        collapse
+    );
 }
 
 
@@ -101,8 +121,12 @@ function videoMatchesSearch(video) {
 
 
 function onSearchInput(value) {
-    searchQuery = normalizeSearch(value);
-    applyView();
+    searchQuery =
+        normalizeSearch(value);
+
+    runAnimatedViewUpdate(
+        applyView
+    );
 }
 
 
@@ -562,6 +586,13 @@ function updateTimeStats() {
         progress.setAttribute(
             'aria-valuenow',
             String(percent)
+        );
+
+        progress.classList.toggle(
+            'complete',
+            total > 0
+            &&
+            percent >= 100
         );
     }
 
@@ -1237,7 +1268,10 @@ function toggleUnwatchedMode() {
         !onlyUnwatched;
 
     saveUnwatchedMode();
-    applyView();
+
+    runAnimatedViewUpdate(
+        applyView
+    );
 }
 
 
@@ -1318,21 +1352,52 @@ function updateMiniPlayer() {
     const shouldFloat =
         section.getBoundingClientRect().bottom < 0;
 
-    section.classList.toggle(
-        'floating',
+    const shouldMinimize =
         shouldFloat
-    );
+        &&
+        miniPlayerCollapsed;
 
-    wrap.classList.toggle(
-        'mini-player',
-        shouldFloat
-    );
+    const changed =
+        wrap.classList.contains(
+            'mini-player'
+        )
+        !== shouldFloat
+        ||
+        wrap.classList.contains(
+            'minimized'
+        )
+        !== shouldMinimize;
 
-    wrap.classList.toggle(
-        'minimized',
-        shouldFloat
-        && miniPlayerCollapsed
-    );
+    const applyState =
+        () => {
+            section.classList.toggle(
+                'floating',
+                shouldFloat
+            );
+
+            wrap.classList.toggle(
+                'mini-player',
+                shouldFloat
+            );
+
+            wrap.classList.toggle(
+                'minimized',
+                shouldMinimize
+            );
+        };
+
+    if (changed) {
+        morphElement(
+            wrap,
+            applyState,
+            shouldMinimize
+            ? 260
+            : 320
+        );
+    }
+    else {
+        applyState();
+    }
 
     updateMiniPlayerButton();
 }
