@@ -2,6 +2,9 @@ const motionAnimationRegistry =
     new WeakMap();
 
 let journalCompletionCelebrated = false;
+let cardViewportObserver = null;
+const animatedCardsSeen =
+    new WeakSet();
 
 
 function prefersReducedMotion() {
@@ -123,61 +126,154 @@ function runCompositorAnimation(
 }
 
 
-function animateCardsIn(
-    scope = document,
-    maxDelay = 180
+function animateCardEntrance(
+    card,
+    delay = 0
 ) {
-    if (prefersReducedMotion()) {
+    if (
+        !card
+        ||
+        animatedCardsSeen.has(card)
+        ||
+        prefersReducedMotion()
+    ) {
         return;
     }
 
-    const cards =
-        Array.from(
-            scope.querySelectorAll(
-                '.card:not(.hidden)'
-            )
-        )
-        .filter(card =>
-            !card.closest(
-                '.chapter.collapsed'
-            )
-        )
-        .slice(0, 16);
+    animatedCardsSeen.add(
+        card
+    );
 
-    cards.forEach(
-        (card, index) => {
-            const delay =
-                Math.min(
-                    index * 24,
-                    maxDelay
-                );
-
-            runCompositorAnimation(
-                card,
-                [
-                    {
-                        opacity: 0,
-                        transform:
-                            'translate3d(0, 9px, 0) scale(.99)'
-                    },
-                    {
-                        opacity: 1,
-                        transform:
-                            'translate3d(0, 0, 0) scale(1)'
-                    }
-                ],
-                {
-                    duration: 260,
-                    delay,
-                    easing:
-                        'cubic-bezier(.2,.72,.25,1)',
-                    fill: 'both'
-                }
-            );
+    runCompositorAnimation(
+        card,
+        [
+            {
+                opacity: 0,
+                transform:
+                    'translate3d(0, 10px, 0) scale(.99)'
+            },
+            {
+                opacity: 1,
+                transform:
+                    'translate3d(0, 0, 0) scale(1)'
+            }
+        ],
+        {
+            duration: 270,
+            delay,
+            easing:
+                'cubic-bezier(.2,.72,.25,1)',
+            fill: 'both'
         }
     );
 }
 
+
+function initCardViewportAnimations(
+    scope = document
+) {
+    if (
+        prefersReducedMotion()
+        ||
+        typeof IntersectionObserver
+        !== 'function'
+    ) {
+        return;
+    }
+
+    if (!cardViewportObserver) {
+        cardViewportObserver =
+            new IntersectionObserver(
+                entries => {
+                    const visible =
+                        entries
+                        .filter(entry =>
+                            entry.isIntersecting
+                        )
+                        .sort(
+                            (a, b) =>
+                                a.boundingClientRect.top
+                                -
+                                b.boundingClientRect.top
+                        );
+
+                    visible.forEach(
+                        (entry, index) => {
+                            cardViewportObserver
+                                .unobserve(
+                                    entry.target
+                                );
+
+                            animateCardEntrance(
+                                entry.target,
+                                Math.min(
+                                    index * 24,
+                                    96
+                                )
+                            );
+                        }
+                    );
+                },
+                {
+                    rootMargin:
+                        '0px 0px 60px 0px',
+                    threshold:
+                        .08
+                }
+            );
+    }
+
+    observeAnimatedCards(
+        scope
+    );
+}
+
+
+function observeAnimatedCards(
+    scope = document
+) {
+    if (
+        prefersReducedMotion()
+        ||
+        !cardViewportObserver
+    ) {
+        return;
+    }
+
+    Array.from(
+        scope.querySelectorAll(
+            '.card:not(.hidden)'
+        )
+    )
+    .filter(card =>
+        !animatedCardsSeen.has(card)
+        &&
+        !card.closest(
+            '.chapter.collapsed'
+        )
+    )
+    .forEach(card => {
+        cardViewportObserver.observe(
+            card
+        );
+    });
+}
+
+
+function animateCardsIn(
+    scope = document
+) {
+    if (!cardViewportObserver) {
+        initCardViewportAnimations(
+            scope
+        );
+        return;
+    }
+
+    observeAnimatedCards(
+        scope
+    );
+}
 
 function animateWatchedFeedback(videoId) {
     if (
@@ -464,9 +560,8 @@ function animateChapterToggle(
 
     requestAnimationFrame(
         () => {
-            animateCardsIn(
-                chapter,
-                120
+            observeAnimatedCards(
+                chapter
             );
         }
     );
@@ -576,10 +671,197 @@ function runAnimatedViewUpdate(update) {
 
     requestAnimationFrame(
         () => {
-            animateCardsIn(
-                document,
-                100
+            observeAnimatedCards(
+                document
             );
+        }
+    );
+}
+
+
+function animateQueueAdvance(
+    firstButton,
+    secondButton
+) {
+    if (prefersReducedMotion()) {
+        return;
+    }
+
+    if (firstButton) {
+        runCompositorAnimation(
+            firstButton,
+            [
+                {
+                    opacity: .2,
+                    transform:
+                        'translate3d(10px,0,0)'
+                },
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0)'
+                }
+            ],
+            {
+                duration: 220,
+                easing:
+                    'cubic-bezier(.2,.72,.25,1)'
+            }
+        );
+    }
+
+    if (secondButton) {
+        runCompositorAnimation(
+            secondButton,
+            [
+                {
+                    opacity: .3,
+                    transform:
+                        'translate3d(6px,0,0)'
+                },
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0)'
+                }
+            ],
+            {
+                duration: 250,
+                delay: 28,
+                easing:
+                    'cubic-bezier(.2,.72,.25,1)'
+            }
+        );
+    }
+}
+
+
+function animateNumberChange(
+    element,
+    nextValue
+) {
+    if (!element) {
+        return;
+    }
+
+    const next =
+        String(nextValue);
+
+    if (
+        element.textContent
+        === next
+    ) {
+        return;
+    }
+
+    if (
+        prefersReducedMotion()
+        ||
+        typeof element.animate
+        !== 'function'
+    ) {
+        element.textContent =
+            next;
+        return;
+    }
+
+    const old =
+        element.textContent;
+
+    const outgoing =
+        element.animate(
+            [
+                {
+                    opacity: 1,
+                    transform:
+                        'translate3d(0,0,0)'
+                },
+                {
+                    opacity: 0,
+                    transform:
+                        'translate3d(0,-5px,0)'
+                }
+            ],
+            {
+                duration: 100,
+                easing: 'ease-in'
+            }
+        );
+
+    outgoing.onfinish =
+        () => {
+            element.textContent =
+                next;
+
+            element.animate(
+                [
+                    {
+                        opacity: 0,
+                        transform:
+                            'translate3d(0,5px,0)'
+                    },
+                    {
+                        opacity: 1,
+                        transform:
+                            'translate3d(0,0,0)'
+                    }
+                ],
+                {
+                    duration: 130,
+                    easing:
+                        'cubic-bezier(.2,.72,.25,1)'
+                }
+            );
+        };
+
+    outgoing.oncancel =
+        () => {
+            element.textContent =
+                next || old;
+        };
+}
+
+
+function animateChapterComplete(
+    chapter
+) {
+    if (
+        !chapter
+        ||
+        prefersReducedMotion()
+    ) {
+        return;
+    }
+
+    const title =
+        chapter.querySelector(
+            '.chapter-title'
+        );
+
+    if (!title) {
+        return;
+    }
+
+    runCompositorAnimation(
+        title,
+        [
+            {
+                transform:
+                    'translate3d(0,0,0) scale(1)'
+            },
+            {
+                transform:
+                    'translate3d(0,0,0) scale(1.018)'
+            },
+            {
+                transform:
+                    'translate3d(0,0,0) scale(1)'
+            }
+        ],
+        {
+            duration: 420,
+            easing:
+                'cubic-bezier(.2,.8,.2,1)'
         }
     );
 }
