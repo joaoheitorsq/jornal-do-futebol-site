@@ -36,10 +36,16 @@ const COLLAPSED_CHAPTERS_KEY =
 const MINI_PLAYER_COLLAPSED_KEY =
 'jornal_do_futebol_mini_player_collapsed_v1';
 
+const FEATURE_STATE_KEY =
+'jornal_do_futebol_features_v2';
+
+const MANUAL_QUEUE_SESSION_KEY =
+'jornal_do_futebol_manual_queue_v1';
+
 const STORAGE_SCHEMA_KEY =
 'jornal_do_futebol_storage_schema';
 
-const CURRENT_STORAGE_SCHEMA = 1;
+const CURRENT_STORAGE_SCHEMA = 2;
 
 let player = null;
 let ready = false;
@@ -54,6 +60,9 @@ let collapsedChapters = {};
 let miniPlayerCollapsed = false;
 let searchQuery = '';
 let transportDragging = false;
+let featureState = null;
+let manualQueue = [];
+let undoAction = null;
 
 
 function migrateStorage() {
@@ -99,6 +108,61 @@ function migrateStorage() {
                      * existentes sem alterar os dados.
                      */
                     version = 1;
+                    break;
+
+                case 1:
+                    /*
+                     * A versão 2 introduz estado expandido.
+                     * O último ponto de retomada legado é
+                     * copiado para o mapa por vídeo.
+                     */
+                    try {
+                        const legacyRaw =
+                            localStorage.getItem(
+                                RESUME_KEY
+                            );
+
+                        const existingRaw =
+                            localStorage.getItem(
+                                FEATURE_STATE_KEY
+                            );
+
+                        const existing =
+                            existingRaw
+                            ? JSON.parse(existingRaw)
+                            : {};
+
+                        const legacy =
+                            legacyRaw
+                            ? JSON.parse(legacyRaw)
+                            : null;
+
+                        if (
+                            legacy
+                            &&
+                            legacy.videoId
+                        ) {
+                            existing.resumePositions =
+                                existing.resumePositions
+                                &&
+                                typeof existing.resumePositions
+                                === 'object'
+                                ? existing.resumePositions
+                                : {};
+
+                            existing.resumePositions[
+                                String(legacy.videoId)
+                            ] = legacy;
+                        }
+
+                        localStorage.setItem(
+                            FEATURE_STATE_KEY,
+                            JSON.stringify(existing)
+                        );
+                    }
+                    catch (_) {}
+
+                    version = 2;
                     break;
 
                 default:
@@ -373,6 +437,14 @@ function toggleWatched(videoId) {
     const becameWatched =
         !isWatched(videoId);
 
+    const undoSnapshot =
+        typeof captureWatchedUndoState
+        === 'function'
+        ? captureWatchedUndoState(
+            videoId
+        )
+        : null;
+
     if (!becameWatched) {
         delete watched[videoId];
         saveWatched();
@@ -382,12 +454,15 @@ function toggleWatched(videoId) {
         markWatched(videoId);
 
         if (
-            resumeState
-            &&
-            resumeState.videoId === videoId
+            typeof handleVideoWatched
+            === 'function'
         ) {
-            clearResume(videoId);
+            handleVideoWatched(
+                videoId
+            );
         }
+
+        clearResume(videoId);
 
         setStatus('Vídeo marcado como visto.');
     }
@@ -400,6 +475,16 @@ function toggleWatched(videoId) {
         );
 
         animateJournalProgressCompletion();
+
+        if (
+            typeof offerUndoWatched
+            === 'function'
+        ) {
+            offerUndoWatched(
+                videoId,
+                undoSnapshot
+            );
+        }
     }
 
     maybeCelebrateJournalCompletion();
