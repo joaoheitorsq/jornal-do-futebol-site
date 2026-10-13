@@ -13,6 +13,18 @@ function setPlayerLoading(isLoading) {
         Boolean(isLoading)
     );
 
+    const wrap =
+        document.getElementById(
+            'playerwrap'
+        );
+
+    if (wrap) {
+        wrap.classList.toggle(
+            'switching-video',
+            Boolean(isLoading)
+        );
+    }
+
     loading.setAttribute(
         'aria-hidden',
         isLoading
@@ -697,6 +709,13 @@ function completeCurrentAndAdvance(
     markWatched(current);
     clearResume(current);
     applyView();
+
+    animateWatchedFeedback(
+        current
+    );
+
+    animateJournalProgressCompletion();
+    maybeCelebrateJournalCompletion();
 
     if (nextId) {
         let nextIndex =
