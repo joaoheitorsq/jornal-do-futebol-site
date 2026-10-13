@@ -3,10 +3,28 @@
 import argparse
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+JS_FILES = [
+    "assets/core.js",
+    "assets/gestures.js",
+    "assets/view.js",
+    "assets/player.js",
+    "assets/bootstrap.js",
+]
+
+ASSET_VERSIONS = {
+    "assets/style.css": "__STYLE_VERSION__",
+    "assets/core.js": "__CORE_VERSION__",
+    "assets/gestures.js": "__GESTURES_VERSION__",
+    "assets/view.js": "__VIEW_VERSION__",
+    "assets/player.js": "__PLAYER_VERSION__",
+    "assets/bootstrap.js": "__BOOTSTRAP_VERSION__",
+}
 
 KNOWN_PLACEHOLDERS = {
     "__DATE__",
@@ -15,8 +33,7 @@ KNOWN_PLACEHOLDERS = {
     "__HEARTHPWN_WIDGET__",
     "__CHAPTERS_HTML__",
     "__PLAYER_VIDEOS__",
-    "__STYLE_VERSION__",
-    "__APP_VERSION__",
+    *ASSET_VERSIONS.values(),
 }
 
 REQUIRED_APP_FUNCTIONS = {
@@ -30,6 +47,7 @@ REQUIRED_APP_FUNCTIONS = {
     "markCurrentWatchedAndNext",
     "beginWatchActionHold",
     "beginFullscreenNextHold",
+    "migrateStorage",
 }
 
 REQUIRED_HTML_IDS = {
@@ -55,8 +73,33 @@ def read_text(relative_path):
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
+def read_javascript():
+    parts = []
+
+    for relative_path in JS_FILES:
+        content = read_text(relative_path)
+
+        require(
+            content.strip(),
+            f"{relative_path} está vazio.",
+        )
+
+        parts.append(content)
+
+    return "\n\n".join(parts)
+
+
+def declared_functions(javascript):
+    return re.findall(
+        r"\b(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(",
+        javascript,
+    )
+
+
 def validate_channels():
-    data = json.loads(read_text("channels.json"))
+    data = json.loads(
+        read_text("channels.json")
+    )
 
     require(
         isinstance(data, list) and data,
@@ -65,7 +108,10 @@ def validate_channels():
 
     seen = set()
 
-    for index, item in enumerate(data, start=1):
+    for index, item in enumerate(
+        data,
+        start=1,
+    ):
         require(
             isinstance(item, dict),
             f"Entrada {index} de channels.json não é um objeto.",
@@ -75,7 +121,8 @@ def validate_channels():
         only_shorts = item.get("onlyShorts")
 
         require(
-            isinstance(handle, str) and handle.strip(),
+            isinstance(handle, str)
+            and handle.strip(),
             f"Entrada {index} sem handle válido.",
         )
 
@@ -85,60 +132,119 @@ def validate_channels():
         )
 
         normalized = handle.strip().casefold()
+
         require(
             normalized not in seen,
             f"Handle duplicado: {handle}",
         )
+
         seen.add(normalized)
 
 
 def validate_sources():
     validate_channels()
 
-    app = read_text("assets/app.js")
+    javascript = read_javascript()
     css = read_text("assets/style.css")
     template = read_text("templates/index.html")
     backend = read_text("jornal.py")
 
-    require(app.strip(), "assets/app.js está vazio.")
-    require(css.strip(), "assets/style.css está vazio.")
+    require(
+        css.strip(),
+        "assets/style.css está vazio.",
+    )
 
     require(
-        "__PLAYER_VIDEOS__" not in app,
-        "app.js não pode conter dados dinâmicos do Jornal.",
+        not (ROOT / "assets/app.js").exists(),
+        "assets/app.js é legado e não deve voltar ao projeto.",
     )
+
+    require(
+        "__PLAYER_VIDEOS__" not in javascript,
+        "JavaScript não pode conter dados dinâmicos do Jornal.",
+    )
+
+    function_names = declared_functions(
+        javascript
+    )
+
+    duplicates = sorted(
+        name
+        for name, count
+        in Counter(function_names).items()
+        if count > 1
+    )
+
+    require(
+        not duplicates,
+        "Funções JavaScript duplicadas entre módulos: "
+        + ", ".join(duplicates),
+    )
+
+    available = set(function_names)
 
     for function_name in REQUIRED_APP_FUNCTIONS:
-        pattern = (
-            r"\b(?:async\s+)?function\s+"
-            + re.escape(function_name)
-            + r"\s*\("
-        )
         require(
-            re.search(pattern, app),
-            f"Função obrigatória ausente em app.js: {function_name}",
+            function_name in available,
+            f"Função obrigatória ausente: {function_name}",
+        )
+
+    positions = []
+
+    for relative_path in JS_FILES:
+        placeholder = ASSET_VERSIONS[
+            relative_path
+        ]
+
+        reference = (
+            relative_path
+            + "?v="
+            + placeholder
+        )
+
+        require(
+            reference in template,
+            f"Template não referencia {relative_path} com versão.",
+        )
+
+        positions.append(
+            template.index(reference)
+        )
+
+        require(
+            f'asset_version("{relative_path}")'
+            in backend,
+            f"Backend não versiona {relative_path}.",
         )
 
     require(
-        "assets/style.css?v=__STYLE_VERSION__" in template,
+        positions == sorted(positions),
+        "Ordem dos módulos JavaScript no template foi alterada.",
+    )
+
+    require(
+        "assets/style.css?v=__STYLE_VERSION__"
+        in template,
         "Template não referencia o CSS versionado.",
     )
+
     require(
-        "assets/app.js?v=__APP_VERSION__" in template,
-        "Template não referencia o JS versionado.",
+        'asset_version("assets/style.css")'
+        in backend,
+        "Backend não versiona style.css.",
     )
+
     require(
         'id="journal-data"' in template,
         "Template não contém journal-data.",
     )
 
     require(
-        'asset_version("assets/style.css")' in backend,
-        "Backend não versiona style.css.",
-    )
-    require(
-        'asset_version("assets/app.js")' in backend,
-        "Backend não versiona app.js.",
+        "CURRENT_STORAGE_SCHEMA"
+        in javascript
+        and "migrateStorage();"
+        in javascript,
+        "Migração do armazenamento local está ausente.",
     )
 
     handlers = set(
@@ -149,14 +255,9 @@ def validate_sources():
     )
 
     for handler in handlers:
-        pattern = (
-            r"\b(?:async\s+)?function\s+"
-            + re.escape(handler)
-            + r"\s*\("
-        )
         require(
-            re.search(pattern, app),
-            f"Handler HTML sem função correspondente em app.js: {handler}",
+            handler in available,
+            f"Handler HTML sem função correspondente: {handler}",
         )
 
 
@@ -168,8 +269,14 @@ def validate_generated():
         "index.html não foi gerado.",
     )
 
-    html = index_path.read_text(encoding="utf-8")
-    app = read_text("assets/app.js")
+    html = index_path.read_text(
+        encoding="utf-8"
+    )
+
+    javascript = read_javascript()
+    available = set(
+        declared_functions(javascript)
+    )
 
     unresolved = [
         token
@@ -183,21 +290,16 @@ def validate_generated():
         + ", ".join(sorted(unresolved)),
     )
 
-    require(
-        re.search(
-            r'assets/style\.css\?v=[0-9a-f]{12}',
-            html,
-        ),
-        "index.html não contém versão válida do CSS.",
-    )
+    for relative_path in ASSET_VERSIONS:
+        pattern = (
+            re.escape(relative_path)
+            + r"\?v=[0-9a-f]{12}"
+        )
 
-    require(
-        re.search(
-            r'assets/app\.js\?v=[0-9a-f]{12}',
-            html,
-        ),
-        "index.html não contém versão válida do JS.",
-    )
+        require(
+            re.search(pattern, html),
+            f"index.html não contém versão válida de {relative_path}.",
+        )
 
     match = re.search(
         r'<script\s+id="journal-data"\s+type="application/json"\s*>'
@@ -212,23 +314,32 @@ def validate_generated():
         "Bloco journal-data não encontrado no HTML gerado.",
     )
 
-    videos = json.loads(match.group(1).strip() or "[]")
+    videos = json.loads(
+        match.group(1).strip()
+        or "[]"
+    )
 
     require(
         isinstance(videos, list),
         "journal-data deve conter uma lista JSON.",
     )
 
-    ids = re.findall(r'\bid="([^"]+)"', html)
-    duplicates = sorted(
+    ids = re.findall(
+        r'\bid="([^"]+)"',
+        html,
+    )
+
+    duplicate_ids = sorted(
         value
-        for value in set(ids)
-        if ids.count(value) > 1
+        for value, count
+        in Counter(ids).items()
+        if count > 1
     )
 
     require(
-        not duplicates,
-        "IDs HTML duplicados: " + ", ".join(duplicates),
+        not duplicate_ids,
+        "IDs HTML duplicados: "
+        + ", ".join(duplicate_ids),
     )
 
     html_ids = set(ids)
@@ -236,7 +347,7 @@ def validate_generated():
     for required_id in REQUIRED_HTML_IDS:
         require(
             required_id in html_ids,
-            f"ID obrigatório ausente no HTML: {required_id}",
+            f"ID obrigatório ausente: {required_id}",
         )
 
     handlers = set(
@@ -247,24 +358,21 @@ def validate_generated():
     )
 
     for handler in handlers:
-        pattern = (
-            r"\b(?:async\s+)?function\s+"
-            + re.escape(handler)
-            + r"\s*\("
-        )
         require(
-            re.search(pattern, app),
-            f"Handler gerado sem função em app.js: {handler}",
+            handler in available,
+            f"Handler gerado sem função JavaScript: {handler}",
         )
 
 
 def main():
     parser = argparse.ArgumentParser()
+
     parser.add_argument(
         "--source-only",
         action="store_true",
         help="Valida somente os arquivos-fonte, sem exigir index.html.",
     )
+
     args = parser.parse_args()
 
     validate_sources()
@@ -272,7 +380,9 @@ def main():
     if not args.source_only:
         validate_generated()
 
-    print("Validação do Jornal concluída com sucesso.")
+    print(
+        "Validação do Jornal concluída com sucesso."
+    )
 
 
 if __name__ == "__main__":
