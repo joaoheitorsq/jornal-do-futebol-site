@@ -867,8 +867,8 @@ function resetFullscreenNextHoldVisual() {
         );
 
         button.style.setProperty(
-            '--hold-progress',
-            '0%'
+            '--hold-scale',
+            '0'
         );
 
         button.textContent =
@@ -952,7 +952,7 @@ function updateFullscreenNextHoldProgress() {
         );
 
     button.style.setProperty(
-        '--hold-progress',
+        '--hold-scale',
         String(
             Math.round(progress * 100)
         ) + '%'
@@ -987,15 +987,31 @@ function updateFullscreenNextHoldProgress() {
             countdownNumber.textContent =
                 nextText;
 
-            countdownNumber.classList.remove(
-                'tick'
-            );
-
-            void countdownNumber.offsetWidth;
-
-            countdownNumber.classList.add(
-                'tick'
-            );
+            if (
+                !prefersReducedMotion()
+                &&
+                typeof countdownNumber.animate
+                === 'function'
+            ) {
+                countdownNumber.animate(
+                    [
+                        {
+                            transform:
+                                'scale(1.18)',
+                            opacity: .72
+                        },
+                        {
+                            transform:
+                                'scale(1)',
+                            opacity: .96
+                        }
+                    ],
+                    {
+                        duration: 180,
+                        easing: 'ease-out'
+                    }
+                );
+            }
         }
     }
 
@@ -1080,8 +1096,8 @@ function beginFullscreenNextHold(event) {
                 fullscreenNextHoldTimer = null;
 
                 button.style.setProperty(
-                    '--hold-progress',
-                    '100%'
+                    '--hold-scale',
+                    '1'
                 );
 
                 button.textContent =
