@@ -198,6 +198,29 @@ def validate_sources():
     )
 
     require(
+        "animation: none !important;" in css
+        and "#playerwrap.mini-player" in css,
+        "Mini-player voltou a receber animações.",
+    )
+
+    require(
+        "const CURRENT_STORAGE_SCHEMA = 2;" in javascript,
+        "Schema avançado de armazenamento não está na versão 2.",
+    )
+
+    require(
+        "IntersectionObserver" in javascript
+        and "initCardViewportAnimations" in javascript,
+        "Animação por viewport está ausente.",
+    )
+
+    require(
+        "jornal-do-futebol-backup" in javascript
+        and "FEATURE_STATE_KEY" in javascript,
+        "Backup ou estado avançado está ausente.",
+    )
+
+    require(
         not (ROOT / "assets/app.js").exists(),
         "assets/app.js é legado e não deve voltar ao projeto.",
     )
