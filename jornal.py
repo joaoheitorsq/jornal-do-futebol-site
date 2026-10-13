@@ -1398,6 +1398,10 @@ __CARDS__
             asset_version("assets/player.js"),
         )
         .replace(
+            "__MOTION_VERSION__",
+            asset_version("assets/motion.js"),
+        )
+        .replace(
             "__BOOTSTRAP_VERSION__",
             asset_version("assets/bootstrap.js"),
         )
