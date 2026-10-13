@@ -1,53 +1,83 @@
 # Arquitetura do Jornal do Futebol
 
-Este arquivo existe para tornar alterações futuras mais rápidas e seguras.
+Este documento é o mapa para alterações futuras. A regra principal é mexer apenas no módulo responsável pelo comportamento desejado.
 
 ## Fonte de verdade
 
-- `jornal.py`: coleta dados, aplica regras de negócio, monta fragmentos dinâmicos e gera `index.html`.
-- `templates/index.html`: estrutura HTML da página. Não contém lógica de coleta.
-- `assets/style.css`: todo o CSS da interface.
-- `assets/app.js`: toda a lógica do navegador, player, vistos, retomada, filtros, fullscreen e gestos.
-- `channels.json`: lista de canais e regra `onlyShorts`.
-- `tests/validate_site.py`: valida estrutura dos arquivos e o HTML final.
-- `.github/workflows/jornal.yml`: valida, gera e publica o site.
+- `jornal.py`: coleta dados, regras do YouTube/HearthPwn, criação dos cards e geração de `index.html`.
+- `templates/index.html`: estrutura fixa da página e ordem de carregamento dos módulos.
+- `assets/style.css`: visual e responsividade.
+- `assets/core.js`: dados globais, estado base, armazenamento principal, vistos e HearthPwn.
+- `assets/gestures.js`: proteção por toque longo e gestos dos botões da lista.
+- `assets/view.js`: capítulos, busca, retomada, fila, tempos, filtros e mini-player.
+- `assets/player.js`: transporte, YouTube Player, navegação, fullscreen e avanço protegido.
+- `assets/bootstrap.js`: inicialização do estado e carregamento da API do YouTube. Deve ser o último módulo.
+- `channels.json`: canais e regra `onlyShorts`.
+- `tests/validate_site.py`: contrato estrutural do projeto.
+- `.github/workflows/jornal.yml`: valida, gera e publica.
 
-`index.html` é arquivo gerado. Não deve ser editado manualmente nem versionado.
+`index.html` é gerado. Não deve ser editado ou versionado manualmente.
+
+## Ordem dos JavaScript
+
+A ordem é um contrato:
+
+1. `core.js`
+2. `gestures.js`
+3. `view.js`
+4. `player.js`
+5. `bootstrap.js`
+
+Os arquivos são scripts clássicos e compartilham o mesmo estado global. O `bootstrap.js` inicializa os dados somente depois que todas as funções já foram carregadas.
+
+## Armazenamento local
+
+O Jornal possui `CURRENT_STORAGE_SCHEMA` e `migrateStorage()`.
+
+Quando uma alteração futura exigir mudar o formato dos dados em `localStorage`:
+
+1. aumentar `CURRENT_STORAGE_SCHEMA`;
+2. adicionar a migração correspondente no `switch` de `migrateStorage()`;
+3. preservar os dados antigos sempre que possível;
+4. nunca resolver incompatibilidades apagando silenciosamente o progresso.
+
+A versão 1 apenas formaliza as chaves legadas existentes e não altera o progresso atual.
 
 ## Fluxo de publicação
 
-1. O workflow valida Python, JavaScript e os arquivos-fonte.
-2. Instala o Argos Translate.
-3. Executa `jornal.py`.
-4. Valida o `index.html` gerado.
-5. Copia HTML, CSS, JS e cache de tradução para `_site`.
-6. Publica no GitHub Pages.
+1. Push relevante em `main` ou `workflow_dispatch`.
+2. Compilação sintática do Python.
+3. `node --check` em todos os arquivos `assets/*.js`.
+4. Validação estrutural dos fontes.
+5. Preparação do Argos Translate.
+6. Execução de `jornal.py`.
+7. Validação do HTML final.
+8. Cópia dos assets para `_site`.
+9. Publicação no GitHub Pages.
 
-Além das execuções externas periódicas, alterações de código em `main` disparam uma execução automática. Isso elimina a necessidade de editar temporariamente o workflow só para publicar uma mudança.
+O cron externo de 30 minutos continua usando `workflow_dispatch`. Alterações relevantes em código também publicam automaticamente por `push`.
 
-## Cache dos assets
+## Cache
 
-`jornal.py` calcula SHA-256 de `assets/style.css` e `assets/app.js` e inclui os 12 primeiros caracteres na URL:
+Cada CSS e cada módulo JavaScript recebe um hash SHA-256 de 12 caracteres na URL. Qualquer alteração de asset invalida automaticamente o cache do navegador.
 
-- `assets/style.css?v=<hash>`
-- `assets/app.js?v=<hash>`
+## Onde alterar
 
-Assim, mudanças de CSS/JS chegam ao navegador sem depender de limpeza manual do cache.
-
-## Onde alterar cada coisa
-
-- Visual, tamanhos, espaçamento, responsividade: `assets/style.css`.
-- Botões, gestos, player, localStorage, fila, fullscreen: `assets/app.js`.
-- Layout/ordem dos blocos fixos da página: `templates/index.html`.
-- Cards e conteúdo HTML criado a partir dos vídeos: `jornal.py`.
-- Canais monitorados: `channels.json`.
-- Regras de publicação: `.github/workflows/jornal.yml`.
+- Aparência e responsividade: `assets/style.css`.
+- Toques longos e gestos da lista: `assets/gestures.js`.
+- Player, fullscreen, próximo e anterior: `assets/player.js`.
+- Busca, fila, cards visuais, mini-player e retomada: `assets/view.js`.
+- Estado, vistos, HearthPwn e migração do armazenamento: `assets/core.js`.
+- Inicialização e carregamento da API do YouTube: `assets/bootstrap.js`.
+- Estrutura fixa do HTML: `templates/index.html`.
+- Conteúdo dinâmico dos cards e coleta: `jornal.py`.
+- Canais: `channels.json`.
 
 ## Validação local
 
 ```bash
 python -m py_compile jornal.py tests/validate_site.py
-node --check assets/app.js
+for file in assets/*.js; do node --check "$file"; done
 python tests/validate_site.py --source-only
 ```
 
@@ -60,9 +90,10 @@ python tests/validate_site.py
 
 ## Regra para alterações futuras
 
-Antes de publicar uma mudança:
+Antes de publicar:
 
-1. alterar somente a camada responsável;
-2. preservar os IDs e contratos usados entre HTML e JavaScript;
-3. executar as validações;
-4. deixar o workflow impedir a publicação se alguma validação falhar.
+1. alterar apenas o módulo responsável;
+2. preservar IDs e contratos entre HTML e JavaScript;
+3. se o formato de dados mudar, criar uma migração;
+4. deixar os validadores rodarem;
+5. não contornar uma falha do validador só para publicar.
