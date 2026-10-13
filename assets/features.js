@@ -438,6 +438,12 @@ function orderPlaylistWithFeatures(
         finishLaterItems()
         .filter(item =>
             item.embeddable !== false
+            &&
+            !VIDEOS.some(
+                video =>
+                    video.id
+                    === item.videoId
+            )
         )
         .map(item =>
             String(item.videoId)
@@ -1699,7 +1705,14 @@ function renderFeatureCarryover() {
     }
 
     const items =
-        finishLaterItems();
+        finishLaterItems()
+        .filter(item =>
+            !VIDEOS.some(
+                video =>
+                    video.id
+                    === item.videoId
+            )
+        );
 
     if (
         resumeState
