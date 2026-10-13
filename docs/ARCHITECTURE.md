@@ -103,3 +103,19 @@ Antes de publicar:
 3. se o formato de dados mudar, criar uma migração;
 4. deixar os validadores rodarem;
 5. não contornar uma falha do validador só para publicar.
+
+
+## Recursos avançados da interface
+
+O pacote avançado mantém as seguintes regras:
+
+- cada vídeo pode ter seu próprio ponto de retomada;
+- "Ver depois" apenas muda a ordem da edição atual;
+- a fila manual usa `sessionStorage` e não altera a ordem original;
+- "Terminar depois" persiste metadados em `localStorage` para sobreviver à janela de 24 h;
+- canais podem ser ocultados somente na edição atual;
+- backup/restauração exporta apenas chaves do próprio Jornal;
+- cards entram com `IntersectionObserver`, somente ao chegar à viewport;
+- animações contínuas devem priorizar `transform` e `opacity`;
+- o mini-player permanece sem animações de entrada, saída, resize ou morph;
+- o contrato de z-index do mini-player deve ser preservado.
