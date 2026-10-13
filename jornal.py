@@ -1359,8 +1359,24 @@ __CARDS__
             asset_version("assets/style.css"),
         )
         .replace(
-            "__APP_VERSION__",
-            asset_version("assets/app.js"),
+            "__CORE_VERSION__",
+            asset_version("assets/core.js"),
+        )
+        .replace(
+            "__GESTURES_VERSION__",
+            asset_version("assets/gestures.js"),
+        )
+        .replace(
+            "__VIEW_VERSION__",
+            asset_version("assets/view.js"),
+        )
+        .replace(
+            "__PLAYER_VERSION__",
+            asset_version("assets/player.js"),
+        )
+        .replace(
+            "__BOOTSTRAP_VERSION__",
+            asset_version("assets/bootstrap.js"),
         )
     )
 
