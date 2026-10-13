@@ -772,6 +772,7 @@ function skipChannelToday(
             );
 
             applyView();
+            maybeCelebrateJournalCompletion();
         }
     );
 }
@@ -787,6 +788,7 @@ function restoreSkippedChannels() {
 
     setSkippedChannelsToday([]);
     applyView();
+    maybeCelebrateJournalCompletion();
 
     showUndoToast(
         'Canais ocultados foram restaurados.',
@@ -928,6 +930,7 @@ function offerUndoWatched(
 
             saveFeatureState();
             applyView();
+            maybeCelebrateJournalCompletion();
 
             setStatus(
                 'Ação desfeita: vídeo voltou a não visto.'
@@ -1955,7 +1958,12 @@ function updateSmartHeader() {
         headerProgress
     ) {
         progress.textContent =
-            headerProgress.textContent;
+            headerProgress.textContent
+                .replace(
+                    /\s+/g,
+                    ' '
+                )
+                .trim();
     }
 
     if (
