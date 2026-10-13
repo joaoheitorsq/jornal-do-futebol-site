@@ -542,6 +542,23 @@ function play(
         return;
     }
 
+    const outgoingId =
+        currentVideoId();
+
+    if (
+        outgoingId
+        &&
+        activePlaylist[index]
+        &&
+        outgoingId
+        !== activePlaylist[index]
+    ) {
+        saveResume(
+            outgoingId,
+            currentTime()
+        );
+    }
+
     i = index;
 
     const id =
@@ -995,9 +1012,7 @@ function updateFullscreenNextHoldProgress() {
 
     button.style.setProperty(
         '--hold-scale',
-        String(
-            Math.round(progress * 100)
-        ) + '%'
+        String(progress)
     );
 
     if (countdown) {
