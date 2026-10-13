@@ -1239,7 +1239,7 @@ __BADGE__
     class="watch-action"
     type="button"
     data-video-id="__VIDEO_ID__"
-    onclick="toggleWatched('__VIDEO_ID__')"
+    aria-label="Segure por 2 segundos para alterar o status de assistido"
 >
 Marcar como visto
 </button>
@@ -1946,6 +1946,16 @@ small {
     font: inherit;
     font-size: 12px;
     cursor: pointer;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.watch-action.holding {
+    border-color: #8fb8ee;
+    box-shadow:
+        0 0 0 1px
+        rgba(143, 184, 238, .28);
 }
 
 .watch-action.watched {
@@ -2519,6 +2529,7 @@ Este vídeo saiu das últimas 24 horas, mas foi mantido até você terminar de a
     id="carryover-watch-toggle"
     class="watch-action"
     type="button"
+    aria-label="Segure por 2 segundos para alterar o status de assistido"
 >
 Marcar como visto
 </button>
@@ -2885,6 +2896,188 @@ function toggleWatched(videoId) {
 
     applyView();
 }
+
+
+const WATCH_ACTION_HOLD_MS = 2000;
+const WATCH_ACTION_MOVE_TOLERANCE = 18;
+
+let watchActionHoldTimer = null;
+let watchActionHoldButton = null;
+let watchActionHoldPointerId = null;
+let watchActionHoldStartX = 0;
+let watchActionHoldStartY = 0;
+let watchActionHoldTriggered = false;
+
+
+function cancelWatchActionHold() {
+    if (watchActionHoldTimer) {
+        clearTimeout(
+            watchActionHoldTimer
+        );
+    }
+
+    if (watchActionHoldButton) {
+        watchActionHoldButton.classList.remove(
+            'holding'
+        );
+    }
+
+    watchActionHoldTimer = null;
+    watchActionHoldButton = null;
+    watchActionHoldPointerId = null;
+    watchActionHoldStartX = 0;
+    watchActionHoldStartY = 0;
+    watchActionHoldTriggered = false;
+}
+
+
+function beginWatchActionHold(event) {
+    const button =
+        event.target.closest(
+            '.watch-action[data-video-id]'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    if (
+        event.pointerType === 'mouse'
+        &&
+        event.button !== 0
+    ) {
+        return;
+    }
+
+    cancelWatchActionHold();
+
+    watchActionHoldButton = button;
+    watchActionHoldPointerId =
+        event.pointerId;
+
+    watchActionHoldStartX =
+        event.clientX;
+
+    watchActionHoldStartY =
+        event.clientY;
+
+    watchActionHoldTriggered = false;
+
+    button.classList.add(
+        'holding'
+    );
+
+    watchActionHoldTimer =
+        setTimeout(
+            () => {
+                if (
+                    !watchActionHoldButton
+                    ||
+                    watchActionHoldTriggered
+                ) {
+                    return;
+                }
+
+                const videoId =
+                    watchActionHoldButton
+                        .dataset.videoId;
+
+                watchActionHoldTriggered = true;
+
+                toggleWatched(
+                    videoId
+                );
+
+                cancelWatchActionHold();
+            },
+            WATCH_ACTION_HOLD_MS
+        );
+}
+
+
+function moveWatchActionHold(event) {
+    if (
+        !watchActionHoldButton
+        ||
+        watchActionHoldPointerId === null
+        ||
+        event.pointerId !== watchActionHoldPointerId
+        ||
+        watchActionHoldTriggered
+    ) {
+        return;
+    }
+
+    const distance =
+        Math.hypot(
+            event.clientX
+            - watchActionHoldStartX,
+            event.clientY
+            - watchActionHoldStartY
+        );
+
+    if (
+        distance
+        >
+        WATCH_ACTION_MOVE_TOLERANCE
+    ) {
+        cancelWatchActionHold();
+    }
+}
+
+
+function endWatchActionHold(event) {
+    if (
+        watchActionHoldPointerId !== null
+        &&
+        event.pointerId !== watchActionHoldPointerId
+    ) {
+        return;
+    }
+
+    if (!watchActionHoldTriggered) {
+        cancelWatchActionHold();
+    }
+}
+
+
+document.addEventListener(
+    'pointerdown',
+    beginWatchActionHold
+);
+
+
+document.addEventListener(
+    'pointermove',
+    moveWatchActionHold,
+    {passive: true}
+);
+
+
+document.addEventListener(
+    'pointerup',
+    endWatchActionHold
+);
+
+
+document.addEventListener(
+    'pointercancel',
+    endWatchActionHold
+);
+
+
+document.addEventListener(
+    'click',
+    event => {
+        if (
+            event.target.closest(
+                '.watch-action[data-video-id]'
+            )
+        ) {
+            event.preventDefault();
+        }
+    }
+);
 
 
 function loadCollapsedChapters() {
@@ -3462,10 +3655,7 @@ function renderCarryover() {
     watchButton.dataset.videoId =
         resumeState.videoId;
 
-    watchButton.onclick = () =>
-        toggleWatched(
-            resumeState.videoId
-        );
+    watchButton.onclick = null;
 
     document.getElementById(
         'carryover-title'
