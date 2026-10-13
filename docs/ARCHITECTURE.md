@@ -11,6 +11,8 @@ Este documento é o mapa para alterações futuras. A regra principal é mexer a
 - `assets/gestures.js`: proteção por toque longo e gestos dos botões da lista.
 - `assets/view.js`: capítulos, busca, retomada, fila, tempos, filtros e mini-player.
 - `assets/player.js`: transporte, YouTube Player, navegação, fullscreen e avanço protegido.
+- `assets/motion.js`: animações otimizadas para compositor e observação da viewport.
+- `assets/features.js`: fila manual, adiar, terminar depois, backup, progresso por vídeo, sessão, undo e controles avançados.
 - `assets/bootstrap.js`: inicialização do estado e carregamento da API do YouTube. Deve ser o último módulo.
 - `channels.json`: canais e regra `onlyShorts`.
 - `tests/validate_site.py`: contrato estrutural do projeto.
@@ -26,7 +28,9 @@ A ordem é um contrato:
 2. `gestures.js`
 3. `view.js`
 4. `player.js`
-5. `bootstrap.js`
+5. `motion.js`
+6. `features.js`
+7. `bootstrap.js`
 
 Os arquivos são scripts clássicos e compartilham o mesmo estado global. O `bootstrap.js` inicializa os dados somente depois que todas as funções já foram carregadas.
 
@@ -68,6 +72,8 @@ Cada CSS e cada módulo JavaScript recebe um hash SHA-256 de 12 caracteres na UR
 - Player, fullscreen, próximo e anterior: `assets/player.js`.
 - Busca, fila, cards visuais, mini-player e retomada: `assets/view.js`.
 - Estado, vistos, HearthPwn e migração do armazenamento: `assets/core.js`.
+- Recursos avançados, backup e estado por vídeo: `assets/features.js`.
+- Animações e microinterações: `assets/motion.js`.
 - Inicialização e carregamento da API do YouTube: `assets/bootstrap.js`.
 - Estrutura fixa do HTML: `templates/index.html`.
 - Conteúdo dinâmico dos cards e coleta: `jornal.py`.
