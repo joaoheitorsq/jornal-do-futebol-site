@@ -3,6 +3,17 @@ name: Jornal do Futebol
 on:
   workflow_dispatch:
 
+  push:
+    branches:
+      - main
+    paths:
+      - jornal.py
+      - channels.json
+      - assets/**
+      - templates/**
+      - tests/**
+      - .github/workflows/jornal.yml
+
 concurrency:
   group: jornal-do-futebol-pages
   cancel-in-progress: false
@@ -24,7 +35,7 @@ jobs:
 
     name: Gerar Jornal
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
 
@@ -35,6 +46,12 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+
+      - name: Validar código-fonte
+        run: |
+          python -m py_compile jornal.py tests/validate_site.py
+          node --check assets/app.js
+          python tests/validate_site.py --source-only
 
       - name: Restaurar cache do tradutor
         uses: actions/cache@v4
@@ -55,10 +72,16 @@ jobs:
         run: |
           python jornal.py
 
+      - name: Validar site gerado
+        run: |
+          python tests/validate_site.py
+
       - name: Preparar arquivos do site
         run: |
-          mkdir -p _site
+          mkdir -p _site/assets
           cp index.html _site/index.html
+          cp assets/app.js _site/assets/app.js
+          cp assets/style.css _site/assets/style.css
 
           if [ -f hearthpwn_translation_cache.json ]; then
             cp hearthpwn_translation_cache.json _site/hearthpwn_translation_cache.json
@@ -76,7 +99,7 @@ jobs:
 
     name: Publicar Jornal
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     needs: build
 

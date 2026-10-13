@@ -1,0 +1,307 @@
+<!doctype html>
+
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+>
+
+<title>
+Jornal do Futebol — __DATE__
+</title>
+
+<link
+    rel="stylesheet"
+    href="assets/style.css?v=__STYLE_VERSION__"
+>
+
+</head>
+
+<body>
+
+<main>
+
+<h1>
+⚽ Jornal do Futebol — __DATE__
+</h1>
+
+<div class="meta">
+Últimas 24 horas
+ ·
+antigo → novo
+ ·
+atualizado em __UPDATED__
+</div>
+
+<section class="time-summary" aria-label="Tempo do Jornal">
+
+<div class="time-stat">
+<span>Tempo total considerado</span>
+<strong id="time-total">—</strong>
+</div>
+
+<div class="time-stat">
+<span>Assistido</span>
+<strong id="time-watched">—</strong>
+</div>
+
+<div class="time-stat">
+<span>Restante</span>
+<strong id="time-remaining">—</strong>
+</div>
+
+</section>
+
+<div class="time-note">
+Vídeos normais de Cortes do Flow Sport Club e NoHandsGamer não entram nesses tempos; Shorts desses canais entram normalmente.
+</div>
+
+<section id="player-section" class="playerbox">
+
+<div id="player-spacer"></div>
+
+<div id="playerwrap">
+<div id="player-slot"></div>
+
+<button
+    id="mini-player-toggle"
+    class="mini-toggle"
+    type="button"
+    onclick="toggleMiniPlayerSize()"
+    aria-label="Minimizar player flutuante"
+>
+— Minimizar
+</button>
+
+<button
+    id="fullscreen-next"
+    class="fullscreen-next"
+    type="button"
+    aria-label="Segure por 3 segundos para marcar o vídeo atual como visto e ir para o próximo"
+>
+⏭
+</button>
+
+<div
+    id="fullscreen-hold-countdown"
+    class="fullscreen-hold-countdown"
+    aria-hidden="true"
+>
+<span
+    id="fullscreen-hold-countdown-number"
+    class="fullscreen-hold-countdown-number"
+>
+3
+</span>
+</div>
+
+</div>
+
+<div class="controls">
+
+<button onclick="start()">
+▶ Começar jornal
+</button>
+
+<button onclick="prev()">
+⏮ Anterior
+</button>
+
+<button onclick="next()">
+Próximo ⏭
+</button>
+
+<button
+    id="journal-fullscreen-toggle"
+    type="button"
+    onclick="toggleJournalFullscreen()"
+>
+⛶ Tela cheia do Jornal
+</button>
+
+</div>
+
+<div class="journal-transport" aria-label="Controles do Jornal">
+
+<button type="button" onclick="seekBy(-10)">
+↶ 10s
+</button>
+
+<button
+    id="journal-play-pause"
+    type="button"
+    onclick="togglePlayerPlayback()"
+>
+▶ Play
+</button>
+
+<button type="button" onclick="seekBy(10)">
+10s ↷
+</button>
+
+<input
+    id="journal-progress"
+    class="journal-progress"
+    type="range"
+    min="0"
+    max="1000"
+    value="0"
+    step="1"
+    aria-label="Posição do vídeo"
+    oninput="previewSeek(this.value)"
+    onchange="commitSeek(this.value)"
+>
+
+<span id="journal-clock" class="journal-clock">
+0:00 / 0:00
+</span>
+
+</div>
+
+<div id="status">
+Clique em “Começar jornal”
+para reproduzir em ordem cronológica.
+</div>
+
+<div
+    id="resume-info"
+    class="resume-info"
+>
+</div>
+
+<section id="up-next" class="up-next">
+<div class="up-next-title">Fila</div>
+<button id="up-next-first" class="next-row" type="button"></button>
+<button id="up-next-second" class="next-row" type="button"></button>
+</section>
+
+</section>
+
+__WARNING__
+
+__HEARTHPWN_WIDGET__
+
+<section
+    id="carryover"
+    class="carryover hidden"
+>
+
+<h2>Continuação pendente</h2>
+
+<p>
+Este vídeo saiu das últimas 24 horas, mas foi mantido até você terminar de assistir.
+</p>
+
+<article
+    id="carryover-card"
+    class="card"
+>
+
+<button
+    id="carryover-open"
+    class="card-open"
+    type="button"
+>
+
+<div class="thumbbox">
+
+<img
+    id="carryover-thumb"
+    src=""
+    alt=""
+>
+
+<span class="resume-badge">
+▶ CONTINUAR AQUI
+</span>
+
+<span class="playing-badge">
+▶ AGORA
+</span>
+
+</div>
+
+<span class="card-info">
+<b id="carryover-title">Vídeo anterior</b>
+<em id="carryover-channel"></em>
+</span>
+
+</button>
+
+<button
+    id="carryover-watch-toggle"
+    class="watch-action"
+    type="button"
+    aria-label="Segure por 2 segundos para alterar o status de assistido"
+>
+Marcar como visto
+</button>
+
+</article>
+
+</section>
+
+<div class="toolbar">
+
+<button
+    id="unwatched-toggle"
+    class="view-toggle"
+    onclick="toggleUnwatchedMode()"
+>
+Só o que ainda não vi
+</button>
+
+<button
+    id="resume-jump"
+    class="view-toggle"
+    type="button"
+    onclick="goToResume()"
+>
+↳ Ir para onde parei
+</button>
+
+<input
+    id="video-search"
+    class="search-box"
+    type="search"
+    placeholder="Buscar vídeo ou canal..."
+    autocomplete="off"
+    oninput="onSearchInput(this.value)"
+>
+
+<span
+    id="toolbar-info"
+    class="toolbar-info"
+>
+</span>
+
+</div>
+
+<div
+    id="no-unwatched"
+    class="no-unwatched"
+>
+Você já concluiu todos os vídeos disponíveis deste Jornal.
+</div>
+
+__CHAPTERS_HTML__
+
+</main>
+
+<script
+    id="journal-data"
+    type="application/json"
+>
+__PLAYER_VIDEOS__
+</script>
+
+<script src="assets/app.js?v=__APP_VERSION__"></script>
+
+</body>
+
+</html>

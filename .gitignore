@@ -1,0 +1,8 @@
+# Arquivos gerados
+index.html
+_site/
+hearthpwn_translation_cache.json
+
+# Python
+__pycache__/
+*.pyc
