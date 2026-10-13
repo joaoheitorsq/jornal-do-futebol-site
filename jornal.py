@@ -1176,6 +1176,8 @@ def build_page(videos, now_local, failures, hearthpwn_news=None):
             "id": video["videoId"],
             "title": video["title"],
             "channelTitle": video["channelTitle"],
+            "channelHandle": video["channelHandle"],
+            "publishedAt": video["publishedDt"].astimezone(TZ).isoformat(),
             "duration": video["durationSeconds"],
             "countForTime": video["countForTime"],
             "embeddable": video["embeddable"],
@@ -1400,6 +1402,10 @@ __CARDS__
         .replace(
             "__MOTION_VERSION__",
             asset_version("assets/motion.js"),
+        )
+        .replace(
+            "__FEATURES_VERSION__",
+            asset_version("assets/features.js"),
         )
         .replace(
             "__BOOTSTRAP_VERSION__",
