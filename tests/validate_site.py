@@ -236,23 +236,33 @@ def validate_sources():
     require(
         'id="fullscreen-seek-forward"' in template
         and 'class="fullscreen-next fullscreen-seek-forward"' in template
-        and "fullscreen-seek-icon" in template
+        and 'class="fullscreen-action-icon fullscreen-seek-icon"' in template
+        and 'class="fullscreen-action-icon fullscreen-next-icon"' in template
+        and "fullscreen-hold-confirmation" in template
         and "const FULLSCREEN_SEEK_HOLD_MS = 2000;" in javascript
+        and "const FULLSCREEN_NEXT_HOLD_MS = 3000;" in javascript
         and "function initFullscreenSeekForwardHold()" in javascript
         and "FULLSCREEN_SEEK_MOVE_TOLERANCE" in javascript
         and "seekBy(30);" in javascript
+        and "markCurrentWatchedAndNext();" in javascript
+        and "button.classList.add(" in javascript
+        and "'hold-confirmed'" in javascript
+        and "'--hold-scale'" in javascript
         and "#playerwrap:fullscreen .fullscreen-seek-forward" in css
-        and "--seek-hold-percent" in css,
+        and ".fullscreen-action-icon" in css,
         "Botão de avançar 30 s com pressão contínua de 2 s está ausente.",
     )
 
     require(
         "@media (orientation: landscape)" in css
-        and "@media (orientation: landscape) and (max-width: 600px)" in css
-        and "bottom: 68px;" in css
-        and "bottom: 62px;" in css
-        and "right: 68px;" in css
-        and "right: 62px;" in css,
+        and "--fullscreen-action-edge: 14px;" in css
+        and "--fullscreen-action-size: 48px;" in css
+        and "--fullscreen-action-gap: 10px;" in css
+        and "--fullscreen-action-edge: 10px;" in css
+        and "--fullscreen-action-size: 46px;" in css
+        and "right: calc(" in css
+        and "bottom: calc(" in css
+        and "right: var(--fullscreen-action-edge);" in css,
         "O botão +30 s precisa ficar acima em paisagem e ao lado em retrato.",
     )
 

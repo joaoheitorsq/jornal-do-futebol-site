@@ -254,61 +254,135 @@ small {
     display: none !important;
 }
 
+#playerwrap:fullscreen,
+#playerwrap:-webkit-full-screen {
+    --fullscreen-action-edge: 14px;
+    --fullscreen-action-size: 48px;
+    --fullscreen-action-gap: 10px;
+}
+
 #playerwrap:fullscreen .fullscreen-next,
 #playerwrap:-webkit-full-screen .fullscreen-next {
     display: flex;
     position: absolute;
-    right: 14px;
-    bottom: 14px;
+    right: var(--fullscreen-action-edge);
+    bottom: var(--fullscreen-action-edge);
     z-index: 50;
-    width: 44px;
-    height: 44px;
+    width: var(--fullscreen-action-size);
+    height: var(--fullscreen-action-size);
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, .34);
-    border-radius: 10px;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(255, 255, 255, .22) var(--hold-scale),
-            transparent var(--hold-scale)
-        ),
-        rgba(15, 17, 21, .88);
-    color: #fff;
+    overflow: hidden;
+    border: 1px solid rgba(226, 236, 251, .23);
+    border-radius: 14px;
+    background-color: rgba(13, 17, 25, .83);
+    color: #f5f8ff;
     padding: 0;
     font: inherit;
-    font-size: 22px;
-    line-height: 1;
-    font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, .38);
-    backdrop-filter: blur(7px);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, .34),
+        inset 0 1px 0 rgba(255, 255, 255, .07);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 140ms ease, border-color 140ms ease;
 }
 
-#playerwrap:fullscreen .fullscreen-next:hover,
-#playerwrap:-webkit-full-screen .fullscreen-next:hover {
-    background: rgba(36, 41, 51, .96);
+@media (hover: hover) {
+    #playerwrap:fullscreen .fullscreen-next:hover,
+    #playerwrap:-webkit-full-screen .fullscreen-next:hover {
+        background-color: rgba(32, 38, 50, .92);
+        border-color: rgba(230, 238, 255, .4);
+    }
 }
 
-#playerwrap:fullscreen .fullscreen-next:active,
-#playerwrap:-webkit-full-screen .fullscreen-next:active {
-    transform: translateY(1px);
+#playerwrap:fullscreen .fullscreen-next:focus-visible,
+#playerwrap:-webkit-full-screen .fullscreen-next:focus-visible {
+    outline: 2px solid #b2d3ff;
+    outline-offset: -3px;
 }
 
 #playerwrap:fullscreen .fullscreen-next.holding,
 #playerwrap:-webkit-full-screen .fullscreen-next.holding {
-    border-color: rgba(255, 255, 255, .72);
+    border-color: rgba(208, 226, 255, .64);
+}
+
+#playerwrap:fullscreen .fullscreen-next::before,
+#playerwrap:-webkit-full-screen .fullscreen-next::before {
+    left: 7px;
+    right: 7px;
+    bottom: 5px;
+    height: 3px;
+    border-radius: 999px;
+    background: #dceaff;
+    transform-origin: left center;
+}
+
+#playerwrap:fullscreen .fullscreen-seek-forward::before,
+#playerwrap:-webkit-full-screen .fullscreen-seek-forward::before {
+    background: #98c4ff;
+}
+
+#playerwrap:fullscreen .fullscreen-next.hold-confirmed::before,
+#playerwrap:-webkit-full-screen .fullscreen-next.hold-confirmed::before,
+#playerwrap:fullscreen .fullscreen-seek-forward.seek-confirmed::before,
+#playerwrap:-webkit-full-screen .fullscreen-seek-forward.seek-confirmed::before {
+    background: #a9e2b8;
+    opacity: 1;
+}
+
+.fullscreen-action-icon {
+    display: block;
+    width: 29px;
+    height: 29px;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.05;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.fullscreen-next-icon {
+    width: 27px;
+    height: 27px;
+}
+
+.fullscreen-hold-confirmation {
+    display: none;
+    color: #caffd7;
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+#playerwrap:fullscreen .fullscreen-next.hold-confirmed .fullscreen-next-icon,
+#playerwrap:-webkit-full-screen .fullscreen-next.hold-confirmed .fullscreen-next-icon {
+    display: none;
+}
+
+#playerwrap:fullscreen .fullscreen-next.hold-confirmed .fullscreen-hold-confirmation,
+#playerwrap:-webkit-full-screen .fullscreen-next.hold-confirmed .fullscreen-hold-confirmation {
+    display: block;
+}
+
+#playerwrap:fullscreen .fullscreen-next.hold-confirmed,
+#playerwrap:-webkit-full-screen .fullscreen-next.hold-confirmed,
+#playerwrap:fullscreen .fullscreen-seek-forward.seek-confirmed,
+#playerwrap:-webkit-full-screen .fullscreen-seek-forward.seek-confirmed {
+    border-color: rgba(148, 230, 173, .78);
+    background-color: rgba(21, 53, 38, .92);
+    color: #d9ffe5;
 }
 
 @media (max-width: 600px) {
-    #playerwrap:fullscreen .fullscreen-next,
-    #playerwrap:-webkit-full-screen .fullscreen-next {
-        right: 10px;
-        bottom: 10px;
-        width: 42px;
-        height: 42px;
-        padding: 0;
-        font-size: 21px;
+    #playerwrap:fullscreen,
+    #playerwrap:-webkit-full-screen {
+        --fullscreen-action-edge: 10px;
+        --fullscreen-action-size: 46px;
+        --fullscreen-action-gap: 9px;
     }
 }
 
@@ -3311,82 +3385,44 @@ main {
 
 
 /* =========================================================
-   FULLSCREEN SEEK +30 S — ao lado de concluir vídeo
+   FULLSCREEN ACTIONS — controles vetoriais e layout responsivo
    ========================================================= */
 
-.fullscreen-seek-forward {
-    --seek-hold-percent: 0%;
-}
-
+/* Em retrato, o +30 s fica à esquerda do botão de concluir. */
 #playerwrap:fullscreen .fullscreen-seek-forward,
 #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
-    right: 68px;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(105, 170, 255, .4) var(--seek-hold-percent),
-            transparent var(--seek-hold-percent)
-        ),
-        rgba(15, 17, 21, .88);
-}
-
-#playerwrap:fullscreen .fullscreen-seek-forward:hover,
-#playerwrap:-webkit-full-screen .fullscreen-seek-forward:hover {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(105, 170, 255, .4) var(--seek-hold-percent),
-            transparent var(--seek-hold-percent)
-        ),
-        rgba(36, 41, 51, .96);
-}
-
-#playerwrap:fullscreen .fullscreen-seek-forward.seek-confirmed,
-#playerwrap:-webkit-full-screen .fullscreen-seek-forward.seek-confirmed {
-    border-color: var(--success);
-    color: #d9ffe6;
-}
-
-.fullscreen-seek-icon {
-    width: 30px;
-    height: 30px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2.3;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    pointer-events: none;
+    right: calc(
+        var(--fullscreen-action-edge)
+        + var(--fullscreen-action-size)
+        + var(--fullscreen-action-gap)
+    );
 }
 
 .fullscreen-seek-icon text {
     fill: currentColor;
     stroke: none;
     font-family: system-ui, sans-serif;
-    font-size: 11px;
-    font-weight: 900;
+    font-size: 12.5px;
+    font-weight: 850;
+    letter-spacing: -.35px;
 }
 
-@media (max-width: 600px) {
-    #playerwrap:fullscreen .fullscreen-seek-forward,
-    #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
-        right: 62px;
-    }
-}
-
-/* Em paisagem, +30 s fica acima do botão de concluir vídeo.
-   Em retrato, permanece à esquerda conforme o posicionamento base. */
+/* Em paisagem, o +30 s fica acima do botão de concluir. */
 @media (orientation: landscape) {
     #playerwrap:fullscreen .fullscreen-seek-forward,
     #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
-        right: 14px;
-        bottom: 68px;
+        right: var(--fullscreen-action-edge);
+        bottom: calc(
+            var(--fullscreen-action-edge)
+            + var(--fullscreen-action-size)
+            + var(--fullscreen-action-gap)
+        );
     }
 }
 
-@media (orientation: landscape) and (max-width: 600px) {
-    #playerwrap:fullscreen .fullscreen-seek-forward,
-    #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
-        right: 10px;
-        bottom: 62px;
+@media (prefers-reduced-motion: reduce) {
+    #playerwrap:fullscreen .fullscreen-next,
+    #playerwrap:-webkit-full-screen .fullscreen-next {
+        transition: none;
     }
 }

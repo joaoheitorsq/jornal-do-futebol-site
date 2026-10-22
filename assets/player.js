@@ -922,16 +922,14 @@ function resetFullscreenNextHoldVisual() {
 
     if (button) {
         button.classList.remove(
-            'holding'
+            'holding',
+            'hold-confirmed'
         );
 
         button.style.setProperty(
             '--hold-scale',
             '0'
         );
-
-        button.textContent =
-            '⏭';
     }
 
     if (countdown) {
@@ -1157,8 +1155,9 @@ function beginFullscreenNextHold(event) {
                     '1'
                 );
 
-                button.textContent =
-                    '✓';
+                button.classList.add(
+                    'hold-confirmed'
+                );
 
                 const countdown =
                     document.getElementById(
@@ -1350,8 +1349,8 @@ function initFullscreenSeekForwardHold() {
         );
 
         button.style.setProperty(
-            '--seek-hold-percent',
-            '0%'
+            '--hold-scale',
+            '0'
         );
     }
 
@@ -1370,8 +1369,8 @@ function initFullscreenSeekForwardHold() {
             );
 
         button.style.setProperty(
-            '--seek-hold-percent',
-            String(Math.round(progress * 100)) + '%'
+            '--hold-scale',
+            String(progress)
         );
 
         if (progress < 1) {
@@ -1425,8 +1424,8 @@ function initFullscreenSeekForwardHold() {
                 button.classList.remove('holding');
                 button.classList.add('seek-confirmed');
                 button.style.setProperty(
-                    '--seek-hold-percent',
-                    '100%'
+                    '--hold-scale',
+                    '1'
                 );
 
                 // Busca temporal somente: não marca como visto.

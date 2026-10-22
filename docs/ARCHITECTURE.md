@@ -140,5 +140,5 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - `fullscreen-seek-forward` aparece somente na tela cheia própria de `#playerwrap`: em **retrato (vertical)**, fica à esquerda do botão de concluir/avançar vídeo; em **paisagem (horizontal)**, fica imediatamente acima dele, com a mesma margem direita.
 - Pressão contínua por **2 segundos** avança 30 segundos com `seekBy(30)`; soltar antes, arrastar ou sair da tela cheia cancela o gesto. Teclado (Espaço/Enter) também exige pressão contínua.
 - O botão não marca o vídeo como assistido diretamente. O botão existente `fullscreen-next` continua exigindo **3 segundos** e mantém sua ação original de concluir e ir para o próximo.
-- Ambos usam estilos de tela cheia do `assets/style.css`; o controle de 30 segundos possui confirmação visual e não altera o mini-player.
+- Ambos usam ícones SVG integrados ao HTML e a mesma base visual de controles do `assets/style.css`, com borda discreta, acabamento translúcido e barra de progresso por `transform: scaleX` (variável `--hold-scale`). O botão de concluir troca temporariamente o SVG por um ✓ após a confirmação, sem destruir/recriar o conteúdo HTML. Em paisagem e retrato, tamanho, distância e margens dos dois botões são definidos por variáveis CSS, incluindo ajuste para telas estreitas. O mini-player não é alterado.
 
