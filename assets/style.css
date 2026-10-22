@@ -3372,3 +3372,21 @@ main {
         right: 62px;
     }
 }
+
+/* Em paisagem, +30 s fica acima do botão de concluir vídeo.
+   Em retrato, permanece à esquerda conforme o posicionamento base. */
+@media (orientation: landscape) {
+    #playerwrap:fullscreen .fullscreen-seek-forward,
+    #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
+        right: 14px;
+        bottom: 68px;
+    }
+}
+
+@media (orientation: landscape) and (max-width: 600px) {
+    #playerwrap:fullscreen .fullscreen-seek-forward,
+    #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
+        right: 10px;
+        bottom: 62px;
+    }
+}

@@ -137,7 +137,7 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 
 ## Avanço de 30 segundos em tela cheia
 
-- `fullscreen-seek-forward` aparece somente na tela cheia própria de `#playerwrap`, à esquerda do botão de concluir/avançar vídeo.
+- `fullscreen-seek-forward` aparece somente na tela cheia própria de `#playerwrap`: em **retrato (vertical)**, fica à esquerda do botão de concluir/avançar vídeo; em **paisagem (horizontal)**, fica imediatamente acima dele, com a mesma margem direita.
 - Pressão contínua por **2 segundos** avança 30 segundos com `seekBy(30)`; soltar antes, arrastar ou sair da tela cheia cancela o gesto. Teclado (Espaço/Enter) também exige pressão contínua.
 - O botão não marca o vídeo como assistido diretamente. O botão existente `fullscreen-next` continua exigindo **3 segundos** e mantém sua ação original de concluir e ir para o próximo.
 - Ambos usam estilos de tela cheia do `assets/style.css`; o controle de 30 segundos possui confirmação visual e não altera o mini-player.

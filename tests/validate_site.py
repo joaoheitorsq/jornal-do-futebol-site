@@ -247,6 +247,16 @@ def validate_sources():
     )
 
     require(
+        "@media (orientation: landscape)" in css
+        and "@media (orientation: landscape) and (max-width: 600px)" in css
+        and "bottom: 68px;" in css
+        and "bottom: 62px;" in css
+        and "right: 68px;" in css
+        and "right: 62px;" in css,
+        "O botão +30 s precisa ficar acima em paisagem e ao lado em retrato.",
+    )
+
+    require(
         "CARD SAFETY PROTOCOL" in css
         and ".card button.holding::after" in css,
         "Feedback visual do protocolo de segurança dos cards está ausente.",
