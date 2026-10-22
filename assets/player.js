@@ -904,20 +904,120 @@ function markCurrentWatchedAndNext() {
 }
 
 
-function resetFullscreenNextHoldVisual() {
-    const button =
-        document.getElementById(
-            'fullscreen-next'
-        );
+// Uma única contagem central é compartilhada pelos dois controles.
+let fullscreenHoldCountdownOwner = null;
+
+
+function claimFullscreenHoldCountdown(owner) {
+    if (
+        fullscreenHoldCountdownOwner !== null
+        &&
+        fullscreenHoldCountdownOwner !== owner
+    ) {
+        return false;
+    }
+
+    fullscreenHoldCountdownOwner = owner;
+    return true;
+}
+
+
+function hideFullscreenHoldCountdown(owner) {
+    if (fullscreenHoldCountdownOwner !== owner) {
+        return;
+    }
+
+    fullscreenHoldCountdownOwner = null;
 
     const countdown =
         document.getElementById(
             'fullscreen-hold-countdown'
         );
 
-    const countdownNumber =
+    const number =
         document.getElementById(
             'fullscreen-hold-countdown-number'
+        );
+
+    if (countdown) {
+        countdown.classList.remove('show');
+    }
+
+    if (number) {
+        number.textContent = '3';
+        number.classList.remove('tick');
+    }
+}
+
+
+function showFullscreenHoldCountdown(owner, duration, elapsed) {
+    if (fullscreenHoldCountdownOwner !== owner) {
+        return;
+    }
+
+    const countdown =
+        document.getElementById(
+            'fullscreen-hold-countdown'
+        );
+
+    const number =
+        document.getElementById(
+            'fullscreen-hold-countdown-number'
+        );
+
+    if (countdown) {
+        countdown.classList.add('show');
+    }
+
+    if (!number) {
+        return;
+    }
+
+    const remaining =
+        Math.max(
+            1,
+            Math.ceil(
+                (duration - elapsed) / 1000
+            )
+        );
+
+    const nextText = String(remaining);
+
+    if (number.textContent === nextText) {
+        return;
+    }
+
+    number.textContent = nextText;
+
+    if (
+        !prefersReducedMotion()
+        &&
+        typeof number.animate === 'function'
+    ) {
+        number.animate(
+            [
+                {
+                    transform: 'scale(1.18)',
+                    opacity: .72
+                },
+                {
+                    transform: 'scale(1)',
+                    opacity: .96
+                }
+            ],
+            {
+                duration: 180,
+                easing: 'ease-out'
+            }
+        );
+    }
+}
+
+
+function resetFullscreenNextHoldVisual() {
+    const button =
+        document.getElementById(
+            'fullscreen-next'
         );
 
     if (button) {
@@ -932,20 +1032,7 @@ function resetFullscreenNextHoldVisual() {
         );
     }
 
-    if (countdown) {
-        countdown.classList.remove(
-            'show'
-        );
-    }
-
-    if (countdownNumber) {
-        countdownNumber.textContent =
-            '3';
-
-        countdownNumber.classList.remove(
-            'tick'
-        );
-    }
+    hideFullscreenHoldCountdown('next');
 }
 
 
@@ -978,16 +1065,6 @@ function updateFullscreenNextHoldProgress() {
             'fullscreen-next'
         );
 
-    const countdown =
-        document.getElementById(
-            'fullscreen-hold-countdown'
-        );
-
-    const countdownNumber =
-        document.getElementById(
-            'fullscreen-hold-countdown-number'
-        );
-
     if (
         !button
         ||
@@ -1013,62 +1090,11 @@ function updateFullscreenNextHoldProgress() {
         String(progress)
     );
 
-    if (countdown) {
-        countdown.classList.add(
-            'show'
-        );
-    }
-
-    if (countdownNumber) {
-        const remaining =
-            Math.max(
-                1,
-                Math.ceil(
-                    (
-                        FULLSCREEN_NEXT_HOLD_MS
-                        - elapsed
-                    )
-                    / 1000
-                )
-            );
-
-        const nextText =
-            String(remaining);
-
-        if (
-            countdownNumber.textContent
-            !== nextText
-        ) {
-            countdownNumber.textContent =
-                nextText;
-
-            if (
-                !prefersReducedMotion()
-                &&
-                typeof countdownNumber.animate
-                === 'function'
-            ) {
-                countdownNumber.animate(
-                    [
-                        {
-                            transform:
-                                'scale(1.18)',
-                            opacity: .72
-                        },
-                        {
-                            transform:
-                                'scale(1)',
-                            opacity: .96
-                        }
-                    ],
-                    {
-                        duration: 180,
-                        easing: 'ease-out'
-                    }
-                );
-            }
-        }
-    }
+    showFullscreenHoldCountdown(
+        'next',
+        FULLSCREEN_NEXT_HOLD_MS,
+        elapsed
+    );
 
     if (progress < 1) {
         fullscreenNextHoldFrame =
@@ -1105,9 +1131,14 @@ function beginFullscreenNextHold(event) {
         return;
     }
 
+    if (!claimFullscreenHoldCountdown('next')) {
+        return;
+    }
+
     event.preventDefault();
 
     cancelFullscreenNextHold();
+    claimFullscreenHoldCountdown('next');
 
     fullscreenNextHoldPointerId =
         event.pointerId;
@@ -1159,16 +1190,7 @@ function beginFullscreenNextHold(event) {
                     'hold-confirmed'
                 );
 
-                const countdown =
-                    document.getElementById(
-                        'fullscreen-hold-countdown'
-                    );
-
-                if (countdown) {
-                    countdown.classList.remove(
-                        'show'
-                    );
-                }
+                hideFullscreenHoldCountdown('next');
 
                 markCurrentWatchedAndNext();
 
@@ -1352,6 +1374,8 @@ function initFullscreenSeekForwardHold() {
             '--hold-scale',
             '0'
         );
+
+        hideFullscreenHoldCountdown('seek');
     }
 
     function showHoldProgress() {
@@ -1373,6 +1397,12 @@ function initFullscreenSeekForwardHold() {
             String(progress)
         );
 
+        showFullscreenHoldCountdown(
+            'seek',
+            FULLSCREEN_SEEK_HOLD_MS,
+            elapsed
+        );
+
         if (progress < 1) {
             frame = requestAnimationFrame(
                 showHoldProgress
@@ -1391,7 +1421,12 @@ function initFullscreenSeekForwardHold() {
             return false;
         }
 
+        if (!claimFullscreenHoldCountdown('seek')) {
+            return false;
+        }
+
         cancelHold();
+        claimFullscreenHoldCountdown('seek');
         active = true;
         startedAt = performance.now();
 
@@ -1427,6 +1462,8 @@ function initFullscreenSeekForwardHold() {
                     '--hold-scale',
                     '1'
                 );
+
+                hideFullscreenHoldCountdown('seek');
 
                 // Busca temporal somente: não marca como visto.
                 seekBy(30);

@@ -253,6 +253,21 @@ def validate_sources():
     )
 
     require(
+        "function claimFullscreenHoldCountdown(owner)" in javascript
+        and "function hideFullscreenHoldCountdown(owner)" in javascript
+        and "function showFullscreenHoldCountdown(owner, duration, elapsed)" in javascript
+        and "fullscreenHoldCountdownOwner" in javascript
+        and "'next',\n        FULLSCREEN_NEXT_HOLD_MS" in javascript
+        and "'seek',\n            FULLSCREEN_SEEK_HOLD_MS" in javascript
+        and "hideFullscreenHoldCountdown('seek');" in javascript
+        and "hideFullscreenHoldCountdown('next');" in javascript
+        and 'id="fullscreen-hold-countdown"' in template
+        and 'id="fullscreen-hold-countdown-number"' in template
+        and ".fullscreen-hold-countdown-number" in css,
+        "Contagem regressiva gigante compartilhada entre 3 s e 2 s ausente.",
+    )
+
+    require(
         "@media (orientation: landscape)" in css
         and "--fullscreen-action-edge: 14px;" in css
         and "--fullscreen-action-size: 48px;" in css
