@@ -94,7 +94,6 @@ REQUIRED_HTML_IDS = {
     "up-next",
     "video-search",
     "header-progress-count",
-    "player-loading",
     "journal-complete-animation",
     "session-summary",
     "carryover-list",
@@ -391,6 +390,16 @@ def validate_sources():
     require(
         'id="journal-data"' in template,
         "Template não contém journal-data.",
+    )
+
+    require(
+        'id="player-loading"' not in template
+        and "player-loading-spinner" not in template
+        and "Carregando vídeo" not in template
+        and ".player-loading" not in css
+        and ".switching-video" not in css
+        and "player-loading-spin" not in css,
+        "Tela estética de carregamento do player foi reintroduzida.",
     )
 
     require(

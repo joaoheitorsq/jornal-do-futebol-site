@@ -2225,51 +2225,6 @@ main {
     border-color: rgba(217, 160, 75, .22);
 }
 
-/* Estado de carregamento do player */
-.player-loading {
-    position: absolute;
-    inset: 0;
-    z-index: 15;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    background:
-        radial-gradient(
-            circle at center,
-            rgba(30, 39, 52, .78),
-            rgba(4, 7, 11, .92)
-        );
-    color: #c9d4e2;
-    font-size: 12px;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition:
-        opacity 160ms ease,
-        visibility 160ms ease;
-}
-
-.player-loading.show {
-    opacity: 1;
-    visibility: visible;
-}
-
-.player-loading-spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, .16);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: player-loading-spin 720ms linear infinite;
-}
-
-@keyframes player-loading-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* Um pouco mais de espaço útil em monitores largos, sem esticar demais */
 @media (min-width: 1400px) {
     main {
@@ -2382,24 +2337,6 @@ main {
     }
 }
 
-/* Troca de vídeo: somente transform + opacity. */
-#youtube-standard-player {
-    transition:
-        opacity 160ms ease,
-        transform 200ms
-        cubic-bezier(.2,.72,.25,1);
-    backface-visibility: hidden;
-}
-
-#playerwrap.switching-video
-#youtube-standard-player {
-    opacity: .38;
-    transform:
-        translate3d(0,0,0)
-        scale(.994);
-}
-
-.player-loading,
 .resume-badge,
 .playing-badge,
 .mini-toggle,
