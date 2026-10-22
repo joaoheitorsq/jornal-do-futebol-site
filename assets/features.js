@@ -1303,6 +1303,78 @@ function ensureCardFeatureUI(card) {
 }
 
 
+function featureActionIcon(
+    type,
+    active = false
+) {
+    if (type === 'defer') {
+        return (
+            '<svg class="feature-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+            + '<circle cx="12" cy="12" r="8.2"></circle>'
+            + '<path d="M12 7.5v5l3.4 2"></path>'
+            + (
+                active
+                ? '<path class="feature-action-confirm" d="M17.2 5.5l1.5 1.5 2.7-3"></path>'
+                : ''
+            )
+            + '</svg>'
+        );
+    }
+
+    return (
+        '<svg class="feature-action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        + '<path d="M7.2 4.2h9.6a1.7 1.7 0 0 1 1.7 1.7v14l-6.5-4-6.5 4v-14a1.7 1.7 0 0 1 1.7-1.7z"></path>'
+        + (
+            active
+            ? '<path class="feature-action-confirm" d="M9 9.8l2 2 4-4"></path>'
+            : ''
+        )
+        + '</svg>'
+    );
+}
+
+
+function setFeatureIconButton(
+    button,
+    type,
+    active,
+    label
+) {
+    if (!button) {
+        return;
+    }
+
+    button.classList.add(
+        'icon-only'
+    );
+
+    button.classList.toggle(
+        'active',
+        active
+    );
+
+    button.setAttribute(
+        'aria-label',
+        label
+    );
+
+    button.setAttribute(
+        'aria-pressed',
+        active
+        ? 'true'
+        : 'false'
+    );
+
+    button.title = label;
+
+    button.innerHTML =
+        featureActionIcon(
+            type,
+            active
+        );
+}
+
+
 function updateCardFeatureUI() {
     document
         .querySelectorAll(
@@ -1366,26 +1438,30 @@ function updateCardFeatureUI() {
             }
 
             if (defer) {
-                defer.textContent =
-                    isDeferred(id)
-                    ? '✓ Ver depois'
-                    : 'Ver depois';
+                const deferred =
+                    isDeferred(id);
 
-                defer.classList.toggle(
-                    'active',
-                    isDeferred(id)
+                setFeatureIconButton(
+                    defer,
+                    'defer',
+                    deferred,
+                    deferred
+                    ? 'Remover de Ver depois'
+                    : 'Ver depois'
                 );
             }
 
             if (finish) {
-                finish.textContent =
-                    isFinishLater(id)
-                    ? '✓ Terminar depois'
-                    : 'Terminar depois';
+                const finishingLater =
+                    isFinishLater(id);
 
-                finish.classList.toggle(
-                    'active',
-                    isFinishLater(id)
+                setFeatureIconButton(
+                    finish,
+                    'finish',
+                    finishingLater,
+                    finishingLater
+                    ? 'Remover de Terminar depois'
+                    : 'Terminar depois'
                 );
             }
 

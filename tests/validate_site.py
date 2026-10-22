@@ -240,6 +240,20 @@ def validate_sources():
     )
 
     require(
+        "function featureActionIcon(" in javascript
+        and "function setFeatureIconButton(" in javascript
+        and "'defer'" in javascript
+        and "'finish'" in javascript,
+        "Ícones dos botões Ver depois/Terminar depois estão ausentes.",
+    )
+
+    require(
+        ".feature-action.icon-only" in css
+        and "user-select: none;" in css,
+        "Proteção contra seleção nos botões de ícone está ausente.",
+    )
+
+    require(
         "animateCardHoldSuccessFeedback" in javascript
         and 'id="card-hold-success"' in template
         and "CARD HOLD SUCCESS" in css,

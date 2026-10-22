@@ -3246,3 +3246,65 @@ main {
         transition: none !important;
     }
 }
+
+
+/* =========================================================
+   ICON ACTIONS — Ver depois / Terminar depois
+   ========================================================= */
+
+/* Segurança extra para toque longo: nenhum texto/ícone do card é selecionável. */
+.card button,
+.card button * {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.card-feature-actions .feature-action.icon-only {
+    display: inline-grid;
+    width: 32px;
+    min-width: 32px;
+    height: 28px;
+    min-height: 28px;
+    padding: 4px;
+    place-items: center;
+    line-height: 1;
+}
+
+.feature-action-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    overflow: visible;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.feature-action.icon-only.active {
+    color: #cfe5ff;
+    background: rgba(105,170,255,.14);
+    border-color: rgba(105,170,255,.32);
+}
+
+.feature-action-confirm {
+    stroke: var(--success);
+    stroke-width: 2.1;
+}
+
+@media (max-width: 650px) {
+    .card-feature-actions .feature-action.icon-only {
+        width: 31px;
+        min-width: 31px;
+        height: 27px;
+        min-height: 27px;
+        padding: 4px;
+    }
+
+    .feature-action-icon {
+        width: 17px;
+        height: 17px;
+    }
+}
