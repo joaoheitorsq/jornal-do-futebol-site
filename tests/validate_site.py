@@ -234,6 +234,19 @@ def validate_sources():
     )
 
     require(
+        'id="fullscreen-seek-forward"' in template
+        and 'class="fullscreen-next fullscreen-seek-forward"' in template
+        and "fullscreen-seek-icon" in template
+        and "const FULLSCREEN_SEEK_HOLD_MS = 2000;" in javascript
+        and "function initFullscreenSeekForwardHold()" in javascript
+        and "FULLSCREEN_SEEK_MOVE_TOLERANCE" in javascript
+        and "seekBy(30);" in javascript
+        and "#playerwrap:fullscreen .fullscreen-seek-forward" in css
+        and "--seek-hold-percent" in css,
+        "Botão de avançar 30 s com pressão contínua de 2 s está ausente.",
+    )
+
+    require(
         "CARD SAFETY PROTOCOL" in css
         and ".card button.holding::after" in css,
         "Feedback visual do protocolo de segurança dos cards está ausente.",

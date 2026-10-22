@@ -3308,3 +3308,67 @@ main {
         height: 17px;
     }
 }
+
+
+/* =========================================================
+   FULLSCREEN SEEK +30 S — ao lado de concluir vídeo
+   ========================================================= */
+
+.fullscreen-seek-forward {
+    --seek-hold-percent: 0%;
+}
+
+#playerwrap:fullscreen .fullscreen-seek-forward,
+#playerwrap:-webkit-full-screen .fullscreen-seek-forward {
+    right: 68px;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(105, 170, 255, .4) var(--seek-hold-percent),
+            transparent var(--seek-hold-percent)
+        ),
+        rgba(15, 17, 21, .88);
+}
+
+#playerwrap:fullscreen .fullscreen-seek-forward:hover,
+#playerwrap:-webkit-full-screen .fullscreen-seek-forward:hover {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(105, 170, 255, .4) var(--seek-hold-percent),
+            transparent var(--seek-hold-percent)
+        ),
+        rgba(36, 41, 51, .96);
+}
+
+#playerwrap:fullscreen .fullscreen-seek-forward.seek-confirmed,
+#playerwrap:-webkit-full-screen .fullscreen-seek-forward.seek-confirmed {
+    border-color: var(--success);
+    color: #d9ffe6;
+}
+
+.fullscreen-seek-icon {
+    width: 30px;
+    height: 30px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.fullscreen-seek-icon text {
+    fill: currentColor;
+    stroke: none;
+    font-family: system-ui, sans-serif;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+@media (max-width: 600px) {
+    #playerwrap:fullscreen .fullscreen-seek-forward,
+    #playerwrap:-webkit-full-screen .fullscreen-seek-forward {
+        right: 62px;
+    }
+}

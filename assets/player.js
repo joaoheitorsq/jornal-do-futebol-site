@@ -1296,6 +1296,302 @@ document.addEventListener(
 );
 
 
+// Avanço de 30 s: controle independente do botão de concluir vídeo.
+const FULLSCREEN_SEEK_HOLD_MS = 2000;
+const FULLSCREEN_SEEK_MOVE_TOLERANCE = 22;
+
+
+function initFullscreenSeekForwardHold() {
+    const button =
+        document.getElementById(
+            'fullscreen-seek-forward'
+        );
+
+    if (!button) {
+        return;
+    }
+
+    let timer = null;
+    let frame = null;
+    let successTimer = null;
+    let startedAt = 0;
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let active = false;
+    let triggered = false;
+    let keyboardHold = false;
+
+    function cancelHold() {
+        if (timer !== null) {
+            clearTimeout(timer);
+        }
+
+        if (frame !== null) {
+            cancelAnimationFrame(frame);
+        }
+
+        if (successTimer !== null) {
+            clearTimeout(successTimer);
+        }
+
+        timer = null;
+        frame = null;
+        successTimer = null;
+        startedAt = 0;
+        pointerId = null;
+        active = false;
+        triggered = false;
+        keyboardHold = false;
+
+        button.classList.remove(
+            'holding',
+            'seek-confirmed'
+        );
+
+        button.style.setProperty(
+            '--seek-hold-percent',
+            '0%'
+        );
+    }
+
+    function showHoldProgress() {
+        if (!active || triggered) {
+            return;
+        }
+
+        const elapsed =
+            performance.now() - startedAt;
+
+        const progress =
+            Math.min(
+                1,
+                elapsed / FULLSCREEN_SEEK_HOLD_MS
+            );
+
+        button.style.setProperty(
+            '--seek-hold-percent',
+            String(Math.round(progress * 100)) + '%'
+        );
+
+        if (progress < 1) {
+            frame = requestAnimationFrame(
+                showHoldProgress
+            );
+        }
+    }
+
+    function beginHold() {
+        if (
+            !isJournalFullscreen()
+            ||
+            !ready
+            ||
+            !player
+        ) {
+            return false;
+        }
+
+        cancelHold();
+        active = true;
+        startedAt = performance.now();
+
+        button.classList.add('holding');
+        showHoldProgress();
+
+        timer = setTimeout(
+            () => {
+                if (
+                    !active
+                    ||
+                    !isJournalFullscreen()
+                    ||
+                    !ready
+                    ||
+                    !player
+                ) {
+                    cancelHold();
+                    return;
+                }
+
+                triggered = true;
+                timer = null;
+
+                if (frame !== null) {
+                    cancelAnimationFrame(frame);
+                    frame = null;
+                }
+
+                button.classList.remove('holding');
+                button.classList.add('seek-confirmed');
+                button.style.setProperty(
+                    '--seek-hold-percent',
+                    '100%'
+                );
+
+                // Busca temporal somente: não marca como visto.
+                seekBy(30);
+
+                successTimer = setTimeout(
+                    cancelHold,
+                    350
+                );
+            },
+            FULLSCREEN_SEEK_HOLD_MS
+        );
+
+        return true;
+    }
+
+    button.addEventListener(
+        'pointerdown',
+        event => {
+            if (
+                event.pointerType === 'mouse'
+                &&
+                event.button !== 0
+            ) {
+                return;
+            }
+
+            if (!beginHold()) {
+                return;
+            }
+
+            event.preventDefault();
+            pointerId = event.pointerId;
+            startX = event.clientX;
+            startY = event.clientY;
+
+            try {
+                button.setPointerCapture(
+                    event.pointerId
+                );
+            }
+            catch (_) {}
+        }
+    );
+
+    button.addEventListener(
+        'pointermove',
+        event => {
+            if (
+                !active
+                ||
+                triggered
+                ||
+                pointerId !== event.pointerId
+            ) {
+                return;
+            }
+
+            if (
+                Math.hypot(
+                    event.clientX - startX,
+                    event.clientY - startY
+                ) > FULLSCREEN_SEEK_MOVE_TOLERANCE
+            ) {
+                cancelHold();
+            }
+        }
+    );
+
+    button.addEventListener(
+        'pointerup',
+        event => {
+            if (
+                pointerId === event.pointerId
+                &&
+                !triggered
+            ) {
+                cancelHold();
+            }
+        }
+    );
+
+    button.addEventListener(
+        'pointercancel',
+        event => {
+            if (pointerId === event.pointerId) {
+                cancelHold();
+            }
+        }
+    );
+
+    button.addEventListener(
+        'lostpointercapture',
+        () => {
+            if (active && !triggered && !keyboardHold) {
+                cancelHold();
+            }
+        }
+    );
+
+    button.addEventListener(
+        'keydown',
+        event => {
+            if (
+                event.repeat
+                ||
+                (
+                    event.key !== ' '
+                    &&
+                    event.key !== 'Enter'
+                )
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (!active && beginHold()) {
+                keyboardHold = true;
+            }
+        }
+    );
+
+    button.addEventListener(
+        'keyup',
+        event => {
+            if (
+                keyboardHold
+                &&
+                (event.key === ' ' || event.key === 'Enter')
+            ) {
+                event.preventDefault();
+
+                if (!triggered) {
+                    cancelHold();
+                }
+            }
+        }
+    );
+
+    button.addEventListener('blur', cancelHold);
+    button.addEventListener(
+        'contextmenu',
+        event => event.preventDefault()
+    );
+    button.addEventListener(
+        'click',
+        event => event.preventDefault()
+    );
+
+    // Sair da tela cheia cancela qualquer pressão pendente.
+    document.addEventListener(
+        'fullscreenchange',
+        cancelHold
+    );
+    document.addEventListener(
+        'webkitfullscreenchange',
+        cancelHold
+    );
+}
+
+
+initFullscreenSeekForwardHold();
+
+
 function next() {
     rebuildPlaylist();
 

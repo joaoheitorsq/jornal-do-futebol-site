@@ -134,3 +134,11 @@ O bloqueio é feito em fase de captura de `click`, portanto novos botões adicio
 Toda animação nova do Jornal deve ser implementada com meta de fluidez de 60 FPS. Sempre que possível, movimento contínuo deve usar apenas `transform` e `opacity`, preferencialmente via compositor/WAAPI, evitando animar `width`, `height`, `top`, `left`, `filter`, `backdrop-filter` ou `box-shadow`. Reflows forçados durante animações também devem ser evitados.
 
 Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o Jornal mostra um ✓ animado no canto superior esquerdo. Esse feedback reutiliza um único elemento e anima somente `transform` e `opacity`.
+
+## Avanço de 30 segundos em tela cheia
+
+- `fullscreen-seek-forward` aparece somente na tela cheia própria de `#playerwrap`, à esquerda do botão de concluir/avançar vídeo.
+- Pressão contínua por **2 segundos** avança 30 segundos com `seekBy(30)`; soltar antes, arrastar ou sair da tela cheia cancela o gesto. Teclado (Espaço/Enter) também exige pressão contínua.
+- O botão não marca o vídeo como assistido diretamente. O botão existente `fullscreen-next` continua exigindo **3 segundos** e mantém sua ação original de concluir e ir para o próximo.
+- Ambos usam estilos de tela cheia do `assets/style.css`; o controle de 30 segundos possui confirmação visual e não altera o mini-player.
+
