@@ -151,5 +151,7 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - O `jornal.py` reutiliza a consulta de uploads e de detalhes pela API oficial do YouTube. A seção tem janela independente de **7 dias** e mostra até **24 vídeos**, em ordem cronológica, excluindo lives e duplicatas da lista principal.
 - Consultas a essa seção são opcionais: falha em um ou mais canais não derruba a edição principal, e aparece um aviso na seção.
 - Visualmente a seção herda a linguagem do HearthPwn, tem listagem de vídeos com miniaturas, estado de visto e recolhimento persistido em `jornal_do_futebol_ports_collapsed_v1`.
+- A lista de portes **não possui rolagem interna nem altura máxima**: `ports-video-list` permanece em fluxo natural (`overflow: visible`), de modo que arrastar sobre qualquer vídeo movimenta a página inteira. Não reintroduzir `overflow-y: auto` ou `overscroll-behavior: contain` nessa lista.
+- Os cartões utilizam miniaturas dimensionadas com CSS Grid, títulos e metadados legíveis, estados atuais/assistidos, chips de canais e ajuste responsivo para telas pequenas.
 - O bloco `ports-data` contém `PORTS_VIDEOS`, independente da lista principal `VIDEOS`. O botão de reproduzir usa `openPortsVideo` e a fila específica da seção no player existente; **Começar jornal** volta à fila principal.
 - Vídeos do painel não alteram duração, progresso e total da lista principal. A marcação de assistido usa as mesmas chaves locais existentes para não fragmentar o progresso por dispositivo; a configuração de canais fica exclusivamente no arquivo JSON.

@@ -262,6 +262,32 @@ def validate_sources():
         "Seção independente de portes não foi integrada completamente.",
     )
 
+    # Regressão: o painel não pode voltar a prender a rolagem da página.
+    ports_list_css = re.search(
+        r"\.ports-video-list\s*\{([^}]*)\}",
+        css,
+        flags=re.S,
+    )
+    require(
+        ports_list_css is not None
+        and "max-height: none;" in ports_list_css.group(1)
+        and "overflow: visible;" in ports_list_css.group(1)
+        and "overscroll-behavior: auto;" in ports_list_css.group(1)
+        and "touch-action: pan-y;" in ports_list_css.group(1)
+        and "overflow-y: auto" not in ports_list_css.group(1)
+        and "overscroll-behavior: contain" not in ports_list_css.group(1),
+        "A lista de portes voltou a capturar a rolagem vertical.",
+    )
+
+    require(
+        ".ports-heading .widget-kicker" in css
+        and ".ports-play img" in css
+        and ".ports-video-item.seen" in css
+        and ".ports-progress-summary" in css
+        and "@media (max-width: 600px)" in css,
+        "Identidade visual ou responsividade do painel de portes incompleta.",
+    )
+
     require(
         "const CURRENT_STORAGE_SCHEMA = 2;" in javascript,
         "Schema avançado de armazenamento não está na versão 2.",
