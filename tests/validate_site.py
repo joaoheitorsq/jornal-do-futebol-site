@@ -297,8 +297,16 @@ def validate_sources():
 
     # Cobertura sem rede: mais de 24 vídeos, distribuídos entre seis
     # canais, nunca podem ser eliminados por um teto global.
-    import jornal
+    import importlib.util
     from datetime import datetime, timedelta, timezone
+
+    module_spec = importlib.util.spec_from_file_location(
+        "jornal_under_test",
+        ROOT / "jornal.py",
+    )
+    require(module_spec is not None, "Não foi possível localizar jornal.py.")
+    jornal = importlib.util.module_from_spec(module_spec)
+    module_spec.loader.exec_module(jornal)
 
     sample_channels = json.loads(read_text("ports_channels.json"))
     reference_time = datetime(2026, 10, 28, tzinfo=timezone.utc)
