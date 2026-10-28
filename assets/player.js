@@ -365,11 +365,9 @@ function onYouTubeIframeAPIReady() {
                             });
 
                             setStatus(
-                                'Ponto anterior carregado. '
-                                +
-                                'Clique em “Começar jornal” '
-                                +
-                                'para continuar.'
+                                portsPlaybackActive
+                                ? 'Ponto salvo no painel de portes. Use Play para continuar.'
+                                : 'Ponto anterior carregado. Clique em “Começar jornal” para continuar.'
                             );
 
                             showResumeInfo();
@@ -609,7 +607,7 @@ function play(
 
 
 function start() {
-    portsPlaybackActive = false;
+    setPortsPlaybackMode(false);
     rebuildPlaylist();
 
     if (!activePlaylist.length) {
@@ -671,8 +669,10 @@ function adjacentQueuedVideoId(
             : null;
     }
 
+    const catalog = portsPlaybackActive ? PORTS_VIDEOS : VIDEOS;
+
     const currentIndex =
-        VIDEOS.findIndex(
+        catalog.findIndex(
             video => video.id === currentId
         );
 
@@ -682,11 +682,11 @@ function adjacentQueuedVideoId(
 
         for (
             let index = currentIndex + direction;
-            index >= 0 && index < VIDEOS.length;
+            index >= 0 && index < catalog.length;
             index += direction
         ) {
             const candidate =
-                VIDEOS[index].id;
+                catalog[index].id;
 
             if (allowed.has(candidate)) {
                 return candidate;
@@ -767,7 +767,9 @@ function completeCurrentAndAdvance(
         current
     );
 
-    animateJournalProgressCompletion();
+    if (!portsPlaybackActive) {
+        animateJournalProgressCompletion();
+    }
 
     if (
         typeof offerUndoWatched
@@ -779,7 +781,9 @@ function completeCurrentAndAdvance(
         );
     }
 
-    maybeCelebrateJournalCompletion();
+    if (!portsPlaybackActive) {
+        maybeCelebrateJournalCompletion();
+    }
 
     if (nextId) {
         let nextIndex =
@@ -900,6 +904,7 @@ let fullscreenNextHoldPointerId = null;
 let fullscreenNextHoldStartX = 0;
 let fullscreenNextHoldStartY = 0;
 let fullscreenNextHoldTriggered = false;
+let fullscreenNextHoldKeyboard = false;
 
 
 function markCurrentWatchedAndNext() {
@@ -1059,6 +1064,7 @@ function cancelFullscreenNextHold() {
     fullscreenNextHoldStartedAt = 0;
     fullscreenNextHoldPointerId = null;
     fullscreenNextHoldTriggered = false;
+    fullscreenNextHoldKeyboard = false;
 
     resetFullscreenNextHoldVisual();
 }
@@ -1114,6 +1120,10 @@ function beginFullscreenNextHold(event) {
     if (
         !isJournalFullscreen()
         ||
+        !ready
+        ||
+        !player
+        ||
         completionAdvanceInProgress
     ) {
         return;
@@ -1136,14 +1146,16 @@ function beginFullscreenNextHold(event) {
         return;
     }
 
+    // Pressões simultâneas não reiniciam a contagem atual.
+    if (fullscreenNextHoldStartedAt || fullscreenNextHoldTriggered) {
+        return;
+    }
+
     if (!claimFullscreenHoldCountdown('next')) {
         return;
     }
 
     event.preventDefault();
-
-    cancelFullscreenNextHold();
-    claimFullscreenHoldCountdown('next');
 
     fullscreenNextHoldPointerId =
         event.pointerId;
@@ -1163,12 +1175,14 @@ function beginFullscreenNextHold(event) {
         'holding'
     );
 
-    try {
-        button.setPointerCapture(
-            event.pointerId
-        );
+    if (event.pointerId !== null && event.pointerId !== undefined) {
+        try {
+            button.setPointerCapture(
+                event.pointerId
+            );
+        }
+        catch (_) {}
     }
-    catch (_) {}
 
     updateFullscreenNextHoldProgress();
 
@@ -1246,8 +1260,10 @@ function moveFullscreenNextHold(event) {
 
 function endFullscreenNextHold(event) {
     if (
-        fullscreenNextHoldPointerId !== null
-        &&
+        fullscreenNextHoldKeyboard
+        ||
+        fullscreenNextHoldPointerId === null
+        ||
         event.pointerId !== fullscreenNextHoldPointerId
     ) {
         return;
@@ -1288,6 +1304,70 @@ function initFullscreenNextHold() {
         'pointercancel',
         endFullscreenNextHold
     );
+
+    button.addEventListener(
+        'keydown',
+        event => {
+            if (
+                event.repeat
+                ||
+                (event.key !== ' ' && event.key !== 'Enter')
+                ||
+                fullscreenNextHoldStartedAt
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+            beginFullscreenNextHold({
+                pointerType: 'keyboard',
+                pointerId: null,
+                clientX: 0,
+                clientY: 0,
+                preventDefault() {}
+            });
+
+            fullscreenNextHoldKeyboard =
+                fullscreenNextHoldStartedAt > 0;
+        }
+    );
+
+    button.addEventListener(
+        'keyup',
+        event => {
+            if (
+                fullscreenNextHoldKeyboard
+                &&
+                (event.key === ' ' || event.key === 'Enter')
+            ) {
+                event.preventDefault();
+                if (!fullscreenNextHoldTriggered) {
+                    cancelFullscreenNextHold();
+                }
+            }
+        }
+    );
+
+    button.addEventListener(
+        'lostpointercapture',
+        () => {
+            if (
+                !fullscreenNextHoldKeyboard
+                &&
+                fullscreenNextHoldStartedAt
+                &&
+                !fullscreenNextHoldTriggered
+            ) {
+                cancelFullscreenNextHold();
+            }
+        }
+    );
+
+    button.addEventListener('blur', () => {
+        if (!fullscreenNextHoldTriggered) {
+            cancelFullscreenNextHold();
+        }
+    });
 
     button.addEventListener(
         'contextmenu',
@@ -1422,6 +1502,10 @@ function initFullscreenSeekForwardHold() {
             !ready
             ||
             !player
+            ||
+            active
+            ||
+            triggered
         ) {
             return false;
         }
@@ -1430,8 +1514,6 @@ function initFullscreenSeekForwardHold() {
             return false;
         }
 
-        cancelHold();
-        claimFullscreenHoldCountdown('seek');
         active = true;
         startedAt = performance.now();
 
@@ -1750,22 +1832,21 @@ function openPortsVideo(id) {
         return;
     }
 
-    portsPlaybackActive = true;
-    openVideo(id);
+    setPortsPlaybackMode(true);
+    openVideo(id, 'ports');
 }
 
 
-function openVideo(id) {
-    if (!PORTS_VIDEOS.some(video => video.id === id)) {
-        portsPlaybackActive = false;
-    }
-
+function openVideo(id, source = 'journal') {
     const video =
         metadataForVideo(id);
 
     if (!video) {
         return;
     }
+
+    // O mesmo vídeo pode existir nas duas listas: a origem define a fila.
+    setPortsPlaybackMode(source === 'ports');
 
     if (video.embeddable === false) {
         window.open(
@@ -1782,7 +1863,7 @@ function openVideo(id) {
     let index =
         activePlaylist.indexOf(id);
 
-    if (index < 0) {
+    if (index < 0 && !portsPlaybackActive) {
         onlyUnwatched = false;
         searchQuery = '';
         saveUnwatchedMode();

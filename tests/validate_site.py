@@ -335,6 +335,100 @@ def validate_sources():
     )
 
     require(
+        "function setPortsPlaybackMode(enabled)" in javascript
+        and "function restorePortsPlaybackMode()" in javascript
+        and "restorePortsPlaybackMode();" in javascript
+        and "function openVideo(id, source = 'journal')" in javascript
+        and "openVideo(id, 'ports');" in javascript
+        and "const catalog = portsPlaybackActive ? PORTS_VIDEOS : VIDEOS;" in javascript
+        and "PORTS_VIDEOS.some(video => video.id === videoId)" in javascript
+        and "if (!portsPlaybackActive)" in javascript,
+        "Retomada ou navegação separada das filas de portes e Jornal está ausente.",
+    )
+
+    require(
+        "fullscreenNextHoldKeyboard" in javascript
+        and "fullscreenNextHoldStartedAt || fullscreenNextHoldTriggered" in javascript
+        and "event.pointerId !== fullscreenNextHoldPointerId" in javascript
+        and "'lostpointercapture'" in javascript
+        and "'keydown'" in javascript
+        and "'keyup'" in javascript,
+        "Botão de próximo não trata teclado, múltiplos dedos ou interrupções.",
+    )
+
+    require(
+        "file.size > 16 * 1024 * 1024" in javascript
+        and "const previous = new Map();" in javascript
+        and "const sessionBefore = new Map();" in javascript
+        and "Dados anteriores preservados." in javascript
+        and "Array.isArray(payload.storage)" in javascript,
+        "Restauração de backups sem validação e reversão transacional.",
+    )
+
+    # Testes funcionais locais para respostas inesperadas do YouTube.
+    expected_start = reference_time - timedelta(days=7)
+    channel = {
+        "uploads": "UU_test",
+        "channelId": "UC_test",
+        "channelTitle": "Fonte de teste",
+        "handle": "@teste",
+        "onlyShorts": False,
+    }
+
+    def item(video_id, published="2026-10-27T10:00:00Z"):
+        return {
+            "contentDetails": {
+                "videoId": video_id,
+                "videoPublishedAt": published,
+            }
+        }
+
+    page_calls = []
+
+    def fake_yt(resource, api_key, **kwargs):
+        page_calls.append(kwargs.get("pageToken"))
+        return {
+            "items": [
+                item("A1234567890"),
+                item("A1234567890"),
+                item("B1234567890", "data-invalida"),
+                item("id'quebrado"),
+                item("C1234567890"),
+            ]
+        }
+
+    jornal.yt = fake_yt
+    safe_uploads = jornal.recent_uploads(
+        "teste", channel, expected_start, reference_time,
+    )
+    require(
+        [video["videoId"] for video in safe_uploads]
+        == ["A1234567890", "C1234567890"]
+        and page_calls == [None],
+        "Coleta aceitou IDs inválidos, duplicatas ou datas malformadas.",
+    )
+
+    def repeating_yt(resource, api_key, **kwargs):
+        return {
+            "items": [item("A1234567890")],
+            "nextPageToken": "repetido",
+        }
+
+    jornal.yt = repeating_yt
+    cycle_rejected = False
+    try:
+        jornal.recent_uploads(
+            "teste", channel, expected_start, reference_time,
+        )
+    except RuntimeError as error:
+        cycle_rejected = "Paginação circular" in str(error)
+
+    require(
+        cycle_rejected,
+        "Paginação circular do YouTube não foi interrompida.",
+    )
+
+    require(
         "const CURRENT_STORAGE_SCHEMA = 2;" in javascript,
         "Schema avançado de armazenamento não está na versão 2.",
     )
@@ -632,6 +726,8 @@ def validate_generated():
     for video in videos:
         require(
             isinstance(video, dict)
+            and isinstance(video.get("id"), str)
+            and re.fullmatch(r"[A-Za-z0-9_-]{11}", video["id"])
             and "isShort" in video
             and (
                 video["isShort"] is None
@@ -653,14 +749,17 @@ def validate_generated():
     ports_ids = {video["id"] for video in ports_videos}
 
     require(
-        len(ports_ids) == len(ports_videos)
-        and not main_ids.intersection(ports_ids),
-        "Vídeos de portes duplicados ou misturados ao Jornal principal.",
+        len(main_ids) == len(videos)
+        and len(ports_ids) == len(ports_videos),
+        "IDs duplicados dentro de uma das listas de vídeos.",
     )
+    # O mesmo vídeo pode aparecer nas duas listas: o estado assistido é
+    # compartilhado por ID, mas a reprodução mantém filas independentes.
     for video in ports_videos:
         require(
             isinstance(video, dict)
             and isinstance(video.get("id"), str)
+            and re.fullmatch(r"[A-Za-z0-9_-]{11}", video["id"])
             and "isShort" in video
             and (video["isShort"] is None or isinstance(video["isShort"], bool)),
             "Vídeo do painel de portes inválido.",

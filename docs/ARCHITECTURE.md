@@ -157,3 +157,14 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - Vídeos do painel não alteram duração, progresso e total da lista principal. A marcação de assistido usa as mesmas chaves locais existentes para não fragmentar o progresso por dispositivo; a configuração de canais fica exclusivamente no arquivo JSON.
 
 - A coleta produz linhas `RESUMO CANAL @handle: uploads=N, incluídos=M` para **todos os canais** com consulta de uploads bem-sucedida; ausência de publicação e exclusão por filtros ficam diagnosticáveis. O cabeçalho exibe o total de vídeos de cada fonte nos chips. Uma alteração em `ports_channels.json` também dispara o workflow no `push`.
+
+
+## Auditoria de integridade e regressão — 28/10/2026
+
+- **Retomada entre painéis:** `setPortsPlaybackMode` guarda em `sessionStorage` a fila de portes; ao atualizar a página, ela só é recuperada quando o ponto salvo ainda pertence ao painel e está pendente. `openVideo(id, source)` distingue explicitamente a origem: mesmo se um ID existir nas duas listas, o player usa a fila correta. O botão **Começar jornal** sempre volta à lista principal.
+- **Navegação:** a fila de próximos/anteriores usa o catálogo da seção selecionada, e as ações da seção de portes não disparam efeitos de conclusão do Jornal de futebol.
+- **Controles de tela cheia:** ambos continuam exigindo toque longo (3 s para concluir, 2 s para avançar 30 s). Toques extras não reiniciam a pressão; a tecla Espaço/Enter também aciona o botão de concluir e soltar ou perder foco cancela a operação.
+- **Backup seguro:** validação de estrutura/tamanho antes da escrita, cópia do estado existente e tentativa de reversão integral se o navegador recusar a restauração. Não se altera o esquema local de versão 2.
+- **Coleta defensiva:** IDs de vídeo são validados antes de chegar aos handlers HTML, datas inválidas são ignoradas, vídeos repetidos na mesma playlist são deduplicados e a paginação circular é detectada.
+- **Sobreposição legítima:** um mesmo upload pode estar nas listas de futebol e portes, com filas separadas e status de visto compartilhado. A validação verifica duplicatas **dentro** de cada lista, não proíbe IDs presentes em ambas.
+- **Testes automatizados:** o CI executa validação Python de fonte e HTML gerado, verificação de sintaxe de todos os módulos JS e `tests/runtime_playback.cjs` (filas, vídeo compartilhado, retomada e gestos), além de simulações locais de respostas inesperadas da API.

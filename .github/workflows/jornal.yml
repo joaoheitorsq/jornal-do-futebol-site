@@ -54,6 +54,7 @@ jobs:
           for file in assets/*.js; do
             node --check "$file"
           done
+          node tests/runtime_playback.cjs
           python tests/validate_site.py --source-only
 
       - name: Restaurar cache do tradutor

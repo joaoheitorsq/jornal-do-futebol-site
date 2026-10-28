@@ -11,6 +11,7 @@ onlyUnwatched = loadUnwatchedMode();
 collapsedChapters = loadCollapsedChapters();
 miniPlayerCollapsed = loadMiniPlayerCollapsed();
 resumeState = loadResume();
+restorePortsPlaybackMode();
 
 applyView();
 updateHearthPwnSeenUI();

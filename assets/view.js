@@ -794,7 +794,7 @@ function showResumeInfo() {
     }
 
     box.textContent =
-        '▶ Você parou no vídeo '
+        (portsPlaybackActive ? '▶ Portes: vídeo ' : '▶ Você parou no vídeo ')
         + (index + 1)
         + ' de '
         + activePlaylist.length
@@ -995,7 +995,11 @@ function renderQueueButton(
     );
 
     button.onclick = () =>
-        openVideo(videoId);
+        portsPlaybackActive
+        &&
+        PORTS_VIDEOS.some(video => video.id === videoId)
+        ? openPortsVideo(videoId)
+        : openVideo(videoId);
 
     const image =
         document.createElement('img');

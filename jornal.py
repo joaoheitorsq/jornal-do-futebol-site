@@ -775,8 +775,18 @@ def parse_dt(value):
 def recent_uploads(key, channel, start, now_utc):
     result = []
     token = None
+    visited_tokens = set()
+    seen_videos = set()
+    pages_read = 0
 
     while True:
+        pages_read += 1
+        if pages_read > 200:
+            raise RuntimeError(
+                "Paginação excedeu o limite de segurança: "
+                + channel["handle"]
+            )
+
         params = {
             "part": "contentDetails",
             "playlistId": channel["uploads"],
@@ -789,20 +799,31 @@ def recent_uploads(key, channel, start, now_utc):
         data = yt("playlistItems", key, **params)
         items = data.get("items", [])
 
-        if not items:
+        if not isinstance(items, list) or not items:
             break
 
         found_old = False
 
         for item in items:
-            details = item.get("contentDetails", {})
+            details = item.get("contentDetails") or {}
             video_id = details.get("videoId")
             published = details.get("videoPublishedAt")
 
-            if not video_id or not published:
+            # O ID será usado no HTML e em handlers JS; nunca confiar em
+            # identificadores externos fora do formato oficial.
+            if (
+                not isinstance(video_id, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id)
+                or video_id in seen_videos
+                or not isinstance(published, str)
+            ):
                 continue
 
-            date = parse_dt(published)
+            try:
+                date = parse_dt(published)
+            except (TypeError, ValueError):
+                log("Upload com data inválida ignorado: " + video_id)
+                continue
 
             if date < start:
                 found_old = True
@@ -810,6 +831,8 @@ def recent_uploads(key, channel, start, now_utc):
 
             if date > now_utc:
                 continue
+
+            seen_videos.add(video_id)
 
             result.append(
                 {
@@ -826,9 +849,17 @@ def recent_uploads(key, channel, start, now_utc):
         if found_old:
             break
 
-        token = data.get("nextPageToken")
-        if not token:
+        next_token = data.get("nextPageToken")
+        if not next_token:
             break
+
+        if next_token == token or next_token in visited_tokens:
+            raise RuntimeError(
+                "Paginação circular detectada em " + channel["handle"]
+            )
+
+        visited_tokens.add(next_token)
+        token = next_token
 
     return result
 

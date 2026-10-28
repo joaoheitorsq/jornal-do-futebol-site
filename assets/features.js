@@ -2243,116 +2243,164 @@ function openBackupImport() {
 }
 
 
-async function importJournalBackup(
-    input
-) {
+async function importJournalBackup(input) {
     const file =
-        input
-        &&
-        input.files
-        &&
-        input.files[0];
+        input && input.files && input.files[0];
 
     if (!file) {
         return;
     }
 
     try {
-        const payload =
-            JSON.parse(
-                await file.text()
-            );
+        // Não carregar arquivos grandes nem apagar estado antes de validar.
+        if (file.size > 16 * 1024 * 1024) {
+            throw new Error('Arquivo de backup acima de 16 MB.');
+        }
+
+        const payload = JSON.parse(await file.text());
 
         if (
             !payload
             ||
-            payload.format
-            !== 'jornal-do-futebol-backup'
+            payload.format !== 'jornal-do-futebol-backup'
             ||
             !payload.storage
             ||
-            typeof payload.storage
-            !== 'object'
+            typeof payload.storage !== 'object'
+            ||
+            Array.isArray(payload.storage)
+            ||
+            (payload.version !== 1 && payload.version !== 2)
         ) {
-            throw new Error(
-                'Arquivo de backup inválido.'
-            );
+            throw new Error('Arquivo de backup inválido ou incompatível.');
         }
 
-        const existingKeys = [];
+        const newEntries = Object.entries(payload.storage);
 
-        for (
-            let index = 0;
-            index < localStorage.length;
-            index++
-        ) {
-            const key =
-                localStorage.key(
-                    index
-                );
+        if (!newEntries.length) {
+            throw new Error('O backup não possui dados do Jornal.');
+        }
 
+        for (const [key, value] of newEntries) {
             if (
-                key
-                &&
-                key.startsWith(
-                    'jornal_do_futebol_'
-                )
+                !key.startsWith('jornal_do_futebol_')
+                ||
+                typeof value !== 'string'
             ) {
-                existingKeys.push(
-                    key
-                );
+                throw new Error('O backup contém dados inesperados.');
             }
         }
-
-        existingKeys.forEach(
-            key =>
-                localStorage.removeItem(
-                    key
-                )
-        );
-
-        for (
-            const [
-                key,
-                value
-            ]
-            of Object.entries(
-                payload.storage
-            )
-        ) {
-            if (
-                key.startsWith(
-                    'jornal_do_futebol_'
-                )
-                &&
-                typeof value
-                === 'string'
-            ) {
-                localStorage.setItem(
-                    key,
-                    value
-                );
-            }
-        }
-
-        sessionStorage.removeItem(
-            MANUAL_QUEUE_SESSION_KEY
-        );
 
         if (
-            payload.session
+            payload.session !== undefined
             &&
-            Array.isArray(
-                payload.session.manualQueue
+            (
+                !payload.session
+                ||
+                typeof payload.session !== 'object'
+                ||
+                Array.isArray(payload.session)
+                ||
+                (
+                    payload.session.manualQueue !== undefined
+                    &&
+                    !Array.isArray(payload.session.manualQueue)
+                )
             )
         ) {
-            sessionStorage.setItem(
-                MANUAL_QUEUE_SESSION_KEY,
-                JSON.stringify(
-                    payload
-                        .session
-                        .manualQueue
+            throw new Error('Fila de sessão inválida no backup.');
+        }
+
+        const manualQueueSnapshot =
+            payload.session && payload.session.manualQueue;
+
+        if (
+            manualQueueSnapshot
+            &&
+            (
+                manualQueueSnapshot.length > 10000
+                ||
+                !manualQueueSnapshot.every(
+                    id => typeof id === 'string' && id.length <= 128
                 )
+            )
+        ) {
+            throw new Error('Fila manual inválida no backup.');
+        }
+
+        // Cópia íntegra para reverter falhas de cota ou bloqueio do navegador.
+        const previous = new Map();
+
+        for (let index = 0; index < localStorage.length; index++) {
+            const key = localStorage.key(index);
+
+            if (key && key.startsWith('jornal_do_futebol_')) {
+                previous.set(key, localStorage.getItem(key));
+            }
+        }
+
+        const sessionBefore = new Map();
+
+        for (const key of [
+            MANUAL_QUEUE_SESSION_KEY,
+            PORTS_PLAYBACK_MODE_KEY
+        ]) {
+            sessionBefore.set(key, sessionStorage.getItem(key));
+        }
+
+        try {
+            for (const key of previous.keys()) {
+                localStorage.removeItem(key);
+            }
+
+            for (const [key, value] of newEntries) {
+                localStorage.setItem(key, value);
+            }
+
+            sessionStorage.removeItem(MANUAL_QUEUE_SESSION_KEY);
+            sessionStorage.removeItem(PORTS_PLAYBACK_MODE_KEY);
+
+            if (manualQueueSnapshot) {
+                sessionStorage.setItem(
+                    MANUAL_QUEUE_SESSION_KEY,
+                    JSON.stringify(manualQueueSnapshot)
+                );
+            }
+        }
+        catch (writeError) {
+            // Repor estado anterior, inclusive quando a escrita foi parcial.
+            try {
+                const affected = new Set([
+                    ...previous.keys(),
+                    ...newEntries.map(([key]) => key)
+                ]);
+
+                for (const key of affected) {
+                    localStorage.removeItem(key);
+                }
+
+                for (const [key, value] of previous) {
+                    localStorage.setItem(key, value);
+                }
+
+                for (const [key, value] of sessionBefore) {
+                    if (value === null) {
+                        sessionStorage.removeItem(key);
+                    }
+                    else {
+                        sessionStorage.setItem(key, value);
+                    }
+                }
+            }
+            catch (_) {
+                throw new Error(
+                    'Falha de armazenamento: a restauração não pôde ser revertida completamente. '
+                    + 'Não feche a página antes de exportar seus dados atuais.'
+                );
+            }
+
+            throw new Error(
+                'O navegador recusou a escrita. Dados anteriores preservados.'
             );
         }
 
@@ -2362,9 +2410,7 @@ async function importJournalBackup(
         setStatus(
             'Não foi possível restaurar o backup: '
             + (
-                error
-                &&
-                error.message
+                error && error.message
                 ? error.message
                 : 'arquivo inválido'
             )

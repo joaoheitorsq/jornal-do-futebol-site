@@ -22,6 +22,9 @@ const PORTS_VIDEOS = JSON.parse(
 const PORTS_COLLAPSED_KEY =
     'jornal_do_futebol_ports_collapsed_v1';
 
+const PORTS_PLAYBACK_MODE_KEY =
+    'jornal_do_futebol_ports_playback_mode_v1';
+
 let portsPlaybackActive = false;
 let portsCollapsed = false;
 
@@ -430,6 +433,46 @@ function toggleHearthPwnSeen(newsKey) {
 
 
 
+function setPortsPlaybackMode(enabled) {
+    portsPlaybackActive = Boolean(enabled);
+
+    try {
+        if (portsPlaybackActive) {
+            sessionStorage.setItem(PORTS_PLAYBACK_MODE_KEY, '1');
+        }
+        else {
+            sessionStorage.removeItem(PORTS_PLAYBACK_MODE_KEY);
+        }
+    }
+    catch (_) {}
+}
+
+
+function restorePortsPlaybackMode() {
+    const resumeId = resumeState && resumeState.videoId;
+    const valid = Boolean(
+        resumeId
+        &&
+        PORTS_VIDEOS.some(
+            video => video.id === resumeId && video.embeddable !== false
+        )
+        &&
+        !isWatched(resumeId)
+    );
+
+    try {
+        const stored = sessionStorage.getItem(PORTS_PLAYBACK_MODE_KEY);
+        if (valid && stored === '1') {
+            portsPlaybackActive = true;
+            return;
+        }
+    }
+    catch (_) {}
+
+    setPortsPlaybackMode(false);
+}
+
+
 function loadPortsCollapsed() {
     try {
         return localStorage.getItem(PORTS_COLLAPSED_KEY) === '1';
@@ -566,12 +609,16 @@ function toggleWatched(videoId) {
 
     applyView();
 
+    const affectsMainJournal = VIDEOS.some(video => video.id === videoId);
+
     if (becameWatched) {
         animateWatchedFeedback(
             videoId
         );
 
-        animateJournalProgressCompletion();
+        if (affectsMainJournal && !portsPlaybackActive) {
+            animateJournalProgressCompletion();
+        }
 
         if (
             typeof offerUndoWatched
@@ -584,5 +631,7 @@ function toggleWatched(videoId) {
         }
     }
 
-    maybeCelebrateJournalCompletion();
+    if (affectsMainJournal && !portsPlaybackActive) {
+        maybeCelebrateJournalCompletion();
+    }
 }
