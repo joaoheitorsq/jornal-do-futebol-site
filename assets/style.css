@@ -3523,6 +3523,24 @@ main {
     overflow-wrap: anywhere;
 }
 
+
+/* Quantidade individual confirma a presença de vídeos por canal. */
+.ports-channel-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 19px;
+    margin-left: 3px;
+    padding: 0 5px;
+    border: 1px solid rgba(105, 170, 255, .17);
+    border-radius: 6px;
+    background: rgba(105, 170, 255, .1);
+    color: #e2efff;
+    font-size: 10px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Sem max-height/overflow-y: a rolagem vertical é sempre da página. */
 .ports-video-list {
     border-top: 1px solid var(--border);

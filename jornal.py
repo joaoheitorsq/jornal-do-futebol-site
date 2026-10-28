@@ -5,7 +5,7 @@ import html
 import re
 import hashlib
 
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
@@ -40,7 +40,6 @@ UTC = ZoneInfo("UTC")
 RESET_HOUR = 4
 WINDOW_HOURS = 24
 PORTS_WINDOW_HOURS = 7 * 24
-PORTS_VIDEO_LIMIT = 24
 
 MAX_RETRIES = 5
 RETRYABLE = {429, 500, 502, 503, 504}
@@ -900,11 +899,16 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
     candidates = {}
     failures = []
     successful_channels = 0
+    recent_by_handle = {}
 
     for config in configs:
         try:
             channel = resolve_channel(key, config)
+            uploads = recent_uploads(key, channel, start, now_utc)
+
+            # "Canal OK" somente depois de consultar a lista de uploads.
             successful_channels += 1
+            recent_by_handle[config["handle"]] = len(uploads)
 
             log(
                 "CANAL OK: "
@@ -912,9 +916,8 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
                 + " ["
                 + ("SOMENTE SHORTS" if channel["onlyShorts"] else "TODOS")
                 + "]"
+                + f" | {len(uploads)} uploads nas últimas {window_hours}h"
             )
-
-            uploads = recent_uploads(key, channel, start, now_utc)
 
             for item in uploads:
                 candidates[item["videoId"]] = item
@@ -1014,6 +1017,22 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
         )
 
     accepted.sort(key=lambda item: item["publishedDt"])
+
+    # Auditoria individual: distinguir canal sem publicações, filtragem
+    # por Shorts/lives e falhas de coleta sem custos extras de API.
+    accepted_counts = Counter(
+        video["channelHandle"]
+        for video in accepted
+    )
+
+    for config in configs:
+        handle = config["handle"]
+        if handle in recent_by_handle:
+            log(
+                f"RESUMO CANAL {handle}: "
+                f"uploads={recent_by_handle[handle]}, "
+                f"incluídos={accepted_counts[handle]}"
+            )
 
     return accepted, now_local, failures
 
@@ -1226,10 +1245,12 @@ def player_video_record(video):
 def build_ports_widget(videos, channels, failures):
     """Painel recolhível semelhante ao HearthPwn, sem poluir o Jornal."""
     rows = []
+    # Todos os vídeos válidos da janela entram no painel, sem
+    # limite global que privilegie os canais mais prolíficos.
     latest = sorted(
         videos,
         key=lambda video: video["publishedDt"],
-    )[-PORTS_VIDEO_LIMIT:]
+    )
 
     for video in latest:
         video_id = html.escape(video["videoId"], quote=True)
@@ -1281,10 +1302,17 @@ def build_ports_widget(videos, channels, failures):
 
     count = len(latest)
     label = "vídeo" if count == 1 else "vídeos"
+    counts_by_channel = Counter(
+        video["channelHandle"].casefold()
+        for video in latest
+    )
+
     chips = " ".join(
         '<span class="ports-channel-chip">'
         + html.escape(source["name"])
-        + '</span>'
+        + ' <strong class="ports-channel-count">'
+        + str(counts_by_channel.get(source["handle"].casefold(), 0))
+        + '</strong></span>'
         for source in channels
     )
 
@@ -1597,11 +1625,9 @@ def main():
         log(f"AVISO: painel de portes indisponível: {erro}")
         ports_videos, ports_failures = [], [str(erro)]
 
-    main_ids = {video["videoId"] for video in videos}
-    ports_videos = [
-        video for video in ports_videos
-        if video["videoId"] not in main_ids
-    ][-PORTS_VIDEO_LIMIT:]
+    # Não descartar vídeos do painel por coincidirem com outra seção.
+    # As listas são independentes e as marcações são por videoId.
+    ports_videos.sort(key=lambda video: video["publishedDt"])
 
     # O status é global por ID, mas estes vídeos têm seu próprio feed.
     for video in ports_videos:

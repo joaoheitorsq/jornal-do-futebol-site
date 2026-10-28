@@ -9,6 +9,7 @@ on:
     paths:
       - jornal.py
       - channels.json
+      - ports_channels.json
       - assets/**
       - templates/**
       - tests/**

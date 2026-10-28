@@ -245,6 +245,13 @@ def validate_sources():
 
     require(
         "PORTS_WINDOW_HOURS = 7 * 24" in backend
+        and "PORTS_VIDEO_LIMIT" not in backend
+        and "RESUMO CANAL" in backend
+        and "recent_by_handle" in backend
+        and "ports_videos.sort(" in backend
+        and 'class="ports-channel-count"' in backend
+        and ".ports-channel-count" in css
+        and "ports_channels.json" in read_text(".github/workflows/jornal.yml")
         and "def load_ports_channels():" in backend
         and "def build_ports_widget(" in backend
         and '__PORTS_VIDEOS__' in template
@@ -286,6 +293,37 @@ def validate_sources():
         and ".ports-progress-summary" in css
         and "@media (max-width: 600px)" in css,
         "Identidade visual ou responsividade do painel de portes incompleta.",
+    )
+
+    # Cobertura sem rede: mais de 24 vídeos, distribuídos entre seis
+    # canais, nunca podem ser eliminados por um teto global.
+    import jornal
+    from datetime import datetime, timedelta, timezone
+
+    sample_channels = json.loads(read_text("ports_channels.json"))
+    reference_time = datetime(2026, 10, 28, tzinfo=timezone.utc)
+    sample_videos = []
+    for index in range(48):
+        channel = sample_channels[index % len(sample_channels)]
+        sample_videos.append({
+            "videoId": f"TEST_VIDEO_{index:03d}",
+            "title": f"Vídeo de teste {index}",
+            "channelTitle": channel["name"],
+            "channelHandle": channel["handle"],
+            "publishedDt": reference_time - timedelta(hours=index),
+            "embeddable": True,
+        })
+
+    sample_widget = jornal.build_ports_widget(
+        sample_videos,
+        sample_channels,
+        [],
+    )
+    require(
+        sample_widget.count('class="ports-video-item"') == len(sample_videos)
+        and sample_widget.count('class="ports-channel-count"') == len(sample_channels)
+        and "48 vídeos" in sample_widget,
+        "O painel de portes perdeu vídeos de algum canal por limite global.",
     )
 
     require(

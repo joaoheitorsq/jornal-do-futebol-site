@@ -148,10 +148,12 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 ## Painel exclusivo de portes, descompilações e recompilações
 
 - `ports_channels.json` contém os canais sixwp, RetroJão, Emuladores Brasil, Senhor Linguica, bummy e Teaser Games; novos canais podem ser adicionados nesse JSON.
-- O `jornal.py` reutiliza a consulta de uploads e de detalhes pela API oficial do YouTube. A seção tem janela independente de **7 dias** e mostra até **24 vídeos**, em ordem cronológica, excluindo lives e duplicatas da lista principal.
+- O `jornal.py` reutiliza a consulta de uploads e de detalhes pela API oficial do YouTube. A seção tem janela independente de **7 dias** e mostra **todos os vídeos válidos encontrados**, em ordem cronológica, sem teto compartilhado de 24 que excluía canais menos frequentes. Os vídeos de um canal não eliminam os de outro; lives continuam excluídas.
 - Consultas a essa seção são opcionais: falha em um ou mais canais não derruba a edição principal, e aparece um aviso na seção.
 - Visualmente a seção herda a linguagem do HearthPwn, tem listagem de vídeos com miniaturas, estado de visto e recolhimento persistido em `jornal_do_futebol_ports_collapsed_v1`.
 - A lista de portes **não possui rolagem interna nem altura máxima**: `ports-video-list` permanece em fluxo natural (`overflow: visible`), de modo que arrastar sobre qualquer vídeo movimenta a página inteira. Não reintroduzir `overflow-y: auto` ou `overscroll-behavior: contain` nessa lista.
 - Os cartões utilizam miniaturas dimensionadas com CSS Grid, títulos e metadados legíveis, estados atuais/assistidos, chips de canais e ajuste responsivo para telas pequenas.
 - O bloco `ports-data` contém `PORTS_VIDEOS`, independente da lista principal `VIDEOS`. O botão de reproduzir usa `openPortsVideo` e a fila específica da seção no player existente; **Começar jornal** volta à fila principal.
 - Vídeos do painel não alteram duração, progresso e total da lista principal. A marcação de assistido usa as mesmas chaves locais existentes para não fragmentar o progresso por dispositivo; a configuração de canais fica exclusivamente no arquivo JSON.
+
+- A coleta produz linhas `RESUMO CANAL @handle: uploads=N, incluídos=M` para **todos os canais** com consulta de uploads bem-sucedida; ausência de publicação e exclusão por filtros ficam diagnosticáveis. O cabeçalho exibe o total de vídeos de cada fonte nos chips. Uma alteração em `ports_channels.json` também dispara o workflow no `push`.
