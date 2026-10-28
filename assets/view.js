@@ -817,7 +817,7 @@ function setStatus(text) {
 
 function rebuildPlaylist() {
     if (portsPlaybackActive) {
-        activePlaylist = PORTS_VIDEOS
+        activePlaylist = filteredPortsVideos()
             .filter(video => video.embeddable)
             .map(video => video.id);
 

@@ -1426,13 +1426,23 @@ def build_ports_widget(videos, channels, failures):
         for video in latest
     )
 
-    chips = " ".join(
-        '<span class="ports-channel-chip">'
-        + html.escape(source["name"])
-        + ' <strong class="ports-channel-count">'
-        + str(counts_by_channel.get(source["handle"].casefold(), 0))
-        + '</strong></span>'
-        for source in channels
+    chips = (
+        '<button class="ports-channel-chip" type="button"'
+        ' data-channel-handle="" aria-pressed="true"'
+        ' onclick="setPortsChannelFilter(this.dataset.channelHandle)">'
+        'Todos <strong class="ports-channel-count">'
+        + str(count) + '</strong></button>'
+        + " ".join(
+            '<button class="ports-channel-chip" type="button"'
+            ' data-channel-handle="' + html.escape(source["handle"], quote=True)
+            + '" aria-pressed="false"'
+            ' onclick="setPortsChannelFilter(this.dataset.channelHandle)">'
+            + html.escape(source["name"])
+            + ' <strong class="ports-channel-count">'
+            + str(counts_by_channel.get(source["handle"].casefold(), 0))
+            + '</strong></button>'
+            for source in channels
+        )
     )
 
     return f"""
@@ -1451,11 +1461,51 @@ def build_ports_widget(videos, channels, failures):
     </button>
 </div>
 <div class="ports-content">
-    <div class="ports-channel-list" aria-label="Canais monitorados">{chips}</div>
+    <div class="ports-channel-list" role="group" aria-label="Filtrar vídeos por canal">{chips}</div>
+    <div class="ports-filter-toolbar" aria-label="Filtrar vídeos">
+        <label class="ports-search-wrap" for="ports-search">
+            <span class="ports-field-label">Buscar no painel</span>
+            <input id="ports-search" class="ports-search" type="search"
+                placeholder="Jogo, assunto ou título…" autocomplete="off"
+                oninput="setPortsSearch(this.value)">
+        </label>
+        <label class="ports-sort-wrap" for="ports-sort">
+            <span class="ports-field-label">Ordem</span>
+            <select id="ports-sort" class="ports-sort" onchange="setPortsSort(this.value)">
+                <option value="newest">Mais recentes</option>
+                <option value="oldest">Mais antigos</option>
+            </select>
+        </label>
+        <button id="ports-unwatched-toggle" class="ports-unwatched-toggle"
+            type="button" aria-pressed="false"
+            onclick="togglePortsUnwatched()">Só não assistidos</button>
+    </div>
+    <div class="ports-filter-status">
+        <span id="ports-visible-count" aria-live="polite">{count} vídeos nesta seleção</span>
+        <button id="ports-clear-filters" class="ports-clear-filters" type="button"
+            onclick="resetPortsFilters()" hidden>Limpar filtros</button>
+    </div>
     <div class="ports-video-list">
         {"".join(rows)}
+        <p class="ports-filter-empty" id="ports-filter-empty" hidden>
+            Nenhum vídeo corresponde aos filtros escolhidos.
+        </p>
     </div>
-    <div class="ports-progress-summary" id="ports-progress">0 de {count} assistidos</div>
+    <div class="ports-bottom">
+        <button id="ports-play-selection" class="ports-play-selection"
+            type="button" onclick="playPortsSelection()">▶ Assistir seleção</button>
+        <div class="ports-progress-area">
+            <div class="ports-progress-summary">
+                <span id="ports-progress">0 de {count} assistidos</span>
+                <span id="ports-progress-percent">0%</span>
+            </div>
+            <div id="ports-progress-track" class="ports-progress-track" role="progressbar"
+                aria-label="Progresso dos vídeos de portes"
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <span id="ports-progress-fill"></span>
+            </div>
+        </div>
+    </div>
 </div>
 </section>
 """

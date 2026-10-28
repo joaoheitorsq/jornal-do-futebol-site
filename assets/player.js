@@ -669,6 +669,12 @@ function adjacentQueuedVideoId(
             : null;
     }
 
+    // O vídeo atual pode ficar fora dos filtros sem interromper a reprodução.
+    // Nesse caso, avançar entra na primeira posição da nova seleção.
+    if (portsPlaybackActive && !queue.includes(currentId)) {
+        return direction > 0 ? (queue[0] || null) : null;
+    }
+
     const catalog = portsPlaybackActive ? PORTS_VIDEOS : VIDEOS;
 
     const currentIndex =
@@ -1862,6 +1868,12 @@ function openVideo(id, source = 'journal') {
 
     let index =
         activePlaylist.indexOf(id);
+
+    if (index < 0 && portsPlaybackActive) {
+        // Vídeo salvo fora dos filtros: habilitar o catálogo completo.
+        resetPortsFilters();
+        index = activePlaylist.indexOf(id);
+    }
 
     if (index < 0 && !portsPlaybackActive) {
         onlyUnwatched = false;

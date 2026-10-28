@@ -17,9 +17,9 @@ const mainVideos = [
     {id: 'MMMMMMMMMMM', title: 'Jornal', channelTitle: 'M', embeddable: true}
 ];
 const portsVideos = [
-    {id: 'AAAAAAAAAAA', title: 'Compartilhado', channelTitle: 'A', embeddable: true},
-    {id: 'BBBBBBBBBBB', title: 'Portes', channelTitle: 'B', embeddable: true},
-    {id: 'CCCCCCCCCCC', title: 'Portes 2', channelTitle: 'C', embeddable: true}
+    {id: 'AAAAAAAAAAA', title: 'Compartilhado', channelTitle: 'A', channelHandle: '@a', embeddable: true},
+    {id: 'BBBBBBBBBBB', title: 'Portes', channelTitle: 'B', channelHandle: '@b', embeddable: true},
+    {id: 'CCCCCCCCCCC', title: 'Portes 2', channelTitle: 'C', channelHandle: '@c', embeddable: true}
 ];
 
 function storage() {
@@ -119,7 +119,7 @@ const mode = () => expression('portsPlaybackActive');
 
 expression('openPortsVideo("AAAAAAAAAAA");');
 assert.equal(mode(), true, 'Vídeo compartilhado deve abrir fila de portes quando acionado pelo painel');
-assert.deepEqual([...active()], portsVideos.map(video => video.id));
+assert.deepEqual([...active()], portsVideos.map(video => video.id).reverse());
 expression('openVideo("AAAAAAAAAAA");');
 assert.equal(mode(), false, 'Mesmo vídeo aberto pelo Jornal precisa voltar à fila principal');
 assert.deepEqual([...active()], mainVideos.map(video => video.id));
@@ -130,7 +130,23 @@ expression("sessionStorage.setItem(PORTS_PLAYBACK_MODE_KEY, '1'); restorePortsPl
 assert.equal(mode(), true, 'Retomada do painel não restaurou a fila original');
 assert.deepEqual([...expression('PORTS_VIDEOS.map(video => video.id)')], portsVideos.map(v => v.id));
 expression('rebuildPlaylist();');
-assert.deepEqual([...active()], portsVideos.map(video => video.id));
+assert.deepEqual([...active()], portsVideos.map(video => video.id).reverse());
+
+// Combinações de filtros, busca e ordenação devem afetar só a fila de portes.
+expression('portsFilterChannel = "@b"; rebuildPlaylist();');
+assert.deepEqual([...active()], ['BBBBBBBBBBB'], 'Filtro de canal deve limitar a fila');
+
+expression('portsFilterChannel = ""; portsOnlyUnwatched = true; watched = {BBBBBBBBBBB: 1}; rebuildPlaylist();');
+assert.deepEqual([...active()], ['CCCCCCCCCCC', 'AAAAAAAAAAA'], 'Apenas não vistos deve funcionar na fila');
+
+expression('portsOnlyUnwatched = false; portsSearchQuery = "Portes 2"; rebuildPlaylist();');
+assert.deepEqual([...active()], ['CCCCCCCCCCC'], 'Pesquisa deve afetar a fila');
+
+expression('portsSearchQuery = ""; portsSort = "oldest"; rebuildPlaylist();');
+assert.deepEqual([...active()], portsVideos.map(video => video.id), 'Ordem antiga deve ser cronológica');
+
+expression('watched = {}; portsSort = "newest"; rebuildPlaylist();');
+assert.deepEqual([...active()], portsVideos.map(video => video.id).reverse(), 'Ordem recente deve inverter a fila');
 
 expression('setPortsPlaybackMode(false);');
 assert.equal(ctx.sessionStorage.getItem('jornal_do_futebol_ports_playback_mode_v1'), null);

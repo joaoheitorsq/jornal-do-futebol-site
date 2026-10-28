@@ -169,3 +169,12 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - **Coleta defensiva:** IDs de vídeo são validados antes de chegar aos handlers HTML, datas inválidas são ignoradas, vídeos repetidos na mesma playlist são deduplicados e a paginação circular é detectada.
 - **Sobreposição legítima:** um mesmo upload pode estar nas listas de futebol e portes, com filas separadas e status de visto compartilhado. A validação verifica duplicatas **dentro** de cada lista, não proíbe IDs presentes em ambas.
 - **Testes automatizados:** o CI executa validação Python de fonte e HTML gerado, verificação de sintaxe de todos os módulos JS e `tests/runtime_playback.cjs` (filas, vídeo compartilhado, retomada e gestos), além de simulações locais de respostas inesperadas da API.
+
+
+## Filtros, reprodução e animações do painel de portes
+
+- Chips interativos **Todos / por canal** com `aria-pressed` e contagens por canal; pesquisa de títulos, toggle **Só não assistidos**, ordenação **Mais recentes / Mais antigos**, atalho **Assistir seleção** (prioriza o primeiro reproduzível ainda não visto) e botão para limpar filtros.
+- Preferências de canal, ordem e ocultação de assistidos salvas em `jornal_do_futebol_ports_preferences_v1`. Pesquisa é temporária e filtros de canais retirados da configuração não são restaurados.
+- `filteredPortsVideos()` alimenta tanto os cartões visíveis quanto a fila de portes. A fila do futebol nunca é filtrada por essa seleção. Se o vídeo atual ficar oculto, avançar leva ao primeiro vídeo correspondente. Abrir um vídeo salvo pode limpar os filtros que o ocultavam.
+- A barra de progresso usa **todos** os vídeos do painel, independentemente da filtragem, por `transform: scaleX`. Entrada de novos itens e recolhimento usam exclusivamente `transform` e `opacity`, com limite de oito animações simultâneas e respeito a movimento reduzido.
+- **Não reintroduzir rolagem interna:** permanece `overflow: visible`, `touch-action: pan-y` e altura natural da lista, incluindo no celular.

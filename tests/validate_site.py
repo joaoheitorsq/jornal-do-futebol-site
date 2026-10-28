@@ -277,6 +277,28 @@ def validate_sources():
         "Seção independente de portes não foi integrada completamente.",
     )
 
+    require(
+        "def build_ports_widget(" in backend
+        and 'data-channel-handle="" aria-pressed="true"' in backend
+        and 'onclick="setPortsChannelFilter(this.dataset.channelHandle)"' in backend
+        and 'id="ports-search"' in backend
+        and 'id="ports-sort"' in backend
+        and 'id="ports-unwatched-toggle"' in backend
+        and 'id="ports-clear-filters"' in backend
+        and 'id="ports-play-selection"' in backend
+        and "function filteredPortsVideos()" in javascript
+        and "function setPortsChannelFilter(channel)" in javascript
+        and "function setPortsSearch(query)" in javascript
+        and "function setPortsSort(sort)" in javascript
+        and "function togglePortsUnwatched()" in javascript
+        and "function playPortsSelection()" in javascript
+        and "function animatePortsFilteredCards(cards)" in javascript
+        and "function animatePortsCollapse(collapse)" in javascript
+        and ".ports-video-item[hidden]" in css
+        and ".ports-progress-track span" in css,
+        "Filtros, fila e animações do painel de portes incompletos.",
+    )
+
     # Regressão: o painel não pode voltar a prender a rolagem da página.
     ports_list_css = re.search(
         r"\.ports-video-list\s*\{([^}]*)\}",
@@ -337,7 +359,7 @@ def validate_sources():
     )
     require(
         sample_widget.count('class="ports-video-item"') == len(sample_videos)
-        and sample_widget.count('class="ports-channel-count"') == len(sample_channels)
+        and sample_widget.count('class="ports-channel-count"') == len(sample_channels) + 1
         and "48 vídeos" in sample_widget,
         "O painel de portes perdeu vídeos de algum canal por limite global.",
     )
@@ -794,6 +816,23 @@ def validate_generated():
     require(ports_match is not None, "ports-data ausente do HTML final.")
     ports_videos = json.loads(ports_match.group(1).strip() or "[]")
     require(isinstance(ports_videos, list), "ports-data não é lista.")
+
+    for control in (
+        "ports-search", "ports-sort", "ports-unwatched-toggle",
+        "ports-clear-filters", "ports-play-selection",
+        "ports-progress-track", "ports-progress-fill",
+        "ports-filter-empty", "ports-visible-count",
+    ):
+        require(
+            f'id="{control}"' in html,
+            f"Controle do painel de portes ausente: {control}",
+        )
+
+    require(
+        'data-channel-handle=""' in html
+        and html.count('class="ports-channel-chip"') >= 7,
+        "Filtro por canal do painel de portes ausente.",
+    )
 
     main_ids = {video["id"] for video in videos}
     ports_ids = {video["id"] for video in ports_videos}

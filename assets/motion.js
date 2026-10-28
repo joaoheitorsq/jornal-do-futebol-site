@@ -1000,3 +1000,66 @@ function animateCardHoldSuccessFeedback() {
             );
         };
 }
+
+
+// Anima somente propriedades de composição; limite para listas muito grandes.
+function animatePortsFilteredCards(cards) {
+    if (prefersReducedMotion()) return;
+
+    cards.slice(0, 8).forEach((card, index) => {
+        runCompositorAnimation(
+            card,
+            [
+                {opacity: .35, transform: 'translate3d(0,8px,0)'},
+                {opacity: 1, transform: 'translate3d(0,0,0)'}
+            ],
+            {
+                duration: 210,
+                delay: Math.min(index * 22, 120),
+                easing: 'cubic-bezier(.2,.72,.25,1)'
+            }
+        );
+    });
+}
+
+
+function animatePortsCollapse(collapse) {
+    const widget = document.querySelector('.ports-widget');
+    const content = widget && widget.querySelector('.ports-content');
+    if (!widget || !content) return;
+
+    widget.classList.remove('collapsing');
+    stopMotionAnimation(content);
+
+    if (prefersReducedMotion() || typeof content.animate !== 'function') {
+        applyPortsCollapse();
+        return;
+    }
+
+    if (collapse) {
+        widget.classList.add('collapsing');
+        runCompositorAnimation(
+            content,
+            [
+                {opacity: 1, transform: 'translate3d(0,0,0)'},
+                {opacity: 0, transform: 'translate3d(0,-7px,0)'}
+            ],
+            {duration: 170, easing: 'ease-in'},
+            () => {
+                widget.classList.remove('collapsing');
+                applyPortsCollapse();
+            }
+        );
+        return;
+    }
+
+    applyPortsCollapse();
+    runCompositorAnimation(
+        content,
+        [
+            {opacity: 0, transform: 'translate3d(0,-7px,0)'},
+            {opacity: 1, transform: 'translate3d(0,0,0)'}
+        ],
+        {duration: 210, easing: 'cubic-bezier(.2,.72,.25,1)'}
+    );
+}

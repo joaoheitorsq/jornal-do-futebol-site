@@ -28,6 +28,13 @@ const PORTS_PLAYBACK_MODE_KEY =
 let portsPlaybackActive = false;
 let portsCollapsed = false;
 
+// Preferências independentes do Jornal de Futebol.
+const PORTS_PREFERENCES_KEY = 'jornal_do_futebol_ports_preferences_v1';
+let portsFilterChannel = '';
+let portsSearchQuery = '';
+let portsOnlyUnwatched = false;
+let portsSort = 'newest';
+
 const CURRENT_EMBEDDABLE_IDS =
 VIDEOS
     .filter(video => video.embeddable)
@@ -515,7 +522,202 @@ function togglePortsWidget() {
     }
     catch (_) {}
 
-    applyPortsCollapse();
+    if (typeof animatePortsCollapse === 'function') {
+        animatePortsCollapse(portsCollapsed);
+    }
+    else {
+        applyPortsCollapse();
+    }
+}
+
+
+function loadPortsPreferences() {
+    try {
+        const data = JSON.parse(
+            localStorage.getItem(PORTS_PREFERENCES_KEY) || '{}'
+        );
+        if (!data || typeof data !== 'object') return;
+
+        const channel = String(data.channel || '');
+        const available = Array.from(
+            document.querySelectorAll('.ports-channel-chip[data-channel-handle]')
+        ).some(button => button.dataset.channelHandle === channel);
+
+        portsFilterChannel = available ? channel : '';
+        portsOnlyUnwatched = data.unwatched === true;
+        portsSort = data.sort === 'oldest' ? 'oldest' : 'newest';
+    }
+    catch (_) {
+        portsFilterChannel = '';
+        portsOnlyUnwatched = false;
+        portsSort = 'newest';
+    }
+}
+
+
+function savePortsPreferences() {
+    try {
+        localStorage.setItem(PORTS_PREFERENCES_KEY, JSON.stringify({
+            channel: portsFilterChannel,
+            unwatched: portsOnlyUnwatched,
+            sort: portsSort
+        }));
+    }
+    catch (_) {}
+}
+
+
+function filteredPortsVideos() {
+    const search = normalizeSearch(portsSearchQuery);
+    const selected = PORTS_VIDEOS.filter(video =>
+        (!portsFilterChannel ||
+            String(video.channelHandle || '').toLowerCase() === portsFilterChannel.toLowerCase())
+        &&
+        (!search ||
+            normalizeSearch((video.title || '') + ' ' + (video.channelTitle || '')).includes(search))
+        &&
+        (!portsOnlyUnwatched || !isWatched(video.id))
+    );
+
+    return portsSort === 'newest' ? selected.reverse() : selected;
+}
+
+
+function sortPortsCards() {
+    const list = document.querySelector('.ports-video-list');
+    if (!list) return;
+
+    const cards = new Map(
+        Array.from(list.querySelectorAll('.ports-video-item[data-video-id]'))
+            .map(card => [card.dataset.videoId, card])
+    );
+
+    const ordered = portsSort === 'newest'
+        ? PORTS_VIDEOS.slice().reverse()
+        : PORTS_VIDEOS;
+
+    ordered.forEach(video => {
+        const card = cards.get(video.id);
+        if (card) list.appendChild(card);
+    });
+}
+
+
+function updatePortsFilters(animate = false) {
+    const widget = document.querySelector('.ports-widget');
+    if (!widget) return;
+
+    const selected = filteredPortsVideos();
+    const ids = new Set(selected.map(video => video.id));
+    const shown = [];
+
+    widget.querySelectorAll('.ports-video-item[data-video-id]')
+        .forEach(card => {
+            const wasHidden = card.hidden;
+            card.hidden = !ids.has(card.dataset.videoId);
+            if (!card.hidden && wasHidden) shown.push(card);
+        });
+
+    widget.querySelectorAll('.ports-channel-chip[data-channel-handle]')
+        .forEach(button => {
+            const active = button.dataset.channelHandle === portsFilterChannel;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+
+    const search = document.getElementById('ports-search');
+    if (search && search.value !== portsSearchQuery) search.value = portsSearchQuery;
+
+    const sort = document.getElementById('ports-sort');
+    if (sort && sort.value !== portsSort) sort.value = portsSort;
+
+    const toggle = document.getElementById('ports-unwatched-toggle');
+    if (toggle) {
+        toggle.classList.toggle('active', portsOnlyUnwatched);
+        toggle.setAttribute('aria-pressed', portsOnlyUnwatched ? 'true' : 'false');
+    }
+
+    const count = document.getElementById('ports-visible-count');
+    if (count) count.textContent =
+        selected.length + ' de ' + PORTS_VIDEOS.length + ' vídeos exibidos';
+
+    const empty = document.getElementById('ports-filter-empty');
+    if (empty) empty.hidden = selected.length !== 0 || PORTS_VIDEOS.length === 0;
+
+    const clear = document.getElementById('ports-clear-filters');
+    if (clear) clear.hidden = !(
+        portsFilterChannel || portsSearchQuery ||
+        portsOnlyUnwatched || portsSort !== 'newest'
+    );
+
+    const play = document.getElementById('ports-play-selection');
+    if (play) play.disabled = !selected.some(video => video.embeddable !== false);
+
+    if (animate && shown.length && typeof animatePortsFilteredCards === 'function') {
+        animatePortsFilteredCards(shown);
+    }
+
+    if (portsPlaybackActive) {
+        rebuildPlaylist();
+        updateUpNext();
+    }
+}
+
+
+function setPortsChannelFilter(channel) {
+    portsFilterChannel = String(channel || '');
+    savePortsPreferences();
+    updatePortsFilters(true);
+}
+
+
+function setPortsSearch(query) {
+    portsSearchQuery = String(query || '');
+    updatePortsFilters(true);
+}
+
+
+function setPortsSort(sort) {
+    portsSort = sort === 'oldest' ? 'oldest' : 'newest';
+    savePortsPreferences();
+    sortPortsCards();
+    updatePortsFilters();
+
+    if (typeof animatePortsFilteredCards === 'function') {
+        const cards = Array.from(
+            document.querySelectorAll('.ports-video-item[data-video-id]')
+        ).filter(card => !card.hidden);
+
+        animatePortsFilteredCards(cards);
+    }
+}
+
+
+function togglePortsUnwatched() {
+    portsOnlyUnwatched = !portsOnlyUnwatched;
+    savePortsPreferences();
+    updatePortsFilters(true);
+}
+
+
+function resetPortsFilters() {
+    portsFilterChannel = '';
+    portsSearchQuery = '';
+    portsOnlyUnwatched = false;
+    portsSort = 'newest';
+    savePortsPreferences();
+    sortPortsCards();
+    updatePortsFilters(true);
+}
+
+
+function playPortsSelection() {
+    const selected = filteredPortsVideos();
+    const video = selected.find(item =>
+        item.embeddable !== false && !isWatched(item.id)
+    ) || selected.find(item => item.embeddable !== false);
+
+    if (video) openPortsVideo(video.id);
 }
 
 
@@ -546,11 +748,20 @@ function updatePortsVideoUI() {
     });
 
     const progress = document.getElementById('ports-progress');
+    if (progress) progress.textContent =
+        viewed + ' de ' + items.length + ' assistidos';
 
-    if (progress) {
-        progress.textContent =
-            viewed + ' de ' + items.length + ' assistidos';
-    }
+    const percent = items.length ? Math.round(viewed * 100 / items.length) : 0;
+    const label = document.getElementById('ports-progress-percent');
+    if (label) label.textContent = percent + '%';
+
+    const track = document.getElementById('ports-progress-track');
+    if (track) track.setAttribute('aria-valuenow', String(percent));
+
+    const fill = document.getElementById('ports-progress-fill');
+    if (fill) fill.style.setProperty('--ports-progress-ratio', String(percent / 100));
+
+    updatePortsFilters();
 }
 
 

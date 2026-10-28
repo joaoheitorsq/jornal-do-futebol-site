@@ -7,6 +7,7 @@ watched = loadWatched();
 hearthpwnSeen = loadHearthPwnSeen();
 hearthpwnCollapsed = loadHearthPwnCollapsed();
 portsCollapsed = loadPortsCollapsed();
+loadPortsPreferences();
 onlyUnwatched = loadUnwatchedMode();
 collapsedChapters = loadCollapsedChapters();
 miniPlayerCollapsed = loadMiniPlayerCollapsed();
@@ -17,6 +18,8 @@ applyView();
 updateHearthPwnSeenUI();
 applyHearthPwnCollapse();
 applyPortsCollapse();
+sortPortsCards();
+updatePortsVideoUI();
 initializeFeatureUI();
 
 if (resumeState) {
