@@ -39,6 +39,8 @@ UTC = ZoneInfo("UTC")
 
 RESET_HOUR = 4
 WINDOW_HOURS = 24
+PORTS_WINDOW_HOURS = 7 * 24
+PORTS_VIDEO_LIMIT = 24
 
 MAX_RETRIES = 5
 RETRYABLE = {429, 500, 502, 503, 504}
@@ -694,13 +696,56 @@ def load_channels():
     return out
 
 
+def load_ports_channels():
+    """Canais exclusivos do painel sobre portes e recompilações."""
+    with open("ports_channels.json", encoding="utf-8") as file:
+        data = json.load(file)
+
+    if not isinstance(data, list) or not data:
+        raise RuntimeError("ports_channels.json sem canais válidos.")
+
+    configs = []
+    seen = set()
+
+    for item in data:
+        name = str(item.get("name", "")).strip()
+        handle = str(item.get("handle", "")).strip()
+        channel_id = str(item.get("channelId", "")).strip()
+
+        if not name or not (handle or channel_id):
+            raise RuntimeError("Entrada inválida de canal de portes.")
+
+        if handle and not handle.startswith("@"):
+            handle = "@" + handle
+
+        identity = (channel_id or handle).casefold()
+        if identity in seen:
+            raise RuntimeError("Canal duplicado em ports_channels.json: " + name)
+
+        seen.add(identity)
+        configs.append({
+            "name": name,
+            "handle": handle,
+            "channelId": channel_id,
+            "onlyShorts": False,
+        })
+
+    return configs
+
+
 def resolve_channel(key, config):
+    lookup = (
+        {"id": config["channelId"]}
+        if config.get("channelId")
+        else {"forHandle": config["handle"]}
+    )
+
     data = yt(
         "channels",
         key,
         part="id,snippet,contentDetails",
-        forHandle=config["handle"],
         maxResults=1,
+        **lookup,
     )
 
     if not data.get("items"):
@@ -847,10 +892,10 @@ def short_confirmed(video_id, video):
         return None
 
 
-def collect(key, configs):
+def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
     now_local = datetime.now(TZ)
     now_utc = now_local.astimezone(UTC)
-    start = now_utc - timedelta(hours=WINDOW_HOURS)
+    start = now_utc - timedelta(hours=window_hours)
 
     candidates = {}
     failures = []
@@ -878,12 +923,12 @@ def collect(key, configs):
             failures.append(f"{config['handle']}: {erro}")
             log("AVISO: " + config["handle"] + ": " + str(erro))
 
-    if successful_channels == 0:
+    if strict and successful_channels == 0:
         raise RuntimeError(
             "Nenhum canal pôde ser consultado. Verifique a API Key."
         )
 
-    if len(failures) > max(3, len(configs) // 4):
+    if strict and len(failures) > max(3, len(configs) // 4):
         raise RuntimeError(
             "Muitos canais falharam; preservando o site anterior."
         )
@@ -1163,24 +1208,130 @@ Abrir HearthPwn ↗
     )
 
 
-def build_page(videos, now_local, failures, hearthpwn_news=None):
+
+def player_video_record(video):
+    return {
+        "id": video["videoId"],
+        "title": video["title"],
+        "channelTitle": video["channelTitle"],
+        "channelHandle": video["channelHandle"],
+        "publishedAt": video["publishedDt"].astimezone(TZ).isoformat(),
+        "duration": video["durationSeconds"],
+        "countForTime": video["countForTime"],
+        "isShort": video["isShort"],
+        "embeddable": video["embeddable"],
+    }
+
+
+def build_ports_widget(videos, channels, failures):
+    """Painel recolhível semelhante ao HearthPwn, sem poluir o Jornal."""
+    rows = []
+    latest = sorted(
+        videos,
+        key=lambda video: video["publishedDt"],
+    )[-PORTS_VIDEO_LIMIT:]
+
+    for video in latest:
+        video_id = html.escape(video["videoId"], quote=True)
+        title = html.escape(video["title"])
+        channel = html.escape(video["channelTitle"])
+        published = html.escape(
+            video["publishedDt"].astimezone(TZ).strftime("%d/%m · %H:%M")
+        )
+        external_note = (
+            '<span class="ports-video-note">Abre no YouTube ↗</span>'
+            if not video["embeddable"]
+            else ""
+        )
+
+        rows.append(f"""
+<article class="ports-video-item" data-video-id="{video_id}">
+<button class="ports-play" type="button"
+    onclick="openPortsVideo('{video_id}')">
+<img src="https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+    loading="lazy" alt="">
+<span class="ports-video-copy">
+<strong>{title}</strong>
+<span class="ports-video-details">{channel} · {published}</span>
+{external_note}
+</span>
+</button>
+<button class="ports-watch-action" type="button"
+    onclick="toggleWatched('{video_id}')">
+✓ Marcar como visto
+</button>
+</article>
+""")
+
+    if not rows:
+        rows.append(
+            '<p class="ports-empty">'
+            'Nenhum vídeo publicado nesses canais nos últimos 7 dias.'
+            '</p>'
+        )
+
+    if failures:
+        rows.insert(
+            0,
+            '<p class="ports-source-warning">'
+            + str(len(failures))
+            + ' canal(is) não puderam ser consultados nesta atualização.'
+            '</p>'
+        )
+
+    count = len(latest)
+    label = "vídeo" if count == 1 else "vídeos"
+    chips = " ".join(
+        '<span class="ports-channel-chip">'
+        + html.escape(source["name"])
+        + '</span>'
+        for source in channels
+    )
+
+    return f"""
+<section class="ports-widget" aria-label="Portes, descompilações e recompilações">
+<div class="ports-head">
+    <div class="ports-heading">
+        <span class="widget-kicker">PROJETOS NATIVOS • PC</span>
+        <h2>Portes &amp; Recompilações</h2>
+        <span class="ports-subtitle">Últimos 7 dias · {count} {label} · lives excluídas</span>
+    </div>
+    <button class="ports-collapse-toggle" type="button"
+        onclick="togglePortsWidget()"
+        aria-expanded="true"
+        title="Recolher vídeos de portes">
+        <span class="ports-collapse-chevron" aria-hidden="true">▾</span>
+    </button>
+</div>
+<div class="ports-content">
+    <div class="ports-channel-list" aria-label="Canais monitorados">{chips}</div>
+    <div class="ports-video-list">
+        {"".join(rows)}
+    </div>
+    <div class="ports-progress-summary" id="ports-progress">0 de {count} assistidos</div>
+</div>
+</section>
+"""
+
+
+def build_page(videos, now_local, failures, hearthpwn_news=None, ports_videos=None, ports_channels=None, ports_failures=None):
     date = journal_day(now_local)
     updated = now_local.strftime("%d/%m/%Y às %H:%M")
     hearthpwn_html = build_hearthpwn_widget(hearthpwn_news or [])
+    ports_videos = ports_videos or []
+    ports_html = build_ports_widget(
+        ports_videos,
+        ports_channels or [],
+        ports_failures or [],
+    )
 
     player_videos = [
-        {
-            "id": video["videoId"],
-            "title": video["title"],
-            "channelTitle": video["channelTitle"],
-            "channelHandle": video["channelHandle"],
-            "publishedAt": video["publishedDt"].astimezone(TZ).isoformat(),
-            "duration": video["durationSeconds"],
-            "countForTime": video["countForTime"],
-            "isShort": video["isShort"],
-            "embeddable": video["embeddable"],
-        }
+        player_video_record(video)
         for video in videos
+    ]
+    ports_player_videos = [
+        player_video_record(video)
+        for video in ports_videos
     ]
 
     chapters = OrderedDict()
@@ -1375,6 +1526,8 @@ __CARDS__
         .replace("__UPDATED__", html.escape(updated))
         .replace("__WARNING__", warning)
         .replace("__HEARTHPWN_WIDGET__", hearthpwn_html)
+        .replace("__PORTS_WIDGET__", ports_html)
+        .replace("__PORTS_VIDEOS__", js_json(ports_player_videos))
         .replace("__CHAPTERS_HTML__", chapters_html)
         .replace("__PLAYER_VIDEOS__", js_json(player_videos))
         .replace(
@@ -1430,6 +1583,32 @@ def main():
 
     log(f"{len(videos)} vídeos válidos encontrados.")
 
+    ports_configs = load_ports_channels()
+
+    try:
+        ports_videos, _, ports_failures = collect(
+            key,
+            ports_configs,
+            window_hours=PORTS_WINDOW_HOURS,
+            strict=False,
+        )
+    except Exception as erro:
+        # O painel é opcional: não deve derrubar a edição principal.
+        log(f"AVISO: painel de portes indisponível: {erro}")
+        ports_videos, ports_failures = [], [str(erro)]
+
+    main_ids = {video["videoId"] for video in videos}
+    ports_videos = [
+        video for video in ports_videos
+        if video["videoId"] not in main_ids
+    ][-PORTS_VIDEO_LIMIT:]
+
+    # O status é global por ID, mas estes vídeos têm seu próprio feed.
+    for video in ports_videos:
+        video["countForTime"] = False
+
+    log(f"Painel de portes: {len(ports_videos)} vídeo(s) novo(s).")
+
     hearthpwn_news = fetch_hearthpwn_news()
 
     hearthpwn_news = translate_hearthpwn_news(
@@ -1448,6 +1627,9 @@ def main():
                 now_local,
                 failures,
                 hearthpwn_news,
+                ports_videos,
+                ports_configs,
+                ports_failures,
             )
         )
 

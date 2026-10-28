@@ -215,6 +215,8 @@ function loadResume() {
 function currentVideoMeta(videoId) {
     return VIDEOS.find(
         video => video.id === videoId
+    ) || PORTS_VIDEOS.find(
+        video => video.id === videoId
     ) || null;
 }
 
@@ -224,6 +226,10 @@ function resumeOutsideCurrentJournal() {
         resumeState
         &&
         !VIDEOS.some(
+            video => video.id === resumeState.videoId
+        )
+        &&
+        !PORTS_VIDEOS.some(
             video => video.id === resumeState.videoId
         )
     );
@@ -723,7 +729,7 @@ function renderCarryover() {
 
 function showResumeCard(videoId) {
     document
-        .querySelectorAll('.card')
+        .querySelectorAll('.card, .ports-video-item')
         .forEach(card => {
             card.classList.toggle(
                 'resume',
@@ -736,7 +742,7 @@ function showResumeCard(videoId) {
 
 function showCurrentCard(videoId) {
     document
-        .querySelectorAll('.card')
+        .querySelectorAll('.card, .ports-video-item')
         .forEach(card => {
             card.classList.toggle(
                 'current',
@@ -810,6 +816,30 @@ function setStatus(text) {
 
 
 function rebuildPlaylist() {
+    if (portsPlaybackActive) {
+        activePlaylist = PORTS_VIDEOS
+            .filter(video => video.embeddable)
+            .map(video => video.id);
+
+        const current = currentVideoId();
+
+        if (current && activePlaylist.includes(current)) {
+            i = activePlaylist.indexOf(current);
+        }
+        else if (
+            resumeState
+            &&
+            activePlaylist.includes(resumeState.videoId)
+        ) {
+            i = activePlaylist.indexOf(resumeState.videoId);
+        }
+        else {
+            i = 0;
+        }
+
+        return;
+    }
+
     const basePlaylist =
         VIDEOS
             .filter(video =>
@@ -904,6 +934,8 @@ function updateWatchButtons() {
                 ? '↶ Marcar como não visto'
                 : '✓ Marcar como visto';
         });
+
+    updatePortsVideoUI();
 
     if (
         typeof updateCardFeatureUI
@@ -1152,7 +1184,7 @@ function goToResume() {
     let target =
         Array.from(
             document.querySelectorAll(
-                '.card[data-video-id]'
+                '.card[data-video-id], .ports-video-item[data-video-id]'
             )
         ).find(card =>
             card.dataset.videoId
@@ -1177,7 +1209,7 @@ function goToResume() {
         target =
             Array.from(
                 document.querySelectorAll(
-                    '.card[data-video-id]'
+                    '.card[data-video-id], .ports-video-item[data-video-id]'
                 )
             ).find(card =>
                 card.dataset.videoId
@@ -1191,6 +1223,19 @@ function goToResume() {
             'O vídeo salvo não está disponível nesta página.'
         );
         return;
+    }
+
+    const portsWidget = target.closest('.ports-widget');
+
+    if (portsWidget && portsCollapsed) {
+        portsCollapsed = false;
+
+        try {
+            localStorage.setItem(PORTS_COLLAPSED_KEY, '0');
+        }
+        catch (_) {}
+
+        applyPortsCollapse();
     }
 
     const chapter =

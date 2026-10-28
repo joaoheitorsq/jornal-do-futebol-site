@@ -3363,3 +3363,151 @@ main {
         transition: none;
     }
 }
+
+/* Painel independente de portes — estética irmã do HearthPwn. */
+.ports-widget {
+    margin: 22px 0 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.ports-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 15px;
+}
+.ports-heading { min-width: 0; }
+.ports-heading h2 { margin: 2px 0; font-size: 20px; }
+.ports-subtitle { display: block; color: var(--muted); font-size: 12px; }
+.ports-collapse-toggle {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    background: var(--surface-strong);
+    border: 1px solid var(--border-strong);
+    color: #dce3ed;
+    border-radius: 9px;
+    cursor: pointer;
+    font-size: 18px;
+}
+.ports-collapse-toggle:hover,
+.ports-watch-action:hover { background: var(--surface-hover); }
+.ports-collapse-chevron { display: block; transition: transform 160ms ease; }
+.ports-content { border-top: 1px solid var(--border); }
+.ports-widget.collapsed .ports-content { display: none; }
+.ports-channel-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 15px;
+}
+.ports-channel-chip {
+    display: inline-block;
+    padding: 5px 8px;
+    border-radius: 999px;
+    color: #bdd8ff;
+    background: rgba(105, 170, 255, .09);
+    border: 1px solid rgba(105, 170, 255, .19);
+    font-size: 11px;
+    font-weight: 650;
+}
+.ports-video-list {
+    border-top: 1px solid var(--border);
+    max-height: 700px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.ports-video-item {
+    padding: 12px 15px;
+    transition: background 150ms ease, opacity 150ms ease;
+}
+.ports-video-item + .ports-video-item { border-top: 1px solid var(--border); }
+.ports-video-item:hover { background: var(--surface-soft); }
+.ports-video-item.seen { opacity: .68; }
+.ports-video-item.current {
+    background: var(--accent-soft);
+    box-shadow: inset 3px 0 var(--accent);
+    opacity: 1;
+}
+.ports-video-item.resume:not(.current) {
+    box-shadow: inset 3px 0 var(--warning);
+}
+.ports-play {
+    display: flex;
+    width: 100%;
+    text-align: left;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+.ports-play img {
+    width: 124px;
+    max-width: 36%;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #07090d;
+    flex: none;
+}
+.ports-video-copy { display: grid; gap: 6px; min-width: 0; }
+.ports-video-copy strong {
+    font-size: 13px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.ports-video-details {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+.ports-video-note { color: #bdd8ff; font-size: 11px; }
+.ports-watch-action {
+    margin: 10px 0 0 136px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 9px;
+    cursor: pointer;
+    font-size: 11px;
+}
+.ports-video-item.seen .ports-watch-action { color: #9db5a6; }
+.ports-empty,
+.ports-source-warning {
+    margin: 0;
+    padding: 16px;
+    color: var(--muted);
+    font-size: 13px;
+}
+.ports-source-warning {
+    color: #f0c36f;
+    background: rgba(217, 160, 75, .06);
+}
+.ports-progress-summary {
+    padding: 10px 15px;
+    font-size: 11px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+}
+@media (max-width: 600px) {
+    .ports-head { padding: 13px 12px; }
+    .ports-heading h2 { font-size: 17px; }
+    .ports-channel-list,
+    .ports-video-item { padding-left: 12px; padding-right: 12px; }
+    .ports-play img { width: 96px; }
+    .ports-watch-action { margin-left: 108px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ports-video-item,
+    .ports-collapse-chevron { transition: none; }
+}

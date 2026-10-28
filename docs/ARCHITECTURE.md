@@ -143,3 +143,13 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - A contagem regressiva gigante central (`fullscreen-hold-countdown`) é compartilhada: **3 → 2 → 1** ao concluir/avançar vídeo e **2 → 1** ao avançar 30 segundos. Soltar antes do prazo ou sair da tela cheia esconde a contagem. Os dois botões não conseguem ocupar essa contagem ao mesmo tempo.
 - Ambos usam ícones SVG integrados ao HTML e a mesma base visual de controles do `assets/style.css`, com borda discreta, acabamento translúcido e barra de progresso por `transform: scaleX` (variável `--hold-scale`). O botão de concluir troca temporariamente o SVG por um ✓ após a confirmação, sem destruir/recriar o conteúdo HTML. Em paisagem e retrato, tamanho, distância e margens dos dois botões são definidos por variáveis CSS, incluindo ajuste para telas estreitas. O mini-player não é alterado.
 
+
+
+## Painel exclusivo de portes, descompilações e recompilações
+
+- `ports_channels.json` contém os canais sixwp, RetroJão, Emuladores Brasil, Senhor Linguica, bummy e Teaser Games; novos canais podem ser adicionados nesse JSON.
+- O `jornal.py` reutiliza a consulta de uploads e de detalhes pela API oficial do YouTube. A seção tem janela independente de **7 dias** e mostra até **24 vídeos**, em ordem cronológica, excluindo lives e duplicatas da lista principal.
+- Consultas a essa seção são opcionais: falha em um ou mais canais não derruba a edição principal, e aparece um aviso na seção.
+- Visualmente a seção herda a linguagem do HearthPwn, tem listagem de vídeos com miniaturas, estado de visto e recolhimento persistido em `jornal_do_futebol_ports_collapsed_v1`.
+- O bloco `ports-data` contém `PORTS_VIDEOS`, independente da lista principal `VIDEOS`. O botão de reproduzir usa `openPortsVideo` e a fila específica da seção no player existente; **Começar jornal** volta à fila principal.
+- Vídeos do painel não alteram duração, progresso e total da lista principal. A marcação de assistido usa as mesmas chaves locais existentes para não fragmentar o progresso por dispositivo; a configuração de canais fica exclusivamente no arquivo JSON.

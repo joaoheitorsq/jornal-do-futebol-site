@@ -10,6 +10,21 @@ const VIDEOS =
         : '[]'
     );
 
+const portsDataElement =
+    document.getElementById('ports-data');
+
+const PORTS_VIDEOS = JSON.parse(
+    portsDataElement
+    ? portsDataElement.textContent
+    : '[]'
+);
+
+const PORTS_COLLAPSED_KEY =
+    'jornal_do_futebol_ports_collapsed_v1';
+
+let portsPlaybackActive = false;
+let portsCollapsed = false;
+
 const CURRENT_EMBEDDABLE_IDS =
 VIDEOS
     .filter(video => video.embeddable)
@@ -411,6 +426,88 @@ function toggleHearthPwnSeen(newsKey) {
 
     saveHearthPwnSeen();
     updateHearthPwnSeenUI();
+}
+
+
+
+function loadPortsCollapsed() {
+    try {
+        return localStorage.getItem(PORTS_COLLAPSED_KEY) === '1';
+    }
+    catch (_) {
+        return false;
+    }
+}
+
+
+function applyPortsCollapse() {
+    const widget = document.querySelector('.ports-widget');
+
+    if (!widget) {
+        return;
+    }
+
+    widget.classList.toggle('collapsed', portsCollapsed);
+
+    const toggle = widget.querySelector('.ports-collapse-toggle');
+    if (toggle) {
+        toggle.setAttribute('aria-expanded', portsCollapsed ? 'false' : 'true');
+        toggle.title = portsCollapsed
+            ? 'Expandir vídeos de portes'
+            : 'Recolher vídeos de portes';
+    }
+
+    const chevron = widget.querySelector('.ports-collapse-chevron');
+    if (chevron) {
+        chevron.textContent = portsCollapsed ? '▸' : '▾';
+    }
+}
+
+
+function togglePortsWidget() {
+    portsCollapsed = !portsCollapsed;
+
+    try {
+        localStorage.setItem(PORTS_COLLAPSED_KEY, portsCollapsed ? '1' : '0');
+    }
+    catch (_) {}
+
+    applyPortsCollapse();
+}
+
+
+function updatePortsVideoUI() {
+    const items = document.querySelectorAll(
+        '.ports-video-item[data-video-id]'
+    );
+
+    let viewed = 0;
+
+    items.forEach(item => {
+        const done = isWatched(item.dataset.videoId);
+
+        if (done) {
+            viewed += 1;
+        }
+
+        item.classList.toggle('seen', done);
+
+        const button = item.querySelector('.ports-watch-action');
+        if (button) {
+            button.textContent = done
+                ? '↶ Marcar como não visto'
+                : '✓ Marcar como visto';
+
+            button.setAttribute('aria-pressed', done ? 'true' : 'false');
+        }
+    });
+
+    const progress = document.getElementById('ports-progress');
+
+    if (progress) {
+        progress.textContent =
+            viewed + ' de ' + items.length + ' assistidos';
+    }
 }
 
 

@@ -35,6 +35,8 @@ KNOWN_PLACEHOLDERS = {
     "__UPDATED__",
     "__WARNING__",
     "__HEARTHPWN_WIDGET__",
+    "__PORTS_WIDGET__",
+    "__PORTS_VIDEOS__",
     "__CHAPTERS_HTML__",
     "__PLAYER_VIDEOS__",
     *ASSET_VERSIONS.values(),
@@ -86,6 +88,8 @@ REQUIRED_HTML_IDS = {
     "player-section",
     "playerwrap",
     "player-slot",
+    "ports-data",
+    "ports-progress",
     "fullscreen-next",
     "journal-fullscreen-toggle",
     "journal-progress",
@@ -181,7 +185,39 @@ def validate_channels():
         seen.add(normalized)
 
 
+def validate_ports_channels():
+    channels = json.loads(read_text("ports_channels.json"))
+    required = {
+        "sixwp", "RetroJão", "Emuladores Brasil",
+        "Senhor Linguica", "bummy", "Teaser Games",
+    }
+
+    require(
+        isinstance(channels, list) and len(channels) >= 6,
+        "Lista de canais de portes deve conter pelo menos seis fontes.",
+    )
+
+    actual = {item.get("name") for item in channels}
+    require(
+        required.issubset(actual) and len(actual) == len(channels),
+        "Fontes iniciais ausentes ou nomes duplicados na seção de portes.",
+    )
+
+    identities = set()
+    for channel in channels:
+        require(
+            isinstance(channel.get("handle"), str)
+            and channel["handle"].startswith("@")
+            and channel.get("onlyShorts") is False,
+            "Canal de portes sem handle válido ou com restrição indevida.",
+        )
+        identity = (channel.get("channelId") or channel["handle"]).casefold()
+        require(identity not in identities, "Fonte duplicada em ports_channels.json.")
+        identities.add(identity)
+
+
 def validate_sources():
+    validate_ports_channels()
     validate_channels()
 
     javascript = read_javascript()
@@ -205,6 +241,25 @@ def validate_sources():
         "animation: none !important;" in css
         and "#playerwrap.mini-player" in css,
         "Mini-player voltou a receber animações.",
+    )
+
+    require(
+        "PORTS_WINDOW_HOURS = 7 * 24" in backend
+        and "def load_ports_channels():" in backend
+        and "def build_ports_widget(" in backend
+        and '__PORTS_VIDEOS__' in template
+        and '__PORTS_WIDGET__' in template
+        and 'id="ports-data"' in template
+        and "const PORTS_VIDEOS =" in javascript
+        and "function openPortsVideo(id)" in javascript
+        and "function togglePortsWidget()" in javascript
+        and "function updatePortsVideoUI()" in javascript
+        and "if (portsPlaybackActive)" in javascript
+        and "portsPlaybackActive = true;" in javascript
+        and "portsPlaybackActive = false;" in javascript
+        and ".ports-widget" in css
+        and ".ports-video-item" in css,
+        "Seção independente de portes não foi integrada completamente.",
     )
 
     require(
@@ -511,6 +566,32 @@ def validate_generated():
                 or isinstance(video["isShort"], bool)
             ),
             "Cada vídeo precisa declarar isShort como true/false/null.",
+        )
+
+    ports_match = re.search(
+        r'<script\s+id="ports-data"\s+type="application/json"\s*>(.*?)</script>',
+        html,
+        flags=re.S,
+    )
+    require(ports_match is not None, "ports-data ausente do HTML final.")
+    ports_videos = json.loads(ports_match.group(1).strip() or "[]")
+    require(isinstance(ports_videos, list), "ports-data não é lista.")
+
+    main_ids = {video["id"] for video in videos}
+    ports_ids = {video["id"] for video in ports_videos}
+
+    require(
+        len(ports_ids) == len(ports_videos)
+        and not main_ids.intersection(ports_ids),
+        "Vídeos de portes duplicados ou misturados ao Jornal principal.",
+    )
+    for video in ports_videos:
+        require(
+            isinstance(video, dict)
+            and isinstance(video.get("id"), str)
+            and "isShort" in video
+            and (video["isShort"] is None or isinstance(video["isShort"], bool)),
+            "Vídeo do painel de portes inválido.",
         )
 
     ids = re.findall(

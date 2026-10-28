@@ -259,6 +259,8 @@ function onYouTubeIframeAPIReady() {
         &&
         !CURRENT_EMBEDDABLE_IDS.length
         &&
+        !PORTS_VIDEOS.some(video => video.embeddable)
+        &&
         !(
             resumeState
             &&
@@ -275,7 +277,9 @@ function onYouTubeIframeAPIReady() {
     let initialId =
         activePlaylist[0]
         ||
-        CURRENT_EMBEDDABLE_IDS[0];
+        CURRENT_EMBEDDABLE_IDS[0]
+        ||
+        (PORTS_VIDEOS.find(video => video.embeddable) || {}).id;
 
     if (
         resumeState
@@ -605,6 +609,7 @@ function play(
 
 
 function start() {
+    portsPlaybackActive = false;
     rebuildPlaylist();
 
     if (!activePlaylist.length) {
@@ -1729,7 +1734,32 @@ function prev() {
 }
 
 
+function openPortsVideo(id) {
+    const video = PORTS_VIDEOS.find(item => item.id === id);
+
+    if (!video) {
+        return;
+    }
+
+    if (video.embeddable === false) {
+        window.open(
+            'https://www.youtube.com/watch?v=' + encodeURIComponent(id),
+            '_blank',
+            'noopener'
+        );
+        return;
+    }
+
+    portsPlaybackActive = true;
+    openVideo(id);
+}
+
+
 function openVideo(id) {
+    if (!PORTS_VIDEOS.some(video => video.id === id)) {
+        portsPlaybackActive = false;
+    }
+
     const video =
         metadataForVideo(id);
 

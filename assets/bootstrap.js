@@ -6,6 +6,7 @@ manualQueue = loadManualQueue();
 watched = loadWatched();
 hearthpwnSeen = loadHearthPwnSeen();
 hearthpwnCollapsed = loadHearthPwnCollapsed();
+portsCollapsed = loadPortsCollapsed();
 onlyUnwatched = loadUnwatchedMode();
 collapsedChapters = loadCollapsedChapters();
 miniPlayerCollapsed = loadMiniPlayerCollapsed();
@@ -14,6 +15,7 @@ resumeState = loadResume();
 applyView();
 updateHearthPwnSeenUI();
 applyHearthPwnCollapse();
+applyPortsCollapse();
 initializeFeatureUI();
 
 if (resumeState) {
