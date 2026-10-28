@@ -449,17 +449,17 @@ def validate_sources():
       <entry>
         <yt:videoId>R1234567890</yt:videoId>
         <yt:channelId>UCjQr7kl5J6y9Mxpc0mf423w</yt:channelId>
-        <published>2026-10-28T08:00:00+00:00</published>
+        <published>2026-10-27T20:00:00+00:00</published>
       </entry>
       <entry>
         <yt:videoId>R1234567890</yt:videoId>
         <yt:channelId>UCjQr7kl5J6y9Mxpc0mf423w</yt:channelId>
-        <published>2026-10-28T08:00:00+00:00</published>
+        <published>2026-10-27T20:00:00+00:00</published>
       </entry>
       <entry>
         <yt:videoId>F1234567890</yt:videoId>
         <yt:channelId>UC0000000000000000000000</yt:channelId>
-        <published>2026-10-28T08:00:00+00:00</published>
+        <published>2026-10-27T20:00:00+00:00</published>
       </entry>
     </feed>
     """
