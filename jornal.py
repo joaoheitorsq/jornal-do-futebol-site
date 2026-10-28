@@ -760,6 +760,15 @@ def resolve_channel(key, config):
     if not uploads:
         raise RuntimeError("Uploads não encontrados: " + config["handle"])
 
+    if config.get("name"):
+        log(
+            "IDENTIDADE PORTES "
+            + config["name"] + " "
+            + config["handle"] + " | ID="
+            + channel["id"] + " | YouTube="
+            + channel["snippet"]["title"]
+        )
+
     return {
         **config,
         "channelId": channel["id"],
