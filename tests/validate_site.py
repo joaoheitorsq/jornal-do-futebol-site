@@ -244,6 +244,14 @@ def validate_sources():
     )
 
     require(
+        "def recent_youtube_rss(" in backend
+        and "RECUPERADOS VIA ATOM" in backend
+        and "rss_videos = recent_youtube_rss(" in backend
+        and "UCjQr7kl5J6y9Mxpc0mf423w" in read_text("ports_channels.json"),
+        "Proteção secundária para vídeos omitidos da playlist ausente.",
+    )
+
+    require(
         "PORTS_WINDOW_HOURS = 7 * 24" in backend
         and "PORTS_VIDEO_LIMIT" not in backend
         and "RESUMO CANAL" in backend
@@ -426,6 +434,48 @@ def validate_sources():
     require(
         cycle_rejected,
         "Paginação circular do YouTube não foi interrompida.",
+    )
+
+    # Um canal pode estar com a playlist desatualizada mesmo que publique
+    # normalmente. O feed Atom deve recuperar o vídeo pelo ID imutável.
+    rss_channel = {
+        **channel,
+        "channelId": "UCjQr7kl5J6y9Mxpc0mf423w",
+    }
+
+    rss_xml = """
+    <feed xmlns="http://www.w3.org/2005/Atom"
+          xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+      <entry>
+        <yt:videoId>R1234567890</yt:videoId>
+        <yt:channelId>UCjQr7kl5J6y9Mxpc0mf423w</yt:channelId>
+        <published>2026-10-28T08:00:00+00:00</published>
+      </entry>
+      <entry>
+        <yt:videoId>R1234567890</yt:videoId>
+        <yt:channelId>UCjQr7kl5J6y9Mxpc0mf423w</yt:channelId>
+        <published>2026-10-28T08:00:00+00:00</published>
+      </entry>
+      <entry>
+        <yt:videoId>F1234567890</yt:videoId>
+        <yt:channelId>UC0000000000000000000000</yt:channelId>
+        <published>2026-10-28T08:00:00+00:00</published>
+      </entry>
+    </feed>
+    """
+
+    old_get_text = jornal.get_text
+    jornal.get_text = lambda *args, **kwargs: rss_xml
+    try:
+        recovered = jornal.recent_youtube_rss(
+            rss_channel, expected_start, reference_time,
+        )
+    finally:
+        jornal.get_text = old_get_text
+
+    require(
+        [item["videoId"] for item in recovered] == ["R1234567890"],
+        "Atom não recuperou vídeo recente ou aceitou conteúdo de outro canal.",
     )
 
     require(

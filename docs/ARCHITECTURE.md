@@ -156,6 +156,7 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - O bloco `ports-data` contém `PORTS_VIDEOS`, independente da lista principal `VIDEOS`. O botão de reproduzir usa `openPortsVideo` e a fila específica da seção no player existente; **Começar jornal** volta à fila principal.
 - Vídeos do painel não alteram duração, progresso e total da lista principal. A marcação de assistido usa as mesmas chaves locais existentes para não fragmentar o progresso por dispositivo; a configuração de canais fica exclusivamente no arquivo JSON.
 
+- O canal bummy está fixado por ID de canal imutável, além do handle, para evitar ambiguidades de identificação. Na seção de portes, cada canal também consulta o feed Atom oficial do YouTube como fonte complementar sem gasto de cota da Data API; apenas IDs cuja autoria seja validada pela API entram no painel. As mensagens `RECUPERADOS VIA ATOM` mostram vídeos omitidos pela playlist.
 - A coleta produz linhas `RESUMO CANAL @handle: uploads=N, incluídos=M` para **todos os canais** com consulta de uploads bem-sucedida; ausência de publicação e exclusão por filtros ficam diagnosticáveis. O cabeçalho exibe o total de vídeos de cada fonte nos chips. Uma alteração em `ports_channels.json` também dispara o workflow no `push`.
 
 

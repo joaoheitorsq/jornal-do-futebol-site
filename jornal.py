@@ -864,6 +864,66 @@ def recent_uploads(key, channel, start, now_utc):
     return result
 
 
+
+def recent_youtube_rss(channel, start, now_utc):
+    """Recupera publicações omitidas ou atrasadas na playlist de uploads.
+
+    O Atom do canal é consulta pública sem custo de quota de API.
+    Cada candidato continua validado pela API de vídeos e pelo ID do canal.
+    """
+    channel_id = channel["channelId"]
+
+    if not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel_id):
+        raise RuntimeError("ID de canal inválido para Atom: " + channel["handle"])
+
+    source = get_text(
+        "https://www.youtube.com/feeds/videos.xml?channel_id=" + channel_id,
+        retries=1,
+        timeout=8,
+    )
+    root = ET.fromstring(source)
+
+    atom = "{http://www.w3.org/2005/Atom}"
+    yt_ns = "{http://www.youtube.com/xml/schemas/2015}"
+    result = []
+    seen = set()
+
+    for entry in root.findall(atom + "entry"):
+        video_id = entry.findtext(yt_ns + "videoId")
+        entry_channel_id = entry.findtext(yt_ns + "channelId")
+        published = entry.findtext(atom + "published")
+
+        if (
+            not video_id
+            or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id)
+            or video_id in seen
+            or entry_channel_id != channel_id
+            or not published
+        ):
+            continue
+
+        try:
+            date = parse_dt(published)
+        except (TypeError, ValueError):
+            continue
+
+        if not (start <= date <= now_utc):
+            continue
+
+        seen.add(video_id)
+        result.append({
+            "videoId": video_id,
+            "publishedAt": published,
+            "publishedDt": date,
+            "channelId": channel_id,
+            "channelTitle": channel["channelTitle"],
+            "channelHandle": channel["handle"],
+            "onlyShorts": channel["onlyShorts"],
+        })
+
+    return result
+
+
 def chunks(sequence, size=50):
     for i in range(0, len(sequence), size):
         yield sequence[i:i + size]
@@ -936,6 +996,34 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
         try:
             channel = resolve_channel(key, config)
             uploads = recent_uploads(key, channel, start, now_utc)
+
+            # Feed Atom é complementar, não substitui a API oficial.
+            # Painel de portes: verificar todos os seis canais, mesmo quando
+            # a playlist retorna alguns vídeos, para detectar lacunas.
+            if not strict:
+                try:
+                    rss_videos = recent_youtube_rss(
+                        channel, start, now_utc
+                    )
+                    by_id = {video["videoId"]: video for video in uploads}
+                    recovered = 0
+
+                    for video in rss_videos:
+                        if video["videoId"] not in by_id:
+                            by_id[video["videoId"]] = video
+                            recovered += 1
+
+                    uploads = list(by_id.values())
+                    if recovered:
+                        log(
+                            f"RECUPERADOS VIA ATOM {config['handle']}: "
+                            f"{recovered} vídeo(s) não encontrados na playlist."
+                        )
+                except Exception as error:
+                    log(
+                        f"AVISO: feed complementar {config['handle']}: "
+                        f"{error}"
+                    )
 
             # "Canal OK" somente depois de consultar a lista de uploads.
             successful_channels += 1
@@ -1665,6 +1753,15 @@ def main():
         video["countForTime"] = False
 
     log(f"Painel de portes: {len(ports_videos)} vídeo(s) novo(s).")
+    for video in ports_videos:
+        log(
+            "PORTS INCLUÍDO: "
+            + video["channelTitle"]
+            + " | "
+            + video["videoId"]
+            + " | "
+            + video["title"]
+        )
 
     hearthpwn_news = fetch_hearthpwn_news()
 
