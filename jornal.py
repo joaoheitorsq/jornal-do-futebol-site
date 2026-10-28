@@ -1004,7 +1004,22 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
     for config in configs:
         try:
             channel = resolve_channel(key, config)
-            uploads = recent_uploads(key, channel, start, now_utc)
+            # Para o painel, se a playlist falhar o Atom ainda pode
+            # recuperar vídeos, sem alterar as regras da coleta principal.
+            playlist_error = None
+
+            try:
+                uploads = recent_uploads(key, channel, start, now_utc)
+            except Exception as error:
+                if strict:
+                    raise
+
+                playlist_error = error
+                uploads = []
+                log(
+                    f"AVISO: playlist de {config['handle']} indisponível: "
+                    f"{error}; consultando o feed Atom."
+                )
 
             # Feed Atom é complementar, não substitui a API oficial.
             # Painel de portes: verificar todos os seis canais, mesmo quando
@@ -1023,16 +1038,38 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
                             recovered += 1
 
                     uploads = list(by_id.values())
+                    log(
+                        f"AUDITORIA ATOM {config['handle']}: "
+                        f"feed={len(rss_videos)}, "
+                        f"recuperados={recovered}, "
+                        f"total={len(uploads)}"
+                    )
+
                     if recovered:
                         log(
                             f"RECUPERADOS VIA ATOM {config['handle']}: "
                             f"{recovered} vídeo(s) não encontrados na playlist."
                         )
+
+                    if playlist_error is not None:
+                        failures.append(
+                            f"{config['handle']}: recuperação parcial pelo "
+                            "feed Atom; playlist indisponível."
+                        )
+
                 except Exception as error:
                     log(
                         f"AVISO: feed complementar {config['handle']}: "
                         f"{error}"
                     )
+
+                    if playlist_error is not None:
+                        raise RuntimeError(
+                            "Playlist e feed Atom indisponíveis: "
+                            + str(playlist_error)
+                            + " | "
+                            + str(error)
+                        ) from error
 
             # "Canal OK" somente depois de consultar a lista de uploads.
             successful_channels += 1
@@ -1424,7 +1461,7 @@ def build_ports_widget(videos, channels, failures):
             0,
             '<p class="ports-source-warning">'
             + str(len(failures))
-            + ' canal(is) não puderam ser consultados nesta atualização.'
+            + ' canal(is) tiveram coleta parcial ou falha nesta atualização.'
             '</p>'
         )
 

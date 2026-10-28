@@ -2,17 +2,20 @@
   {
     "name": "sixwp",
     "handle": "@sixwp6",
-    "onlyShorts": false
+    "onlyShorts": false,
+    "channelId": "UCuoGJAlhPrDYsScKInVh67g"
   },
   {
     "name": "RetroJão",
     "handle": "@RetroJao",
-    "onlyShorts": false
+    "onlyShorts": false,
+    "channelId": "UCGKIi_zwKoixk3fMFB8MaZg"
   },
   {
     "name": "Emuladores Brasil",
     "handle": "@EmuladoresBrasil",
-    "onlyShorts": false
+    "onlyShorts": false,
+    "channelId": "UCt79_77w_EDHWicjCluih-Q"
   },
   {
     "name": "Senhor Linguica",

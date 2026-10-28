@@ -178,3 +178,12 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - `filteredPortsVideos()` alimenta tanto os cartões visíveis quanto a fila de portes. A fila do futebol nunca é filtrada por essa seleção. Se o vídeo atual ficar oculto, avançar leva ao primeiro vídeo correspondente. Abrir um vídeo salvo pode limpar os filtros que o ocultavam.
 - A barra de progresso usa **todos** os vídeos do painel, independentemente da filtragem, por `transform: scaleX`. Entrada de novos itens e recolhimento usam exclusivamente `transform` e `opacity`, com limite de oito animações simultâneas e respeito a movimento reduzido.
 - **Não reintroduzir rolagem interna:** permanece `overflow: visible`, `touch-action: pan-y` e altura natural da lista, incluindo no celular.
+
+
+## Auditoria completa das seis fontes de portes
+
+- Cada canal do painel tem seu **channelId** oficial e imutável (`UC...`) declarado em `ports_channels.json`; o identificador `@handle` permanece como rótulo e chave de filtro, não como única fonte de identidade. Novas entradas devem seguir o mesmo padrão.
+- `resolve_channel` usa `channels.list(id=...)` para recuperar dados do canal correto; o processo informa no log a correspondência entre nome, handle, título do YouTube e ID auditado.
+- **Toda** fonte é comparada com o Atom oficial a cada ciclo, mesmo quando a playlist tem vídeos; cada candidato de ambas as origens deve passar pela verificação de `snippet.channelId` da API. É registrado `AUDITORIA ATOM @handle` com contagem por fonte, recuperados e total; `RESUMO CANAL` informa quais vídeos sobreviveram aos filtros.
+- No painel opcional, falha da playlist **não elimina o canal** quando o Atom funciona: nesse caso o painel continua com recuperação parcial e registra aviso explícito de que a playlist ficou indisponível. Falha simultânea das duas fontes sinaliza o canal indisponível, preservando os demais e sem derrubar o Jornal do Futebol.
+- Os testes geram falha se algum dos seis canais não tiver ID permanente válido e único, e simulam queda da playlist para os seis canais simultaneamente. A coleta de futebol (modo estrito) permanece sem mudanças de tolerância a falhas.

@@ -211,9 +211,18 @@ def validate_ports_channels():
             and channel.get("onlyShorts") is False,
             "Canal de portes sem handle válido ou com restrição indevida.",
         )
-        identity = (channel.get("channelId") or channel["handle"]).casefold()
-        require(identity not in identities, "Fonte duplicada em ports_channels.json.")
-        identities.add(identity)
+        channel_id = channel.get("channelId", "")
+        require(
+            isinstance(channel_id, str)
+            and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel_id),
+            "Cada canal de portes precisa de um ID oficial permanente válido.",
+        )
+
+        require(
+            channel_id not in identities,
+            "IDs de canal duplicados em ports_channels.json.",
+        )
+        identities.add(channel_id)
 
 
 def validate_sources():
@@ -246,6 +255,9 @@ def validate_sources():
     require(
         "def recent_youtube_rss(" in backend
         and "RECUPERADOS VIA ATOM" in backend
+        and "AUDITORIA ATOM" in backend
+        and "playlist_error = None" in backend
+        and "Playlist e feed Atom indisponíveis:" in backend
         and "rss_videos = recent_youtube_rss(" in backend
         and "UCjQr7kl5J6y9Mxpc0mf423w" in read_text("ports_channels.json"),
         "Proteção secundária para vídeos omitidos da playlist ausente.",
@@ -499,6 +511,87 @@ def validate_sources():
         [item["videoId"] for item in recovered] == ["R1234567890"],
         "Atom não recuperou vídeo recente ou aceitou conteúdo de outro canal.",
     )
+
+    # Regressão de todos os seis canais, não apenas do bummy:
+    # quando a playlist falhar, um feed Atom íntegro ainda deve
+    # fornecer os uploads e a autoria precisa ser checada na API.
+    original_functions = {
+        name: getattr(jornal, name)
+        for name in (
+            "resolve_channel",
+            "recent_uploads",
+            "recent_youtube_rss",
+            "yt",
+            "short_confirmed",
+        )
+    }
+
+    audit_channels = json.loads(read_text("ports_channels.json"))
+    ids_by_handle = {
+        item["handle"]: f"P{index:010d}"
+        for index, item in enumerate(audit_channels, 1)
+    }
+    handles_by_video = {
+        video_id: item
+        for item in audit_channels
+        for video_id in [ids_by_handle[item["handle"]]]
+    }
+    recent_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+    try:
+        jornal.resolve_channel = lambda key, item: {
+            **item,
+            "channelTitle": item["name"],
+            "uploads": "UU" + item["channelId"][2:],
+        }
+
+        def failed_playlist(*args, **kwargs):
+            raise RuntimeError("Playlist em erro temporário")
+
+        jornal.recent_uploads = failed_playlist
+        jornal.recent_youtube_rss = lambda channel, start, now: [{
+            "videoId": ids_by_handle[channel["handle"]],
+            "publishedAt": recent_time.isoformat(),
+            "publishedDt": recent_time,
+            "channelId": channel["channelId"],
+            "channelTitle": channel["name"],
+            "channelHandle": channel["handle"],
+            "onlyShorts": False,
+        }]
+
+        def fake_details(resource, key, **kwargs):
+            require(resource == "videos", "Coleta simulada inesperada.")
+            return {
+                "items": [
+                    {
+                        "id": video_id,
+                        "snippet": {
+                            "title": "Vídeo de teste",
+                            "channelTitle": item["name"],
+                            "channelId": item["channelId"],
+                        },
+                        "contentDetails": {"duration": "PT2M"},
+                        "status": {"embeddable": True},
+                    }
+                    for video_id in kwargs["id"].split(",")
+                    for item in [handles_by_video[video_id]]
+                ]
+            }
+
+        jornal.yt = fake_details
+        jornal.short_confirmed = lambda *args: False
+        collected, _, issues = jornal.collect(
+            "teste", audit_channels, window_hours=168, strict=False,
+        )
+        require(
+            {video["videoId"] for video in collected}
+            == set(ids_by_handle.values())
+            and len(issues) == len(audit_channels),
+            "Algum canal foi perdido quando a playlist falhou mas o Atom funcionou.",
+        )
+    finally:
+        for name, func in original_functions.items():
+            setattr(jornal, name, func)
 
     require(
         "const CURRENT_STORAGE_SCHEMA = 2;" in javascript,
