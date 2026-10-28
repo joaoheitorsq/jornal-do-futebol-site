@@ -81,7 +81,7 @@
   },
   {
     "handle": "@CortesdoFlowSportClub",
-    "onlyShorts": false
+    "onlyShorts": true
   },
   {
     "handle": "@cortesreactfc",
