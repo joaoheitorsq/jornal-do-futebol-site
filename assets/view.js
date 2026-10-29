@@ -278,7 +278,7 @@ function saveResume(
         return;
     }
 
-    if (isWatched(videoId)) {
+    if (portsPlaybackActive ? portsIsWatched(videoId) : isWatched(videoId)) {
         return;
     }
 
@@ -993,9 +993,9 @@ function updateResumeJumpButton() {
     button.disabled = Boolean(
         !resumeState
         ||
-        isWatched(
-            resumeState.videoId
-        )
+        (portsPlaybackActive
+            ? portsIsWatched(resumeState.videoId)
+            : isWatched(resumeState.videoId))
     );
 }
 
@@ -1209,7 +1209,9 @@ function goToResume() {
     if (
         !resumeState
         ||
-        isWatched(resumeState.videoId)
+        (portsPlaybackActive
+            ? portsIsWatched(resumeState.videoId)
+            : isWatched(resumeState.videoId))
     ) {
         setStatus(
             'Não há um ponto pendente para localizar.'

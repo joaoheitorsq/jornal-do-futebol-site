@@ -525,7 +525,7 @@ function restorePortsPlaybackMode() {
             video => video.id === resumeId && video.embeddable !== false
         )
         &&
-        !isWatched(resumeId)
+        !portsIsWatched(resumeId)
     );
 
     try {

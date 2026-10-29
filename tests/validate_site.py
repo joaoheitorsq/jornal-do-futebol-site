@@ -296,6 +296,8 @@ def validate_sources():
     # a segurança do PWA, nem reintroduzir rolagem interna.
     require(
         "const PORTS_WATCHED_KEY" in javascript
+        and "portsPlaybackActive ? portsIsWatched(videoId) : isWatched(videoId)" in javascript
+        and "!portsIsWatched(resumeId)" in javascript
         and "function portsIsWatched(id)" in javascript
         and "portsResumePositions" in javascript
         and "if (portsPlaybackActive) return portsResumeSeconds(videoId)" in javascript

@@ -189,7 +189,14 @@ assert.equal(expression('getResumeSeconds("AAAAAAAAAAA")'),32,
 expression('setPortsPlaybackMode(false);');
 assert.equal(expression('getResumeSeconds("AAAAAAAAAAA")'),0,
     'Retomada de portes vazou para o futebol');
-expression('watched = {}; portsWatched = {};');
+// Mesmo com vídeo já visto no futebol, a retomada de portes é independente.
+expression('watched = {AAAAAAAAAAA: 111}; portsWatched = {}; setPortsPlaybackMode(true);');
+expression('saveResume("AAAAAAAAAAA", 27);');
+assert.equal(expression('portsResumePositions.AAAAAAAAAAA.seconds'), 27,
+    'Vídeo visto no futebol bloqueou a retomada de portes');
+assert.equal(expression('watched.AAAAAAAAAAA'), 111,
+    'Retomada de portes alterou o Jornal');
+expression('setPortsPlaybackMode(false); watched = {}; portsWatched = {};');
 
 // Gestos de tela cheia com timer virtual: sem reproduzir qualquer vídeo real.
 document.fullscreenElement = byId('playerwrap');

@@ -742,8 +742,11 @@ function completeCurrentAndAdvance(
     completionAdvanceInProgress = true;
     completionAdvanceVideoId = current;
 
+    const portsUndoPosition = portsPlaybackActive && portsResumePositions[current]
+        ? {...portsResumePositions[current]} : null;
+
     const undoSnapshot =
-        typeof captureWatchedUndoState
+        !portsPlaybackActive && typeof captureWatchedUndoState
         === 'function'
         ? captureWatchedUndoState(
             current
@@ -772,6 +775,10 @@ function completeCurrentAndAdvance(
         showUndoToast('Vídeo de portes concluído.', () => {
             delete portsWatched[current];
             savePortsWatched();
+            if (portsUndoPosition) {
+                portsResumePositions[current] = portsUndoPosition;
+                savePortsResumePositions();
+            }
             updatePortsVideoUI();
         });
     }
@@ -803,7 +810,9 @@ function completeCurrentAndAdvance(
     completionAdvanceVideoId = null;
 
     setStatus(
-        'Vídeo marcado como visto. Fim do Jornal.'
+        portsPlaybackActive
+            ? 'Vídeo marcado como visto. Fim da seleção de portes.'
+            : 'Vídeo marcado como visto. Fim do Jornal.'
     );
 }
 
@@ -1718,7 +1727,7 @@ function next() {
 
     if (!activePlaylist.length) {
         setStatus(
-            'Fim do Jornal.'
+            portsPlaybackActive ? 'Fim da seleção de portes.' : 'Fim do Jornal.'
         );
         return;
     }
