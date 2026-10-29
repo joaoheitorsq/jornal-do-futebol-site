@@ -195,3 +195,9 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - Abrir manualmente um vídeo **já visto** no Jornal permite revisitá-lo sem incluir todos os vistos na fila de reprodução automática.
 - Uma classificação de Short já confirmada é reutilizada na mesma geração para vídeos duplicados entre feeds; respostas inválidas ou consultas com erro não são armazenadas como verdade.
 - A rolagem de retomada respeita a preferência do sistema por movimento reduzido.
+
+## Proteções de atualização contínua
+
+- A instalação opcional do Argos Translate tem limite de **7 minutos** e tentativas curtas de download: se indisponível, o site continua gerando e publicando as notícias, que podem aparecer sem tradução nova.
+- Os testes impedem reversão acidental da regra **somente Shorts** para o canal @CortesdoFlowSportClub.
+- O HTML gerado é testado para confirmar que **todos** os vídeos do painel de portes estão marcados com `countForTime = false`; tempo e progresso principais continuam derivados de `VIDEOS`.

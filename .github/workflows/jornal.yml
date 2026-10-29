@@ -66,9 +66,11 @@ jobs:
           key: ${{ runner.os }}-py312-argos-1.11.0-en-pt-v1
 
       - name: Preparar tradução local
+        # Uma falha da instalação opcional não deve bloquear novas edições.
         continue-on-error: true
+        timeout-minutes: 7
         run: |
-          python -m pip install --quiet argostranslate==1.11.0
+          python -m pip install --quiet --retries 1 --timeout 15 argostranslate==1.11.0
 
       - name: Executar Jornal do Futebol
         env:

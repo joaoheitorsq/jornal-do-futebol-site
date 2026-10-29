@@ -229,6 +229,25 @@ def validate_sources():
     validate_ports_channels()
     validate_channels()
 
+    # A edição do Flow Sport Club foi explicitamente restrita a Shorts.
+    main_channels = json.loads(read_text("channels.json"))
+    flow_cuts = [
+        item for item in main_channels
+        if item["handle"].casefold() == "@cortesdoflowsportclub"
+    ]
+    require(
+        len(flow_cuts) == 1 and flow_cuts[0]["onlyShorts"] is True,
+        "Cortes do Flow Sport Club não pode voltar a exibir vídeos normais.",
+    )
+
+    # O tradutor é acessório: não pode travar os deploys de meia hora.
+    workflow = read_text(".github/workflows/jornal.yml")
+    require(
+        "timeout-minutes: 7" in workflow
+        and "continue-on-error: true" in workflow,
+        "Instalação opcional do tradutor sem limite de tempo.",
+    )
+
     javascript = read_javascript()
     css = read_text("assets/style.css")
     template = read_text("templates/index.html")
@@ -266,6 +285,10 @@ def validate_sources():
     require(
         "PORTS_WINDOW_HOURS = 7 * 24" in backend
         and "PORTS_VIDEO_LIMIT" not in backend
+        and 'video["countForTime"] = False' in backend
+        and 'const progressVideos =' in javascript
+        and 'VIDEOS.filter(' in javascript
+        and 'const remaining = Math.max(' in javascript
         and "RESUMO CANAL" in backend
         and "recent_by_handle" in backend
         and "ports_videos.sort(" in backend
@@ -966,6 +989,10 @@ def validate_generated():
     # O mesmo vídeo pode aparecer nas duas listas: o estado assistido é
     # compartilhado por ID, mas a reprodução mantém filas independentes.
     for video in ports_videos:
+        require(
+            video.get("countForTime") is False,
+            "Vídeo de portes não pode participar do tempo do Jornal.",
+        )
         require(
             isinstance(video, dict)
             and isinstance(video.get("id"), str)
