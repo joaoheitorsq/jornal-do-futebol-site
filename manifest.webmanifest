@@ -1,0 +1,19 @@
+{
+  "name": "Jornal do Futebol",
+  "short_name": "Jornal",
+  "description": "Jornal pessoal de futebol e de ports para PC",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101720",
+  "theme_color": "#111b29",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

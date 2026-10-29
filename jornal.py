@@ -41,6 +41,37 @@ RESET_HOUR = 4
 WINDOW_HOURS = 24
 PORTS_WINDOW_HOURS = 7 * 24
 
+COLLECTION_DIAGNOSTICS = {"journal": [], "ports": []}
+CHANNEL_METADATA_CACHE_FILE = os.path.join(BASE_DIR, "channel_metadata_cache.json")
+_CHANNEL_METADATA_CACHE = None
+
+def load_channel_metadata_cache():
+    global _CHANNEL_METADATA_CACHE
+    if _CHANNEL_METADATA_CACHE is not None:
+        return _CHANNEL_METADATA_CACHE
+    try:
+        with open(CHANNEL_METADATA_CACHE_FILE, encoding="utf-8") as file:
+            parsed = json.load(file)
+        _CHANNEL_METADATA_CACHE = parsed if isinstance(parsed, dict) else {}
+    except (OSError, ValueError, TypeError):
+        _CHANNEL_METADATA_CACHE = {}
+    return _CHANNEL_METADATA_CACHE
+
+def store_channel_metadata(key, item):
+    cache = load_channel_metadata_cache()
+    cache[key] = {
+        "channelId": item["channelId"],
+        "channelTitle": item["channelTitle"],
+        "uploads": item["uploads"],
+        "savedAt": time.time(),
+    }
+    try:
+        with open(CHANNEL_METADATA_CACHE_FILE, "w", encoding="utf-8") as file:
+            json.dump(cache, file, ensure_ascii=False)
+    except OSError:
+        pass
+
+
 MAX_RETRIES = 5
 RETRYABLE = {429, 500, 502, 503, 504}
 
@@ -685,6 +716,7 @@ def load_channels():
         out.append(
             {
                 "handle": handle,
+                "channelId": str(item.get("channelId", "")).strip(),
                 "onlyShorts": bool(item.get("onlyShorts", False)),
             }
         )
@@ -733,6 +765,24 @@ def load_ports_channels():
 
 
 def resolve_channel(key, config):
+    fixed_id = config.get("channelId") or ""
+    cache_key = fixed_id if fixed_id else None
+
+    # Só reutilizamos metadados de canais com identidade imutável
+    # comprovada. Handles podem mudar de dono.
+    if cache_key:
+        cached = load_channel_metadata_cache().get(cache_key)
+        if (
+            isinstance(cached, dict)
+            and cached.get("channelId") == fixed_id
+            and isinstance(cached.get("uploads"), str)
+            and cached.get("uploads")
+            and isinstance(cached.get("channelTitle"), str)
+            and cached.get("channelTitle")
+            and 0 <= time.time() - float(cached.get("savedAt", 0)) < 12 * 3600
+        ):
+            return {**config, **cached}
+
     lookup = (
         {"id": config["channelId"]}
         if config.get("channelId")
@@ -760,6 +810,13 @@ def resolve_channel(key, config):
     if not uploads:
         raise RuntimeError("Uploads não encontrados: " + config["handle"])
 
+    if fixed_id and channel["id"] != fixed_id:
+        raise RuntimeError("O ID do canal não corresponde à configuração: " + config["handle"])
+
+    if not fixed_id:
+        log("IDENTIDADE JORNAL " + config["handle"] + " | ID="
+            + channel["id"] + " | YouTube=" + channel["snippet"]["title"])
+
     if config.get("name"):
         log(
             "IDENTIDADE PORTES "
@@ -769,12 +826,14 @@ def resolve_channel(key, config):
             + channel["snippet"]["title"]
         )
 
-    return {
+    resolved = {
         **config,
         "channelId": channel["id"],
         "channelTitle": channel["snippet"]["title"],
         "uploads": uploads,
     }
+    store_channel_metadata(channel["id"], resolved)
+    return resolved
 
 
 def parse_dt(value):
@@ -1202,8 +1261,15 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
         for video in accepted
     )
 
+    audit = []
     for config in configs:
         handle = config["handle"]
+        audit.append({
+            "handle": handle,
+            "uploads": recent_by_handle.get(handle, 0),
+            "included": accepted_counts[handle],
+            "failed": any(issue.startswith(handle + ":") for issue in failures),
+        })
         if handle in recent_by_handle:
             log(
                 f"RESUMO CANAL {handle}: "
@@ -1211,6 +1277,7 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
                 f"incluídos={accepted_counts[handle]}"
             )
 
+    COLLECTION_DIAGNOSTICS["journal" if strict else "ports"] = audit
     return accepted, now_local, failures
 
 
@@ -1777,6 +1844,8 @@ __CARDS__
 
     page = (
         page
+        .replace("__BUILD_VERSION__", html.escape(now_local.isoformat(), quote=True))
+        .replace("__SOURCE_AUDIT__", js_json(COLLECTION_DIAGNOSTICS))
         .replace("__DATE__", html.escape(date))
         .replace("__UPDATED__", html.escape(updated))
         .replace("__WARNING__", warning)
@@ -1812,6 +1881,10 @@ __CARDS__
         .replace(
             "__FEATURES_VERSION__",
             asset_version("assets/features.js"),
+        )
+        .replace(
+            "__ENHANCEMENTS_VERSION__",
+            asset_version("assets/enhancements.js"),
         )
         .replace(
             "__BOOTSTRAP_VERSION__",

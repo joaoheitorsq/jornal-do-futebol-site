@@ -275,6 +275,8 @@ function getResumePosition(videoId) {
 
 
 function getResumeSeconds(videoId) {
+    if (portsPlaybackActive) return portsResumeSeconds(videoId);
+
     const value =
         getResumePosition(
             videoId

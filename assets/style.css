@@ -3986,3 +3986,85 @@ main {
     .ports-channel-chip,
     .ports-progress-track span { transition: none; }
 }
+
+
+/* Atualizações integradas: componentes acessíveis e sem scroll aninhado. */
+.extra-notice {
+    display:flex; align-items:center; flex-wrap:wrap; gap:9px;
+    margin:12px 0; padding:13px 15px;
+    border:1px solid rgba(105,170,255,.4);border-radius:12px;
+    background:rgba(39,69,104,.14); color:var(--text);font-size:13px;
+}
+.extra-notice[hidden] {display:none}
+.extra-notice button, .extra-tools button, .ports-extra-controls button {
+    border:1px solid var(--border-strong);border-radius:8px;
+    background:var(--surface-strong);color:var(--text);
+    font:inherit;font-size:12px;font-weight:700;
+    padding:9px 12px;cursor:pointer;min-height:36px;
+}
+.extra-notice a{color:#accfff; font-weight:700; text-decoration:underline}
+.extra-notice button:hover,.extra-tools button:hover,
+.ports-extra-controls button:hover{background:var(--surface-hover)}
+.extra-speed{display:inline-flex;align-items:center;gap:10px;
+  padding:9px 2px;font-size:12px;color:var(--muted)}
+.extra-speed select{background:var(--surface-strong);color:var(--text);
+ border:1px solid var(--border-strong);border-radius:8px;padding:7px}
+.extra-queue-insights{padding:10px 13px;color:var(--muted);
+ font-size:12px;border-top:1px solid var(--border)}
+.extra-tools{margin:18px 0;padding:17px;border:1px solid var(--border);
+ border-radius:var(--radius-lg);background:var(--surface);min-width:0}
+.extra-tools-heading{display:flex;gap:10px;justify-content:space-between;
+ align-items:baseline;flex-wrap:wrap;margin-bottom:15px}
+.extra-tools-heading h2{margin:0;font-size:18px;letter-spacing:-.02em}
+.extra-tools-heading span{color:var(--muted);font-size:12px}
+.extra-tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+ gap:12px}
+.extra-tools-grid>label{display:flex;flex-direction:column;gap:7px;
+ font-size:12px;color:var(--muted);font-weight:650;min-width:0}
+.extra-tools-grid select{height:38px;max-width:100%;min-width:0;
+ padding:7px 10px;color:var(--text);background:var(--surface-strong);
+ border:1px solid var(--border-strong);border-radius:8px;font:inherit}
+.extra-tool-action{display:flex;align-items:center;justify-content:start;
+ gap:8px;flex-wrap:wrap;min-height:38px}
+.extra-tool-action>span{font-size:11px;color:var(--muted)}
+.extra-check{display:flex;gap:7px;align-items:center;font-size:12px;
+ color:var(--text);cursor:pointer}
+.extra-check input{width:17px;height:17px}
+.extra-details{margin:12px 0;padding:12px 15px;border:1px solid var(--border);
+ border-radius:10px;background:var(--surface)}
+.extra-tools .extra-details{margin-bottom:0}
+.extra-details summary{cursor:pointer;font-weight:700;font-size:13px}
+.extra-stat-list{display:grid;gap:0;max-height:none;overflow:visible;
+ margin-top:12px}
+.extra-stat-list h4{margin:15px 0 4px;font-size:13px;color:var(--text)}
+.extra-channel-stat{display:flex;justify-content:space-between;
+ gap:12px;padding:7px 0;font-size:12px;border-top:1px solid var(--border)}
+.extra-channel-stat span{color:var(--muted);overflow-wrap:anywhere}
+.extra-channel-stat strong{color:var(--text);white-space:nowrap;
+ font-variant-numeric:tabular-nums}
+.ports-extra-controls{display:flex;align-items:center;justify-content:space-between;
+ flex-wrap:wrap;gap:11px;margin:0 0 12px;padding:10px 13px;
+ border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.ports-extra-controls label{display:flex;align-items:center;gap:8px;
+ font-size:12px;color:var(--text);cursor:pointer}
+.ports-extra-controls input{width:17px;height:17px;flex:none}
+.ports-video-item.ports-limited{display:none!important}
+.ports-extra-controls button[hidden]{display:none}
+.extra-new-badge{display:inline-block;justify-self:start;
+ font-size:10px;font-weight:850;color:#b4e2ff;
+ letter-spacing:.04em;padding:3px 7px;border-radius:5px;
+ border:1px solid rgba(85,175,255,.4);background:rgba(85,175,255,.14)}
+.extra-tools button:focus-visible,.extra-tools select:focus-visible,
+.extra-notice button:focus-visible,.extra-speed select:focus-visible,
+.ports-extra-controls button:focus-visible{
+ outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:600px){
+ .extra-tools{padding:12px}
+ .extra-tools-grid{grid-template-columns:minmax(0,1fr)}
+ .extra-tools-heading h2{font-size:16px}
+ .ports-extra-controls{padding:10px 12px}
+ .ports-extra-controls label{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+ .extra-tools *, .ports-extra-controls *{transition:none!important;animation:none!important}
+}

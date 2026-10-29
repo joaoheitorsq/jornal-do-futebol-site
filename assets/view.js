@@ -333,6 +333,28 @@ function saveResume(
         savedAt: Date.now()
     };
 
+    if (portsPlaybackActive) {
+        data.countForTime = false;
+        const portsMeta = PORTS_VIDEOS.find(v => v.id === videoId);
+        if (portsMeta) {
+            data.title = portsMeta.title || data.title;
+            data.channelTitle = portsMeta.channelTitle || data.channelTitle;
+            data.duration = Number(portsMeta.duration || data.duration);
+        }
+        try {
+            localStorage.setItem(PORTS_RESUME_KEY, JSON.stringify(data));
+        } catch (_) {}
+        portsResumePositions[videoId] = {
+            seconds: data.seconds,
+            savedAt: Date.now()
+        };
+        savePortsResumePositions();
+        resumeState = data;
+        showResumeCard(videoId);
+        updateResumeJumpButton();
+        return;
+    }
+
     try {
         localStorage.setItem(
             RESUME_KEY,
@@ -369,6 +391,19 @@ function saveResume(
 
 
 function clearResume(videoId = null) {
+    if (portsPlaybackActive) {
+        if (videoId) delete portsResumePositions[videoId];
+        else portsResumePositions = {};
+        savePortsResumePositions();
+        if (!videoId || (resumeState && resumeState.videoId === videoId)) {
+            try { localStorage.removeItem(PORTS_RESUME_KEY); } catch (_) {}
+            resumeState = null;
+        }
+        showResumeCard(resumeState ? resumeState.videoId : null);
+        updateResumeJumpButton();
+        return;
+    }
+
     if (
         videoId
         &&
@@ -577,7 +612,7 @@ function updateTimeStats() {
     }
 
     const playingId =
-        currentVideoId();
+        portsPlaybackActive ? null : currentVideoId();
 
     for (const video of progressVideos) {
         if (
@@ -613,10 +648,8 @@ function updateTimeStats() {
             typeof getResumeSeconds
             === 'function'
         ) {
-            partial =
-                getResumeSeconds(
-                    video.id
-                );
+            const storedPosition = getResumePosition(video.id);
+            partial = storedPosition ? Math.max(0, Number(storedPosition.seconds || 0)) : 0;
         }
         else if (
             resumeState
@@ -1422,6 +1455,7 @@ function applyView() {
     updateTimeStats();
     updateResumeJumpButton();
     updateUpNext();
+    if (typeof updateExtraDashboard === 'function') updateExtraDashboard();
 
     if (
         typeof updateFeatureToolbar

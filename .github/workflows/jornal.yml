@@ -14,6 +14,8 @@ on:
       - templates/**
       - tests/**
       - .github/workflows/jornal.yml
+      - manifest.webmanifest
+      - service-worker.js
 
 concurrency:
   group: jornal-do-futebol-pages
@@ -65,6 +67,14 @@ jobs:
             .argos-packages
           key: ${{ runner.os }}-py312-argos-1.11.0-en-pt-v1
 
+      - name: Restaurar metadados de canais
+        uses: actions/cache@v4
+        with:
+          path: channel_metadata_cache.json
+          key: ${{ runner.os }}-youtube-channel-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-youtube-channel-
+
       - name: Preparar tradução local
         # Uma falha da instalação opcional não deve bloquear novas edições.
         continue-on-error: true
@@ -82,12 +92,22 @@ jobs:
         run: |
           python tests/validate_site.py
 
+      - name: Testar interface real em Chromium
+        if: github.event_name == 'push'
+        timeout-minutes: 9
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.57.0
+          npx playwright install chromium
+          node tests/browser_smoke.cjs
+
       - name: Preparar arquivos do site
         run: |
           mkdir -p _site/assets
           cp index.html _site/index.html
           cp assets/*.js _site/assets/
           cp assets/style.css _site/assets/style.css
+          cp assets/icon.svg _site/assets/icon.svg
+          cp manifest.webmanifest service-worker.js _site/
 
           if [ -f hearthpwn_translation_cache.json ]; then
             cp hearthpwn_translation_cache.json _site/hearthpwn_translation_cache.json

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Jornal do Futebol">
+<rect width="256" height="256" rx="52" fill="#152238"/>
+<circle cx="128" cy="128" r="86" fill="#e5efff"/>
+<path d="M128 57 94 82l13 40h42l13-40zm-51 37-19 30 18 41 32-9 9-31zm102 0-40 31 9 31 32 9 18-41zM92 169l-4 30 40 18 40-18-4-30-36-20z" fill="#253d61"/>
+<path d="M128 46c-45 0-82 37-82 82s37 82 82 82 82-37 82-82-37-82-82-82Z" fill="none" stroke="#5ea5ff" stroke-width="6"/>
+</svg>

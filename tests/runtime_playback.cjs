@@ -111,7 +111,7 @@ const ctx = vm.createContext({
     cancelAnimationFrame() {},
     YT: {PlayerState: {PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5, ENDED: 0}}
 });
-for (const file of ['assets/core.js', 'assets/view.js', 'assets/player.js', 'assets/motion.js', 'assets/features.js']) {
+for (const file of ['assets/core.js', 'assets/view.js', 'assets/player.js', 'assets/motion.js', 'assets/features.js', 'assets/enhancements.js']) {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), ctx, {
         filename: file
     });
@@ -128,6 +128,7 @@ expression('openVideo("AAAAAAAAAAA");');
 assert.equal(mode(), false, 'Mesmo vídeo aberto pelo Jornal precisa voltar à fila principal');
 assert.deepEqual([...active()], mainVideos.map(video => video.id));
 
+ctx.localStorage.setItem('jornal_do_futebol_ports_resume_v1', JSON.stringify({videoId:'BBBBBBBBBBB',seconds:42}));
 expression('resumeState = {videoId: "BBBBBBBBBBB", seconds: 42}; setPortsPlaybackMode(true);');
 expression('setPortsPlaybackMode(false);');
 expression("sessionStorage.setItem(PORTS_PLAYBACK_MODE_KEY, '1'); restorePortsPlaybackMode();");
@@ -140,7 +141,7 @@ assert.deepEqual([...active()], portsVideos.map(video => video.id).reverse());
 expression('portsFilterChannel = "@b"; rebuildPlaylist();');
 assert.deepEqual([...active()], ['BBBBBBBBBBB'], 'Filtro de canal deve limitar a fila');
 
-expression('portsFilterChannel = ""; portsOnlyUnwatched = true; watched = {BBBBBBBBBBB: 1}; rebuildPlaylist();');
+expression('portsFilterChannel = ""; portsOnlyUnwatched = true; portsWatched = {BBBBBBBBBBB: 1}; rebuildPlaylist();');
 assert.deepEqual([...active()], ['CCCCCCCCCCC', 'AAAAAAAAAAA'], 'Apenas não vistos deve funcionar na fila');
 
 expression('portsOnlyUnwatched = false; portsSearchQuery = "Portes 2"; rebuildPlaylist();');
@@ -149,7 +150,7 @@ assert.deepEqual([...active()], ['CCCCCCCCCCC'], 'Pesquisa deve afetar a fila');
 expression('portsSearchQuery = ""; portsSort = "oldest"; rebuildPlaylist();');
 assert.deepEqual([...active()], portsVideos.map(video => video.id), 'Ordem antiga deve ser cronológica');
 
-expression('watched = {}; portsSort = "newest"; rebuildPlaylist();');
+expression('portsWatched = {}; portsSort = "newest"; rebuildPlaylist();');
 assert.deepEqual([...active()], portsVideos.map(video => video.id).reverse(), 'Ordem recente deve inverter a fila');
 
 expression('setPortsPlaybackMode(false);');

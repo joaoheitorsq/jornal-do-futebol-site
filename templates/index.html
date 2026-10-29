@@ -14,6 +14,11 @@
 <title>
 Jornal do Futebol — __DATE__
 </title>
+<meta name="journal-version" content="__BUILD_VERSION__">
+<meta name="theme-color" content="#111b29">
+<meta name="description" content="Jornal pessoal de futebol e vídeos de ports para PC.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 
 <link
     rel="stylesheet"
@@ -53,6 +58,16 @@ RESUMO DIÁRIO
 </div>
 
 </header>
+
+<div id="update-notice" class="extra-notice" hidden role="status">
+    Uma edição mais recente está disponível.
+    <button type="button" onclick="location.reload()">Atualizar página</button>
+    <button type="button" onclick="dismissUpdateNotice()">Agora não</button>
+</div>
+<div id="backup-reminder" class="extra-notice" hidden>
+    Para proteger seu progresso, exporte um backup periodicamente.
+    <button type="button" onclick="exportJournalBackup()">Exportar backup</button>
+</div>
 
 <section class="time-summary" aria-label="Tempo do Jornal">
 
@@ -234,6 +249,19 @@ Próximo ⏭
 Clique em “Começar jornal”
 para reproduzir em ordem cronológica.
 </div>
+<div id="player-error-actions" class="extra-notice" hidden role="alert">
+    <a id="player-error-link" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer">Abrir no YouTube</a>
+    <button type="button" onclick="next();dismissPlaybackError()">Pular vídeo</button>
+    <button type="button" onclick="dismissPlaybackError()">Dispensar</button>
+</div>
+<label class="extra-speed">Velocidade
+<select id="playback-rate" onchange="setPreferredSpeed(this.value)" aria-label="Velocidade do vídeo">
+<option value="1">1×</option>
+<option value="1.25">1,25×</option>
+<option value="1.5">1,5×</option>
+<option value="2">2×</option>
+</select>
+</label>
 
 <div
     id="resume-info"
@@ -247,6 +275,7 @@ para reproduzir em ordem cronológica.
 <button id="up-next-second" class="next-row" type="button"></button>
 </section>
 
+<div id="queue-insights" class="extra-queue-insights" aria-live="polite"></div>
 </section>
 
 __WARNING__
@@ -254,6 +283,14 @@ __WARNING__
 __HEARTHPWN_WIDGET__
 
 __PORTS_WIDGET__
+<div class="ports-extra-controls">
+  <label><input id="ports-relevance" type="checkbox" onchange="setPortsRelevance(this.checked)"> Mostrar apenas vídeos relacionados a portes e recompilações</label>
+  <button id="ports-show-more" type="button" onclick="showMorePorts()" hidden>Mostrar mais vídeos</button>
+</div>
+<details id="source-audit-wrapper" class="extra-details" ontoggle="renderSourceAudit()">
+    <summary>Diagnóstico dos canais monitorados</summary>
+    <div id="source-audit-details" class="extra-stat-list"></div>
+</details>
 
 <section
     id="carryover"
@@ -308,6 +345,58 @@ Só o que ainda não vi
 </span>
 
 </div>
+
+<section class="extra-tools" aria-label="Filtros e preferências do Jornal">
+<div class="extra-tools-heading">
+  <h2>Personalizar o Jornal</h2>
+  <span>Filtros opcionais · seu progresso original continua salvo</span>
+</div>
+<div class="extra-tools-grid">
+  <label>Tipo de vídeo
+    <select id="extra-media" onchange="setExtraSetting('media',this.value)">
+      <option value="all">Todos</option><option value="shorts">Apenas Shorts</option>
+      <option value="normal">Apenas vídeos normais</option>
+    </select>
+  </label>
+  <label>Duração máxima
+    <select id="extra-duration" onchange="setExtraSetting('duration',this.value)">
+      <option value="0">Qualquer duração</option><option value="300">Até 5 minutos</option>
+      <option value="600">Até 10 minutos</option><option value="1200">Até 20 minutos</option>
+      <option value="1800">Até 30 minutos</option>
+    </select>
+  </label>
+  <label>Sessão rápida
+    <select id="extra-session" onchange="setExtraSetting('session',this.value)">
+      <option value="0">Desativada</option><option value="15">15 minutos</option>
+      <option value="30">30 minutos</option><option value="60">60 minutos</option>
+    </select>
+  </label>
+  <label>Canal favorito
+    <select id="favorite-channel"></select>
+  </label>
+  <div class="extra-tool-action">
+    <button id="favorite-toggle" type="button" onclick="toggleChannelFavorite()">☆ Favoritar canal</button>
+    <label class="extra-check"><input id="extra-favorite-priority" type="checkbox" onchange="setExtraSetting('favorite-priority',this.checked)"> Priorizar favoritos na fila</label>
+  </div>
+  <label>Silenciar canal temporariamente
+    <select id="mute-channel"></select>
+  </label>
+  <label>Por quanto tempo?
+    <select id="mute-duration"><option value="2">2 horas</option>
+      <option value="24">24 horas</option><option value="168">7 dias</option>
+    </select>
+  </label>
+  <div class="extra-tool-action">
+    <button type="button" onclick="muteChosenChannel()">Silenciar canal</button>
+    <button type="button" onclick="clearMutedChannels()">Restaurar silenciados</button>
+    <span id="muted-status"></span>
+  </div>
+</div>
+<details id="channel-progress-wrapper" class="extra-details" ontoggle="renderChannelProgress()">
+  <summary>Progresso por canal</summary>
+  <div id="channel-progress-details" class="extra-stat-list"></div>
+</details>
+</section>
 
 <div class="feature-tools" aria-label="Ferramentas do Jornal">
 <span
@@ -429,6 +518,9 @@ __PLAYER_VIDEOS__
 <script id="ports-data" type="application/json">
 __PORTS_VIDEOS__
 </script>
+<script id="source-audit-data" type="application/json">
+__SOURCE_AUDIT__
+</script>
 
 <script src="assets/core.js?v=__CORE_VERSION__"></script>
 <script src="assets/gestures.js?v=__GESTURES_VERSION__"></script>
@@ -436,6 +528,7 @@ __PORTS_VIDEOS__
 <script src="assets/player.js?v=__PLAYER_VERSION__"></script>
 <script src="assets/motion.js?v=__MOTION_VERSION__"></script>
 <script src="assets/features.js?v=__FEATURES_VERSION__"></script>
+<script src="assets/enhancements.js?v=__ENHANCEMENTS_VERSION__"></script>
 <script src="assets/bootstrap.js?v=__BOOTSTRAP_VERSION__"></script>
 
 </body>

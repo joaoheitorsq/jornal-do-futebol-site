@@ -4,6 +4,7 @@ featureState = loadFeatureState();
 manualQueue = loadManualQueue();
 
 watched = loadWatched();
+portsWatched = loadPortsWatched();
 hearthpwnSeen = loadHearthPwnSeen();
 hearthpwnCollapsed = loadHearthPwnCollapsed();
 portsCollapsed = loadPortsCollapsed();
@@ -13,6 +14,7 @@ collapsedChapters = loadCollapsedChapters();
 miniPlayerCollapsed = loadMiniPlayerCollapsed();
 resumeState = loadResume();
 restorePortsPlaybackMode();
+initEnhancements();
 
 applyView();
 updateHearthPwnSeenUI();
@@ -21,6 +23,8 @@ applyPortsCollapse();
 sortPortsCards();
 updatePortsVideoUI();
 initializeFeatureUI();
+updateExtraDashboard();
+applyPortsLimit();
 
 if (resumeState) {
     showResumeCard(

@@ -344,6 +344,7 @@ function onYouTubeIframeAPIReady() {
                         setPlayerLoading(false);
                         rebuildPlaylist();
                         updateTransport();
+                        applyPreferredSpeed();
 
                         if (
                             resumeState
@@ -418,11 +419,9 @@ function onYouTubeIframeAPIReady() {
                             completionAdvanceVideoId = null;
                         }
 
-                        if (
-                            event.data
-                            ===
-                            YT.PlayerState.PLAYING
-                        ) {
+                        if (event.data === YT.PlayerState.PLAYING) {
+                            dismissPlaybackError();
+                            applyPreferredSpeed();
                             if (id) {
                                 if (
                                     activePlaylist.includes(id)
@@ -475,14 +474,7 @@ function onYouTubeIframeAPIReady() {
                         completionAdvanceInProgress = false;
                         completionAdvanceVideoId = null;
 
-                        setStatus(
-                            'Vídeo indisponível aqui; pulando...'
-                        );
-
-                        setTimeout(
-                            next,
-                            700
-                        );
+                        handleEnhancedPlaybackError();
                     }
             }
         }
@@ -581,11 +573,12 @@ function play(
 
     setPlayerLoading(true);
 
+    dismissPlaybackError();
     player.loadVideoById({
         videoId: id,
-        startSeconds:
-            resolvedStart
+        startSeconds: resolvedStart
     });
+    applyPreferredSpeed();
 
     showCurrentCard(id);
 
@@ -755,15 +748,10 @@ function completeCurrentAndAdvance(
         )
         : null;
 
-    markWatched(current);
+    markWatched(current, portsPlaybackActive ? 'ports' : 'journal');
 
-    if (
-        typeof handleVideoWatched
-        === 'function'
-    ) {
-        handleVideoWatched(
-            current
-        );
+    if (!portsPlaybackActive && typeof handleVideoWatched === 'function') {
+        handleVideoWatched(current);
     }
 
     clearResume(current);
@@ -777,14 +765,16 @@ function completeCurrentAndAdvance(
         animateJournalProgressCompletion();
     }
 
-    if (
-        typeof offerUndoWatched
-        === 'function'
-    ) {
-        offerUndoWatched(
-            current,
-            undoSnapshot
-        );
+    if (portsPlaybackActive) {
+        updatePortsVideoUI();
+        showUndoToast('Vídeo de portes concluído.', () => {
+            delete portsWatched[current];
+            savePortsWatched();
+            updatePortsVideoUI();
+        });
+    }
+    else if (typeof offerUndoWatched === 'function') {
+        offerUndoWatched(current, undoSnapshot);
     }
 
     if (!portsPlaybackActive) {
@@ -1912,7 +1902,8 @@ function openVideo(id, source = 'journal') {
 
         window.scrollTo({
             top: 0,
-            behavior: 'smooth'
+            behavior: typeof prefersReducedMotion === 'function'
+                && prefersReducedMotion() ? 'auto' : 'smooth'
         });
     }
 }

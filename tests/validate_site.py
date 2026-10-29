@@ -16,6 +16,7 @@ JS_FILES = [
     "assets/player.js",
     "assets/motion.js",
     "assets/features.js",
+    "assets/enhancements.js",
     "assets/bootstrap.js",
 ]
 
@@ -27,6 +28,7 @@ ASSET_VERSIONS = {
     "assets/player.js": "__PLAYER_VERSION__",
     "assets/motion.js": "__MOTION_VERSION__",
     "assets/features.js": "__FEATURES_VERSION__",
+    "assets/enhancements.js": "__ENHANCEMENTS_VERSION__",
     "assets/bootstrap.js": "__BOOTSTRAP_VERSION__",
 }
 
@@ -39,6 +41,8 @@ KNOWN_PLACEHOLDERS = {
     "__PORTS_VIDEOS__",
     "__CHAPTERS_HTML__",
     "__PLAYER_VIDEOS__",
+    "__SOURCE_AUDIT__",
+    "__BUILD_VERSION__",
     *ASSET_VERSIONS.values(),
 }
 
@@ -82,6 +86,18 @@ REQUIRED_APP_FUNCTIONS = {
     "animateChapterComplete",
     "animateCardHoldSuccessFeedback",
     "performUndo",
+    "initEnhancements",
+    "setExtraSetting",
+    "toggleChannelFavorite",
+    "muteChosenChannel",
+    "clearMutedChannels",
+    "setPreferredSpeed",
+    "renderChannelProgress",
+    "renderSourceAudit",
+    "setPortsRelevance",
+    "showMorePorts",
+    "checkJournalUpdate",
+    "applyPortsLimit",
 }
 
 REQUIRED_HTML_IDS = {
@@ -105,6 +121,18 @@ REQUIRED_HTML_IDS = {
     "undo-toast",
     "backup-import",
     "card-hold-success",
+    "source-audit-data",
+    "update-notice",
+    "backup-reminder",
+    "ports-relevance",
+    "ports-show-more",
+    "extra-media",
+    "extra-duration",
+    "extra-session",
+    "favorite-channel",
+    "mute-channel",
+    "playback-rate",
+    "player-error-actions",
 }
 
 
@@ -250,6 +278,29 @@ def validate_sources():
 
     javascript = read_javascript()
     css = read_text("assets/style.css")
+
+    # As 22 melhorias não podem acidentalmente quebrar o isolamento,
+    # a segurança do PWA, nem reintroduzir rolagem interna.
+    require(
+        "const PORTS_WATCHED_KEY" in javascript
+        and "function portsIsWatched(id)" in javascript
+        and "portsResumePositions" in javascript
+        and "if (portsPlaybackActive) return portsResumeSeconds(videoId)" in javascript
+        and "function quickSessionIds()" in javascript
+        and "function checkJournalUpdate()" in javascript
+        and "function renderSourceAudit()" in javascript
+        and "function updateQueueInsights()" in javascript
+        and "function handleEnhancedPlaybackError()" in javascript,
+        "Funcionalidades integradas ou isolamento de dados incompletos.",
+    )
+    require(
+        "manifest.webmanifest" in read_text(".github/workflows/jornal.yml")
+        and "service-worker.js" in read_text(".github/workflows/jornal.yml")
+        and "tests/browser_smoke.cjs" in read_text(".github/workflows/jornal.yml")
+        and "url.origin !== self.location.origin" in read_text("service-worker.js")
+        and "request.method !== 'GET'" in read_text("service-worker.js"),
+        "PWA, proteção de cache ou testes de navegador incompletos.",
+    )
     template = read_text("templates/index.html")
     backend = read_text("jornal.py")
 
@@ -960,6 +1011,19 @@ def validate_generated():
     require(ports_match is not None, "ports-data ausente do HTML final.")
     ports_videos = json.loads(ports_match.group(1).strip() or "[]")
     require(isinstance(ports_videos, list), "ports-data não é lista.")
+
+    audit_match = re.search(
+        r'<script\s+id="source-audit-data"\s+type="application/json"\s*>(.*?)</script>',
+        html, flags=re.S,
+    )
+    require(audit_match is not None, "Diagnóstico das fontes ausente.")
+    audit_data = json.loads(audit_match.group(1).strip() or "{}")
+    require(
+        isinstance(audit_data, dict)
+        and isinstance(audit_data.get("journal"), list)
+        and isinstance(audit_data.get("ports"), list),
+        "Dados de diagnóstico malformados.",
+    )
 
     for control in (
         "ports-search", "ports-sort", "ports-unwatched-toggle",

@@ -25,6 +25,61 @@ const PORTS_COLLAPSED_KEY =
 const PORTS_PLAYBACK_MODE_KEY =
     'jornal_do_futebol_ports_playback_mode_v1';
 
+const PORTS_WATCHED_KEY = 'jornal_do_futebol_ports_watched_v1';
+const PORTS_RESUME_KEY = 'jornal_do_futebol_ports_resume_v1';
+const PORTS_POSITIONS_KEY = 'jornal_do_futebol_ports_resume_positions_v1';
+let portsResumePositions = {};
+
+function loadPortsResume() {
+    try {
+        const data = JSON.parse(localStorage.getItem(PORTS_RESUME_KEY) || 'null');
+        return data && typeof data.videoId === 'string' && !portsIsWatched(data.videoId)
+            ? data : null;
+    } catch (_) { return null; }
+}
+function loadPortsResumePositions() {
+    try {
+        const data = JSON.parse(localStorage.getItem(PORTS_POSITIONS_KEY) || '{}');
+        return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    } catch (_) { return {}; }
+}
+function savePortsResumePositions() {
+    try { localStorage.setItem(PORTS_POSITIONS_KEY, JSON.stringify(portsResumePositions)); }
+    catch (_) {}
+}
+function portsResumeSeconds(id) {
+    const data = portsResumePositions[id];
+    return Math.max(0,Number(data?.seconds || 0));
+}
+let portsWatched = {};
+
+function loadPortsWatched() {
+    try {
+        const saved = localStorage.getItem(PORTS_WATCHED_KEY);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+                ? parsed : {};
+        }
+        // Migração única: preservar os assistidos antigos antes de separar
+        // definitivamente os dois históricos.
+        const initial = {};
+        PORTS_VIDEOS.forEach(video => {
+            if (watched[video.id]) initial[video.id] = watched[video.id];
+        });
+        localStorage.setItem(PORTS_WATCHED_KEY, JSON.stringify(initial));
+        return initial;
+    }
+    catch (_) { return {}; }
+}
+
+function savePortsWatched() {
+    try { localStorage.setItem(PORTS_WATCHED_KEY, JSON.stringify(portsWatched)); }
+    catch (_) {}
+}
+
+function portsIsWatched(id) { return Boolean(portsWatched[id]); }
+
 let portsPlaybackActive = false;
 let portsCollapsed = false;
 
@@ -441,7 +496,11 @@ function toggleHearthPwnSeen(newsKey) {
 
 
 function setPortsPlaybackMode(enabled) {
-    portsPlaybackActive = Boolean(enabled);
+    const next = Boolean(enabled);
+    if (portsPlaybackActive !== next) {
+        resumeState = next ? loadPortsResume() : loadResume();
+    }
+    portsPlaybackActive = next;
 
     try {
         if (portsPlaybackActive) {
@@ -456,7 +515,8 @@ function setPortsPlaybackMode(enabled) {
 
 
 function restorePortsPlaybackMode() {
-    const resumeId = resumeState && resumeState.videoId;
+    const portsResume = loadPortsResume();
+    const resumeId = portsResume && portsResume.videoId;
     const valid = Boolean(
         resumeId
         &&
@@ -471,6 +531,7 @@ function restorePortsPlaybackMode() {
         const stored = sessionStorage.getItem(PORTS_PLAYBACK_MODE_KEY);
         if (valid && stored === '1') {
             portsPlaybackActive = true;
+            resumeState = portsResume;
             return;
         }
     }
@@ -573,10 +634,13 @@ function filteredPortsVideos() {
         (!portsFilterChannel ||
             String(video.channelHandle || '').toLowerCase() === portsFilterChannel.toLowerCase())
         &&
+        (typeof portsRelevantOnly === 'undefined' || !portsRelevantOnly ||
+            isRelevantPortVideo(video))
+        &&
         (!search ||
             normalizeSearch((video.title || '') + ' ' + (video.channelTitle || '')).includes(search))
         &&
-        (!portsOnlyUnwatched || !isWatched(video.id))
+        (!portsOnlyUnwatched || !portsIsWatched(video.id))
     );
 
     return portsSort === 'newest' ? selected.reverse() : selected;
@@ -657,6 +721,8 @@ function updatePortsFilters(animate = false) {
         animatePortsFilteredCards(shown);
     }
 
+    if (typeof applyPortsLimit === 'function') applyPortsLimit();
+
     if (portsPlaybackActive) {
         rebuildPlaylist();
         updateUpNext();
@@ -667,12 +733,14 @@ function updatePortsFilters(animate = false) {
 function setPortsChannelFilter(channel) {
     portsFilterChannel = String(channel || '');
     savePortsPreferences();
+    if (typeof resetProgressivePorts === 'function') resetProgressivePorts();
     updatePortsFilters(true);
 }
 
 
 function setPortsSearch(query) {
     portsSearchQuery = String(query || '');
+    if (typeof resetProgressivePorts === 'function') resetProgressivePorts();
     updatePortsFilters(true);
 }
 
@@ -696,6 +764,7 @@ function setPortsSort(sort) {
 function togglePortsUnwatched() {
     portsOnlyUnwatched = !portsOnlyUnwatched;
     savePortsPreferences();
+    if (typeof resetProgressivePorts === 'function') resetProgressivePorts();
     updatePortsFilters(true);
 }
 
@@ -714,7 +783,7 @@ function resetPortsFilters() {
 function playPortsSelection() {
     const selected = filteredPortsVideos();
     const video = selected.find(item =>
-        item.embeddable !== false && !isWatched(item.id)
+        item.embeddable !== false && !portsIsWatched(item.id)
     ) || selected.find(item => item.embeddable !== false);
 
     if (video) openPortsVideo(video.id);
@@ -729,7 +798,7 @@ function updatePortsVideoUI() {
     let viewed = 0;
 
     items.forEach(item => {
-        const done = isWatched(item.dataset.videoId);
+        const done = portsIsWatched(item.dataset.videoId);
 
         if (done) {
             viewed += 1;
@@ -765,8 +834,12 @@ function updatePortsVideoUI() {
 }
 
 
-function markWatched(videoId) {
-    if (!videoId) {
+function markWatched(videoId, source = 'journal') {
+    if (!videoId) return;
+
+    if (source === 'ports') {
+        portsWatched[videoId] = Date.now();
+        savePortsWatched();
         return;
     }
 
@@ -780,8 +853,34 @@ function isWatched(videoId) {
 }
 
 
-function toggleWatched(videoId) {
-    if (!videoId) {
+function toggleWatched(videoId, source = 'journal') {
+    if (!videoId) return;
+
+    if (source === 'ports') {
+        const before = portsIsWatched(videoId);
+        if (before) delete portsWatched[videoId];
+        else {
+            portsWatched[videoId] = Date.now();
+            delete portsResumePositions[videoId];
+            savePortsResumePositions();
+            try {
+                const saved = JSON.parse(localStorage.getItem(PORTS_RESUME_KEY) || 'null');
+                if (saved?.videoId === videoId) localStorage.removeItem(PORTS_RESUME_KEY);
+            } catch (_) {}
+        }
+
+        savePortsWatched();
+        updatePortsVideoUI();
+        if (portsPlaybackActive) rebuildPlaylist();
+
+        showUndoToast(before ? 'Vídeo de portes marcado como não visto.'
+            : 'Vídeo de portes marcado como visto.', () => {
+            if (before) portsWatched[videoId] = Date.now();
+            else delete portsWatched[videoId];
+            savePortsWatched();
+            updatePortsVideoUI();
+            if (portsPlaybackActive) rebuildPlaylist();
+        });
         return;
     }
 
