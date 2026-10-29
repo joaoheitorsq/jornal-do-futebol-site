@@ -960,7 +960,13 @@ def duration_seconds(value):
     )
 
 
+SHORT_CLASSIFICATION_CACHE = {}
+
+
 def short_confirmed(video_id, video):
+    if video_id in SHORT_CLASSIFICATION_CACHE:
+        return SHORT_CLASSIFICATION_CACHE[video_id]
+
     seconds = duration_seconds(
         video.get("contentDetails", {}).get("duration")
     )
@@ -969,6 +975,7 @@ def short_confirmed(video_id, video):
         return None
 
     if seconds > 180:
+        SHORT_CLASSIFICATION_CACHE[video_id] = False
         return False
 
     try:
@@ -984,7 +991,12 @@ def short_confirmed(video_id, video):
         width = int(data.get("width", 0))
         height = int(data.get("height", 0))
 
-        return width > 0 and height > 0 and width <= height
+        if width <= 0 or height <= 0:
+            return None
+
+        is_short = width <= height
+        SHORT_CLASSIFICATION_CACHE[video_id] = is_short
+        return is_short
 
     except Exception as erro:
         log(f"Short não confirmado ({video_id}): {erro}")

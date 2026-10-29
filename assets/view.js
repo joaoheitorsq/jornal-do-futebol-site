@@ -571,8 +571,9 @@ function updateTimeStats() {
     }
 
     if (totalNumber) {
+        // Usar o mesmo conjunto filtrado no numerador e no denominador.
         totalNumber.textContent =
-            String(VIDEOS.length);
+            String(progressVideos.length);
     }
 
     const playingId =
@@ -1231,6 +1232,32 @@ function goToResume() {
 
     const portsWidget = target.closest('.ports-widget');
 
+    // Um vídeo pode existir no DOM, porém estar invisível por filtros.
+    if (portsWidget && target.hidden) {
+        resetPortsFilters();
+    }
+
+    if (!portsWidget && target.classList.contains('hidden')) {
+        searchQuery = '';
+        onlyUnwatched = false;
+        saveUnwatchedMode();
+
+        const search = document.getElementById('video-search');
+        if (search) {
+            search.value = '';
+        }
+
+        applyView();
+
+        if (target.classList.contains('hidden')) {
+            setStatus(
+                'Esse vídeo está oculto por um canal pulado hoje. '
+                + 'Restaure o canal para retomar.'
+            );
+            return;
+        }
+    }
+
     if (portsWidget && portsCollapsed) {
         portsCollapsed = false;
 
@@ -1261,7 +1288,8 @@ function goToResume() {
     }
 
     target.scrollIntoView({
-        behavior: 'smooth',
+        behavior: typeof prefersReducedMotion === 'function'
+            && prefersReducedMotion() ? 'auto' : 'smooth',
         block: 'center'
     });
 }

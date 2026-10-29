@@ -1894,6 +1894,13 @@ function openVideo(id, source = 'journal') {
             activePlaylist.indexOf(id);
     }
 
+    if (index < 0 && !portsPlaybackActive && isWatched(id)) {
+        // Abrir um visto não deve falhar por ele estar fora da fila
+        // automática, que continua priorizando vídeos pendentes.
+        activePlaylist = [id, ...activePlaylist.filter(item => item !== id)];
+        index = 0;
+    }
+
     if (index >= 0) {
         play(
             index,

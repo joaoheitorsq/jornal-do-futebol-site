@@ -187,3 +187,11 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - **Toda** fonte é comparada com o Atom oficial a cada ciclo, mesmo quando a playlist tem vídeos; cada candidato de ambas as origens deve passar pela verificação de `snippet.channelId` da API. É registrado `AUDITORIA ATOM @handle` com contagem por fonte, recuperados e total; `RESUMO CANAL` informa quais vídeos sobreviveram aos filtros.
 - No painel opcional, falha da playlist **não elimina o canal** quando o Atom funciona: nesse caso o painel continua com recuperação parcial e registra aviso explícito de que a playlist ficou indisponível. Falha simultânea das duas fontes sinaliza o canal indisponível, preservando os demais e sem derrubar o Jornal do Futebol.
 - Os testes geram falha se algum dos seis canais não tiver ID permanente válido e único, e simulam queda da playlist para os seis canais simultaneamente. A coleta de futebol (modo estrito) permanece sem mudanças de tolerância a falhas.
+
+## Auditoria de estabilidade — 28/10/2026
+
+- O denominador do progresso de vídeos acompanha os vídeos elegíveis após pular canais temporariamente, como já acontece no numerador e na estimativa de tempo.
+- A localização do ponto salvo de um vídeo temporariamente oculto pelos filtros limpa os filtros do painel de portes antes de rolar a página. Para o Jornal, limpa busca e a opção de não assistidos; canais pulados explicitamente precisam ser restaurados pelo usuário.
+- Abrir manualmente um vídeo **já visto** no Jornal permite revisitá-lo sem incluir todos os vistos na fila de reprodução automática.
+- Uma classificação de Short já confirmada é reutilizada na mesma geração para vídeos duplicados entre feeds; respostas inválidas ou consultas com erro não são armazenadas como verdade.
+- A rolagem de retomada respeita a preferência do sistema por movimento reduzido.

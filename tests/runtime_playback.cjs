@@ -107,7 +107,7 @@ const ctx = vm.createContext({
     cancelAnimationFrame() {},
     YT: {PlayerState: {PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5, ENDED: 0}}
 });
-for (const file of ['assets/core.js', 'assets/view.js', 'assets/player.js', 'assets/motion.js']) {
+for (const file of ['assets/core.js', 'assets/view.js', 'assets/player.js', 'assets/motion.js', 'assets/features.js']) {
     vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), ctx, {
         filename: file
     });
@@ -157,6 +157,16 @@ assert.equal(
     'CCCCCCCCCCC',
     'Fila de portes precisa usar a ordem do painel ao procurar próximo'
 );
+
+// Vídeos vistos não entram na fila automática, mas devem abrir ao clicar.
+expression('setPortsPlaybackMode(false); watched = {AAAAAAAAAAA: 1}; onlyUnwatched = false;');
+expression('rebuildPlaylist();');
+assert.deepEqual([...active()], ['MMMMMMMMMMM'], 'Fila padrão não deve repetir vistos');
+expression('openVideo("AAAAAAAAAAA");');
+assert.equal(mode(), false, 'Revisita não deve entrar no modo de portes');
+assert.deepEqual([...active()], ['AAAAAAAAAAA', 'MMMMMMMMMMM'],
+    'Clicar em visto deve reproduzir esse vídeo e manter a sequência');
+expression('watched = {};');
 
 // Gestos de tela cheia com timer virtual: sem reproduzir qualquer vídeo real.
 document.fullscreenElement = byId('playerwrap');

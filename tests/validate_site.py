@@ -594,6 +594,34 @@ def validate_sources():
             setattr(jornal, name, func)
 
     require(
+        "String(progressVideos.length);" in javascript
+        and "if (portsWidget && target.hidden)" in javascript
+        and "resetPortsFilters();" in javascript
+        and "if (index < 0 && !portsPlaybackActive && isWatched(id))" in javascript
+        and "SHORT_CLASSIFICATION_CACHE = {}" in backend,
+        "Correções de progresso, retomada e repetição de vistos ausentes.",
+    )
+
+    # Shorts duplicados entre os painéis não devem repetir consultas oEmbed.
+    calls = []
+    original_get_json = jornal.get_json
+    try:
+        jornal.SHORT_CLASSIFICATION_CACHE.clear()
+        jornal.get_json = lambda *args, **kwargs: (
+            calls.append(args) or {"width": 113, "height": 200}
+        )
+        sample_detail = {"contentDetails": {"duration": "PT1M"}}
+        require(
+            jornal.short_confirmed("X1234567890", sample_detail) is True
+            and jornal.short_confirmed("X1234567890", sample_detail) is True
+            and len(calls) == 1,
+            "Short compartilhado gerou consultas oEmbed duplicadas.",
+        )
+    finally:
+        jornal.get_json = original_get_json
+        jornal.SHORT_CLASSIFICATION_CACHE.clear()
+
+    require(
         "const CURRENT_STORAGE_SCHEMA = 2;" in javascript,
         "Schema avançado de armazenamento não está na versão 2.",
     )
