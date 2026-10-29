@@ -320,6 +320,19 @@ def validate_sources():
     backend = read_text("jornal.py")
 
     require(
+        'id="extra-collapse-toggle"' in template
+        and 'id="extra-tools-content"' in template
+        and 'aria-controls="extra-tools-content"' in template
+        and 'onclick="toggleExtraToolsCollapse()"' in template
+        and 'function toggleExtraToolsCollapse()' in javascript
+        and 'function loadExtraToolsCollapsed()' in javascript
+        and 'function applyExtraToolsCollapse()' in javascript
+        and 'EXTRA_TOOLS_COLLAPSED_KEY' in javascript
+        and '.extra-tools.collapsed .extra-tools-content{display:none}' in css,
+        "O painel Personalizar o Jornal perdeu o botão ou a persistência de recolhimento.",
+    )
+
+    require(
         css.strip(),
         "assets/style.css está vazio.",
     )

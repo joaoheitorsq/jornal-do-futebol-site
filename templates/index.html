@@ -349,9 +349,18 @@ Só o que ainda não vi
 
 <section class="extra-tools" aria-label="Filtros e preferências do Jornal">
 <div class="extra-tools-heading">
-  <h2>Personalizar o Jornal</h2>
-  <span>Filtros opcionais · seu progresso original continua salvo</span>
+  <div class="extra-tools-title">
+    <h2>Personalizar o Jornal</h2>
+    <span>Filtros opcionais · seu progresso original continua salvo</span>
+  </div>
+  <button id="extra-collapse-toggle" class="extra-collapse-toggle" type="button"
+    aria-controls="extra-tools-content" aria-expanded="true"
+    aria-label="Recolher opções de personalização" title="Recolher personalização"
+    onclick="toggleExtraToolsCollapse()">
+    <span class="extra-tools-chevron" aria-hidden="true">▾</span>
+  </button>
 </div>
+<div id="extra-tools-content" class="extra-tools-content">
 <div class="extra-tools-grid">
   <label>Tipo de vídeo
     <select id="extra-media" onchange="setExtraSetting('media',this.value)">
@@ -397,6 +406,7 @@ Só o que ainda não vi
   <summary>Progresso por canal</summary>
   <div id="channel-progress-details" class="extra-stat-list"></div>
 </details>
+</div>
 </section>
 
 <div class="feature-tools" aria-label="Ferramentas do Jornal">

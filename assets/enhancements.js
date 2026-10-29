@@ -1,6 +1,35 @@
 /* Ferramentas opcionais do Jornal. Sem dependências, com falhas isoladas. */
 const ENHANCEMENTS_KEY = 'jornal_do_futebol_enhancements_v1';
 const ENHANCEMENT_BACKUP_KEY = 'jornal_do_futebol_last_backup_v1';
+const EXTRA_TOOLS_COLLAPSED_KEY = 'jornal_do_futebol_personalization_collapsed_v1';
+let extraToolsCollapsed = false;
+
+function loadExtraToolsCollapsed() {
+    try { return localStorage.getItem(EXTRA_TOOLS_COLLAPSED_KEY) === '1'; }
+    catch (_) { return false; }
+}
+
+function applyExtraToolsCollapse() {
+    const panel = document.querySelector('.extra-tools');
+    const toggle = document.getElementById('extra-collapse-toggle');
+    if (!panel || !toggle) return;
+
+    panel.classList.toggle('collapsed', extraToolsCollapsed);
+    toggle.setAttribute('aria-expanded', extraToolsCollapsed ? 'false' : 'true');
+    toggle.setAttribute('aria-label', extraToolsCollapsed
+        ? 'Expandir opções de personalização'
+        : 'Recolher opções de personalização');
+    toggle.title = extraToolsCollapsed
+        ? 'Expandir personalização' : 'Recolher personalização';
+}
+
+function toggleExtraToolsCollapse() {
+    extraToolsCollapsed = !extraToolsCollapsed;
+    try {
+        localStorage.setItem(EXTRA_TOOLS_COLLAPSED_KEY, extraToolsCollapsed ? '1' : '0');
+    } catch (_) {}
+    applyExtraToolsCollapse();
+}
 let extra = {
     media: 'all', maxDuration: 0, sessionMinutes: 0,
     favorites: [], preferFavorites: false, muted: {},
@@ -352,6 +381,8 @@ function dismissPlaybackError() {
 }
 function initEnhancements() {
     safeExtraLoad();
+    extraToolsCollapsed = loadExtraToolsCollapsed();
+    applyExtraToolsCollapse();
     extraLastVisit = extra.lastVisit;
     extra.lastVisit = Date.now();
     // A primeira visita não deve marcar todos os uploads como NOVO.

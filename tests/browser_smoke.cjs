@@ -29,6 +29,32 @@ async function waitForServer() {
     await page.waitForTimeout(300);
     assert.equal(errors.length,0,'Erros JavaScript na inicialização: '+errors.join(' | '));
     assert.equal(await page.locator('#extra-media').count(),1,'Filtro por tipo ausente');
+
+    // O botão deve recolher controles sem apagar preferências ou afetar
+    // o Jornal, e a escolha precisa persistir após recarregar a página.
+    const personalizationToggle = page.locator('#extra-collapse-toggle');
+    const personalizationContent = page.locator('#extra-tools-content');
+    assert.equal(await personalizationToggle.getAttribute('aria-expanded'), 'true',
+        'Personalização deve iniciar expandida para visitantes sem preferência');
+    await personalizationToggle.click();
+    assert.equal(await personalizationToggle.getAttribute('aria-expanded'), 'false',
+        'Botão não atualizou aria-expanded ao recolher');
+    assert.equal(await personalizationContent.isVisible(), false,
+        'Controles não foram ocultados ao recolher');
+    assert.equal(await page.evaluate(() => localStorage.getItem(
+        'jornal_do_futebol_personalization_collapsed_v1')), '1',
+        'Preferência de recolhimento não foi salva');
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForTimeout(150);
+    assert.equal(await personalizationToggle.getAttribute('aria-expanded'), 'false',
+        'Painel não preservou recolhimento após atualizar a página');
+    assert.equal(await personalizationContent.isVisible(), false,
+        'Conteúdo do painel deveria permanecer oculto após recarregar');
+    await personalizationToggle.click();
+    assert.equal(await personalizationToggle.getAttribute('aria-expanded'), 'true',
+        'Painel não expandiu novamente');
+    assert.equal(await personalizationContent.isVisible(), true,
+        'Filtros não voltaram a aparecer após expandir');
     assert.equal(await page.locator('#ports-show-more').count(),1,'Carregamento progressivo ausente');
     assert.equal(await page.locator('#source-audit-data').count(),1,'Diagnóstico ausente');
     assert.equal(await page.locator('#ports-relevance').count(),1,'Filtro de relevância ausente');
