@@ -65,6 +65,9 @@ function element(id) {
         querySelector() { return null; },
         querySelectorAll() { return []; },
         closest() { return null; },
+        append() {},
+        replaceChildren() {},
+        remove() {},
         animate() {},
     };
 }
@@ -80,6 +83,7 @@ byId('ports-data').textContent = JSON.stringify(portsVideos);
 const document = {
     fullscreenElement: null,
     getElementById: byId,
+    createElement(tag) { return element(tag); },
     querySelectorAll() { return []; },
     querySelector() { return null; },
     addEventListener() {},
