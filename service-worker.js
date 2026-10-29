@@ -1,6 +1,6 @@
 /* Cache limitado ao próprio aplicativo. Nunca armazenar mídias ou APIs externas. */
 const VERSION = 'jornal-shell-v1';
-const SHELL = ['./','./index.html','./assets/icon.svg','./manifest.webmanifest'];
+const SHELL = ['./','./index.html','./assets/icon.svg','./assets/icon-192.png','./assets/icon-512.png','./manifest.webmanifest'];
 self.addEventListener('install', event => {
     event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(SHELL))
         .then(() => self.skipWaiting()).catch(() => self.skipWaiting()));
@@ -16,7 +16,9 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
     const url = new URL(request.url);
     if (url.origin !== self.location.origin) return;
-    if (!url.pathname.endsWith('/') && !/\.(html|css|js|svg|webmanifest)$/.test(url.pathname)) return;
+    // Checagem periódica usa parâmetro único; nunca armazenar cada resposta.
+    if (url.searchParams.has('revision_check')) return;
+    if (!url.pathname.endsWith('/') && !/\.(html|css|js|svg|png|webmanifest)$/.test(url.pathname)) return;
     event.respondWith(fetch(request).then(response => {
         if (response.ok && response.type === 'basic') {
             const cloned = response.clone();

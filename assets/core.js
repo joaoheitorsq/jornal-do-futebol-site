@@ -81,6 +81,7 @@ function savePortsWatched() {
 function portsIsWatched(id) { return Boolean(portsWatched[id]); }
 
 let portsPlaybackActive = false;
+let activePlayerSource = 'journal';
 let portsCollapsed = false;
 
 // Preferências independentes do Jornal de Futebol.

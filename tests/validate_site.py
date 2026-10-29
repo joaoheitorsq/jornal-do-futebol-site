@@ -179,6 +179,7 @@ def validate_channels():
     )
 
     seen = set()
+    seen_ids = set()
 
     for index, item in enumerate(
         data,
@@ -205,12 +206,24 @@ def validate_channels():
 
         normalized = handle.strip().casefold()
 
+        channel_id = item.get("channelId")
+        require(
+            isinstance(channel_id, str)
+            and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", channel_id),
+            f"Canal principal {handle} sem ID oficial e permanente.",
+        )
+
         require(
             normalized not in seen,
             f"Handle duplicado: {handle}",
         )
+        require(
+            channel_id not in seen_ids,
+            f"ID de canal duplicado: {channel_id}",
+        )
 
         seen.add(normalized)
+        seen_ids.add(channel_id)
 
 
 def validate_ports_channels():

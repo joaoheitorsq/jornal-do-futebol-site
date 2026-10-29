@@ -106,7 +106,7 @@ jobs:
           cp index.html _site/index.html
           cp assets/*.js _site/assets/
           cp assets/style.css _site/assets/style.css
-          cp assets/icon.svg _site/assets/icon.svg
+          cp assets/icon.svg assets/icon-192.png assets/icon-512.png _site/assets/
           cp manifest.webmanifest service-worker.js _site/
 
           if [ -f hearthpwn_translation_cache.json ]; then

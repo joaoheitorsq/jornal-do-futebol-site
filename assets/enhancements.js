@@ -199,7 +199,15 @@ function renderSourceAudit() {
             const name = document.createElement('span');
             name.textContent = row.handle || '';
             const status = document.createElement('strong');
-            status.textContent = row.failed ? 'Falha' : String(row.included || 0) + ' vídeos';
+            status.textContent = row.failed ? 'Falha ou coleta parcial'
+                : String(row.included || 0) + ' vídeos';
+            if (row.atomAvailable === false) {
+                status.textContent += ' · Atom indisponível';
+            }
+            if (row.lastCheckedAt) {
+                status.title = 'Última consulta válida: '
+                    + new Date(row.lastCheckedAt).toLocaleString('pt-BR');
+            }
             item.append(name,status);
             box.appendChild(item);
         }
@@ -232,7 +240,7 @@ function updateExtraDashboard() {
     if ($('muted-status')) $('muted-status').textContent =
         active.length + ' canal(is) silenciado(s) temporariamente';
     updateQueueInsights();
-    if ($('channel-progress-details')?.open) renderChannelProgress();
+    if ($('channel-progress-wrapper')?.open) renderChannelProgress();
 }
 function fillChannelOptions() {
     const channels = [...new Set(VIDEOS.map(v => v.channelTitle).filter(Boolean))]
@@ -276,7 +284,7 @@ function restoreScrollPosition() {
         const item = JSON.parse(sessionStorage.getItem('jornal_do_futebol_scroll_v1') || 'null');
         if (!item || item.day !== document.body.dataset.journalDate ||
             Date.now() - item.savedAt > 6 * 3600000 || !Number.isFinite(item.y)) return;
-        requestAnimationFrame(() => window.scrollTo({top:Math.max(0,item.y), behavior:'instant'}));
+        requestAnimationFrame(() => window.scrollTo({top:Math.max(0,item.y), behavior:'auto'}));
     } catch (_) {}
 }
 function dismissUpdateNotice() {

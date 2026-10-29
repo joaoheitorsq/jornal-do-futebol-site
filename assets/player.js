@@ -544,8 +544,9 @@ function play(
         &&
         activePlaylist[index]
         &&
-        outgoingId
-        !== activePlaylist[index]
+        outgoingId !== activePlaylist[index]
+        &&
+        activePlayerSource === (portsPlaybackActive ? 'ports' : 'journal')
     ) {
         saveResume(
             outgoingId,
@@ -554,6 +555,7 @@ function play(
     }
 
     i = index;
+    activePlayerSource = portsPlaybackActive ? 'ports' : 'journal';
 
     const id =
         activePlaylist[i];
@@ -1828,7 +1830,6 @@ function openPortsVideo(id) {
         return;
     }
 
-    setPortsPlaybackMode(true);
     openVideo(id, 'ports');
 }
 
@@ -1841,8 +1842,13 @@ function openVideo(id, source = 'journal') {
         return;
     }
 
-    // O mesmo vídeo pode existir nas duas listas: a origem define a fila.
-    setPortsPlaybackMode(source === 'ports');
+    // Arquivar o vídeo anterior no histórico de origem antes de mudar
+    // de painel, sem contaminar retomadas por IDs compartilhados.
+    const incomingPorts = source === 'ports';
+    const leavingId = currentVideoId();
+    if (ready && leavingId && incomingPorts !== portsPlaybackActive) {
+        saveResume(leavingId, currentTime());
+    }
 
     if (video.embeddable === false) {
         window.open(
@@ -1854,6 +1860,7 @@ function openVideo(id, source = 'journal') {
         return;
     }
 
+    setPortsPlaybackMode(incomingPorts);
     rebuildPlaylist();
 
     let index =

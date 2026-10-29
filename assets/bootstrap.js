@@ -5,6 +5,7 @@ manualQueue = loadManualQueue();
 
 watched = loadWatched();
 portsWatched = loadPortsWatched();
+portsResumePositions = loadPortsResumePositions();
 hearthpwnSeen = loadHearthPwnSeen();
 hearthpwnCollapsed = loadHearthPwnCollapsed();
 portsCollapsed = loadPortsCollapsed();
@@ -14,6 +15,7 @@ collapsedChapters = loadCollapsedChapters();
 miniPlayerCollapsed = loadMiniPlayerCollapsed();
 resumeState = loadResume();
 restorePortsPlaybackMode();
+activePlayerSource = portsPlaybackActive ? 'ports' : 'journal';
 initEnhancements();
 
 applyView();

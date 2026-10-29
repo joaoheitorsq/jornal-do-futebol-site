@@ -173,6 +173,24 @@ assert.deepEqual([...active()], ['AAAAAAAAAAA', 'MMMMMMMMMMM'],
     'Clicar em visto deve reproduzir esse vídeo e manter a sequência');
 expression('watched = {};');
 
+// Isolamento: um vídeo presente nos dois painéis não deve mudar o Jornal.
+expression('watched = {AAAAAAAAAAA: 123}; portsWatched = {};');
+expression('markWatched("AAAAAAAAAAA", "ports");');
+assert.equal(expression('watched.AAAAAAAAAAA'), 123,
+    'Conclusão do painel de portes alterou o Jornal');
+assert.equal(expression('portsWatched.AAAAAAAAAAA') > 0, true,
+    'Conclusão de portes não foi registrada separadamente');
+expression('setPortsPlaybackMode(true);');
+expression('portsResumePositions = {};');
+assert.equal(expression('portsResumeSeconds("AAAAAAAAAAA")'),0);
+expression('portsResumePositions["AAAAAAAAAAA"]={seconds:32};');
+assert.equal(expression('getResumeSeconds("AAAAAAAAAAA")'),32,
+    'Retomada de portes não foi isolada');
+expression('setPortsPlaybackMode(false);');
+assert.equal(expression('getResumeSeconds("AAAAAAAAAAA")'),0,
+    'Retomada de portes vazou para o futebol');
+expression('watched = {}; portsWatched = {};');
+
 // Gestos de tela cheia com timer virtual: sem reproduzir qualquer vídeo real.
 document.fullscreenElement = byId('playerwrap');
 ctx.__fakePlayer = {

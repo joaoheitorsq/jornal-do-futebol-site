@@ -1071,6 +1071,7 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
     failures = []
     successful_channels = 0
     recent_by_handle = {}
+    atom_status = {}
 
     for config in configs:
         try:
@@ -1100,6 +1101,7 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
                     rss_videos = recent_youtube_rss(
                         channel, start, now_utc
                     )
+                    atom_status[config["handle"]] = True
                     by_id = {video["videoId"]: video for video in uploads}
                     recovered = 0
 
@@ -1129,6 +1131,7 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
                         )
 
                 except Exception as error:
+                    atom_status[config["handle"]] = False
                     log(
                         f"AVISO: feed complementar {config['handle']}: "
                         f"{error}"
@@ -1268,6 +1271,8 @@ def collect(key, configs, window_hours=WINDOW_HOURS, strict=True):
             "handle": handle,
             "uploads": recent_by_handle.get(handle, 0),
             "included": accepted_counts[handle],
+            "atomAvailable": atom_status.get(handle),
+            "lastCheckedAt": now_local.isoformat() if handle in recent_by_handle else None,
             "failed": any(issue.startswith(handle + ":") for issue in failures),
         })
         if handle in recent_by_handle:
