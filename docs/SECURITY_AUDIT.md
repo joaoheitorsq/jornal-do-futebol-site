@@ -29,3 +29,20 @@
 ## Regra de publicação
 
 Toda alteração de código deve passar por verificações de Python, Node, regressões funcionais, validação de HTML gerado e, em push de código, smoke test no Chromium. GitHub Pages deve publicar apenas se os testes concluírem com sucesso.
+
+## Revisão funcional dos controles — 29/10/2026
+
+Foram identificadas e corrigidas regressões reais na interface e no modo de reprodução:
+
+- O botão **Marcar como visto** do painel de portes era gerado sem o argumento `'ports'`. O clique real modificava o histórico do Jornal em vez do histórico independente de portes. O HTML e o teste no Chromium agora validam o handler correto e a separação de tempo e progresso.
+- A opção **Limpar filtros** passou a restaurar também o filtro de relevância, inclusive o checkbox e sua persistência local.
+- Os controles adicionais de relevância e **Mostrar mais vídeos** agora ficam dentro da área recolhível de portes, não permanecendo na tela com o painel fechado.
+- O contador distingue vídeos realmente visíveis na tela dos correspondentes à pesquisa/filtros ainda escondidos por carregamento progressivo.
+- O botão **Ir para onde parei** respeita o painel de origem quando um vídeo existe em ambos, e revela automaticamente cartões além do limite progressivo.
+- O recurso **Desfazer** a marcação de portes restaura o ponto de retomada que existia antes da ação.
+- Solicitações de reprodução antes de o iframe do YouTube ficar pronto são conservadas e executadas quando ele iniciar; o usuário recebe status de preparação, não uma falsa mensagem de lista vazia.
+- Os avisos de fim da fila distinguem Jornal e portes, e a opção **Começar jornal** salva previamente a retomada de portes quando troca de modo.
+- O estado de progresso por canal é recalculado quando a seção detalhada está aberta, inclusive para marcações feitas no painel de portes.
+- Testes reais em Chromium incluem cliques em botões gerados, desfazer, filtros, ordenação, paginação, modo recolhido e seleção antes de o player estar pronto.
+
+**Limitações de cobertura:** os testes não conseguem verificar reprodução real de mídia incorporada pelo YouTube, nem garantir o comportamento de todos os navegadores móveis. O Chromium faz testes de fluxo com o iframe externo bloqueado, enquanto a coleta real segue protegida pelos testes do backend.

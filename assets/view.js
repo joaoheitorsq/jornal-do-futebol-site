@@ -1272,6 +1272,18 @@ function goToResume() {
         resetPortsFilters();
     }
 
+    // O carregamento progressivo não deve esconder a retomada:
+    // revelar automaticamente o cartão salvo, sem alterar os filtros.
+    if (portsWidget && target.classList.contains('ports-limited')) {
+        const position = filteredPortsVideos().findIndex(
+            video => video.id === resumeState.videoId
+        );
+        if (position >= 0 && typeof extra !== 'undefined') {
+            extra.portsLimit = Math.max(extra.portsLimit, position + 1);
+            applyPortsLimit();
+        }
+    }
+
     if (!portsWidget && target.classList.contains('hidden')) {
         searchQuery = '';
         onlyUnwatched = false;

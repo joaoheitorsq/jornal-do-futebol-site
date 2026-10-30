@@ -486,6 +486,8 @@ def validate_sources():
         and "portsRelevantOnly = false;" in javascript
         and "portsFilterChannel || portsSearchQuery ||" in javascript
         and "function applyPortsLimit()" in javascript
+        and "target.classList.contains('ports-limited')" in javascript
+        and "portsSort !== 'newest' || portsRelevantOnly" in javascript
         and "pendingPlaybackRequest" in javascript
         and "Preparando o player do YouTube" in javascript
         and '.ports-more-row' in css,

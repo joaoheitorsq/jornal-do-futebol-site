@@ -171,6 +171,27 @@ async function waitForServer() {
             'Contador não reflete a quantidade realmente na tela');
     }
 
+    if (portsCount > 18) {
+        const jump = await page.evaluate(() => {
+            resetPortsFilters();
+            extra.portsLimit = 18;
+            applyPortsLimit();
+            setPortsPlaybackMode(true);
+            const id = PORTS_VIDEOS[0].id;
+            resumeState = {videoId:id, seconds:40, embeddable:true};
+            const card = Array.from(document.querySelectorAll('.ports-video-item'))
+                .find(item => item.dataset.videoId === id);
+            const hiddenBefore = card && card.classList.contains('ports-limited');
+            goToResume();
+            return {hiddenBefore, hiddenAfter:card?.classList.contains('ports-limited')};
+        });
+        assert.equal(jump.hiddenBefore, true,
+            'Pré-condição: a retomada escolhida precisa estar além dos 18 iniciais');
+        assert.equal(jump.hiddenAfter, false,
+            'Ir para onde parei não revelou vídeo oculto por carregamento progressivo');
+        await page.evaluate(() => setPortsPlaybackMode(false));
+    }
+
     await page.locator('.ports-collapse-toggle').click();
     await page.waitForTimeout(240);
     assert.equal(await page.locator('.ports-extra-controls').isVisible(),false,
