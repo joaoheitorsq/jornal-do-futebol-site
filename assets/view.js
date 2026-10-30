@@ -222,16 +222,12 @@ function currentVideoMeta(videoId) {
 
 
 function resumeOutsideCurrentJournal() {
+    // As continuações do Jornal não devem desaparecer só porque um
+    // vídeo antigo ainda aparece no catálogo independente de portes.
     return Boolean(
-        resumeState
-        &&
-        !VIDEOS.some(
-            video => video.id === resumeState.videoId
-        )
-        &&
-        !PORTS_VIDEOS.some(
-            video => video.id === resumeState.videoId
-        )
+        !portsPlaybackActive &&
+        resumeState &&
+        !VIDEOS.some(video => video.id === resumeState.videoId)
     );
 }
 
@@ -1200,7 +1196,7 @@ function updateUpNext(
         title.textContent =
             first
             ? 'Fila'
-            : 'Fila — fim do Jornal';
+            : (portsPlaybackActive ? 'Fila — fim dos portes' : 'Fila — fim do Jornal');
     }
 }
 
@@ -1224,7 +1220,9 @@ function goToResume() {
     let target =
         Array.from(
             document.querySelectorAll(
-                '.card[data-video-id], .ports-video-item[data-video-id]'
+                (portsPlaybackActive
+                    ? '.ports-video-item[data-video-id]'
+                    : '.card[data-video-id]')
             )
         ).find(card =>
             card.dataset.videoId
@@ -1249,7 +1247,9 @@ function goToResume() {
         target =
             Array.from(
                 document.querySelectorAll(
-                    '.card[data-video-id], .ports-video-item[data-video-id]'
+                    (portsPlaybackActive
+                    ? '.ports-video-item[data-video-id]'
+                    : '.card[data-video-id]')
                 )
             ).find(card =>
                 card.dataset.videoId

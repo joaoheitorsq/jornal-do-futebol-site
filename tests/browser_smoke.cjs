@@ -58,6 +58,44 @@ async function waitForServer() {
     assert.equal(await page.locator('#ports-show-more').count(),1,'Carregamento progressivo ausente');
     assert.equal(await page.locator('#source-audit-data').count(),1,'Diagnóstico ausente');
     assert.equal(await page.locator('#ports-relevance').count(),1,'Filtro de relevância ausente');
+    // Reproduzir cliques de verdade: o bug anterior passava porque
+    // os testes chamavam toggleWatched(id, 'ports') diretamente.
+    const portsCount = await page.evaluate(() => PORTS_VIDEOS.length);
+    if (portsCount) {
+        const card = page.locator('.ports-video-item[data-video-id]').first();
+        const button = card.locator('.ports-watch-action');
+        const stateBefore = await page.evaluate(() => {
+            const id = document.querySelector('.ports-video-item[data-video-id]').dataset.videoId;
+            return {
+                id, journal: isWatched(id), ports: portsIsWatched(id),
+                remaining: document.querySelector('#time-remaining').textContent,
+                progress: document.querySelector('#ports-progress').textContent
+            };
+        });
+        await button.click();
+        const stateAfter = await page.evaluate(id => ({
+            journal: isWatched(id), ports: portsIsWatched(id),
+            remaining: document.querySelector('#time-remaining').textContent,
+            progress: document.querySelector('#ports-progress').textContent
+        }), stateBefore.id);
+        assert.equal(stateAfter.journal, stateBefore.journal,
+            'Clique real em portes alterou o histórico principal');
+        assert.notEqual(stateAfter.ports, stateBefore.ports,
+            'Clique real não mudou o assistido de portes');
+        assert.equal(stateAfter.remaining, stateBefore.remaining,
+            'Clique real de portes modificou o tempo do Jornal');
+        assert.notEqual(stateAfter.progress, stateBefore.progress,
+            'Progresso de portes não reagiu ao clique');
+        assert.equal(await button.getAttribute('aria-pressed'),
+            stateAfter.ports ? 'true' : 'false',
+            'Botão de portes mostrou estado errado');
+        await page.locator('#undo-toast-button').click();
+        assert.equal(await page.evaluate(id => portsIsWatched(id), stateBefore.id),
+            stateBefore.ports, 'Desfazer não restaurou estado de portes');
+        assert.equal(await page.evaluate(id => isWatched(id), stateBefore.id),
+            stateBefore.journal, 'Desfazer alterou o Jornal principal');
+    }
+
     const checks=await page.evaluate(()=>{
         const ports=PORTS_VIDEOS.length;
         const id=ports ? PORTS_VIDEOS[0].id : null;
@@ -82,7 +120,80 @@ async function waitForServer() {
     await page.selectOption('#extra-media','all');
     await page.locator('#ports-relevance').check();
     assert.equal(await page.evaluate(()=>portsRelevantOnly),true,'Filtro de relevância não foi ligado');
-    await page.locator('#ports-relevance').uncheck();
+    assert.equal(await page.locator('#ports-clear-filters').isVisible(),true,
+        'O filtro de relevância ativo precisa oferecer Limpar filtros');
+    await page.locator('#ports-clear-filters').click();
+    assert.equal(await page.locator('#ports-relevance').isChecked(),false,
+        'Limpar filtros deixou relevância marcada');
+    assert.equal(await page.evaluate(() => portsRelevantOnly),false,
+        'Limpar filtros não restaurou o catálogo de portes');
+
+    const firstChip = page.locator('.ports-channel-chip[data-channel-handle]').nth(1);
+    await firstChip.click();
+    assert.equal(await firstChip.getAttribute('aria-pressed'),'true',
+        'Chip de canal não dá feedback de seleção');
+    await page.locator('#ports-clear-filters').click();
+    assert.equal(await firstChip.getAttribute('aria-pressed'),'false',
+        'Chip continuou marcado depois de limpar filtros');
+
+    await page.selectOption('#ports-sort','oldest');
+    assert.equal(await page.evaluate(() => portsSort),'oldest',
+        'Ordenação de portes não respondeu ao controle');
+    await page.locator('#ports-clear-filters').click();
+    assert.equal(await page.evaluate(() => portsSort),'newest',
+        'Limpar filtros não restaurou a ordenação');
+
+    await page.locator('#ports-unwatched-toggle').click();
+    assert.equal(await page.locator('#ports-unwatched-toggle').getAttribute('aria-pressed'),
+        'true','Só não assistidos não mostrou estado ativo');
+    await page.locator('#ports-clear-filters').click();
+    assert.equal(await page.locator('#ports-unwatched-toggle').getAttribute('aria-pressed'),
+        'false','Limpar filtros não desligou Só não assistidos');
+
+    if (portsCount) {
+        await page.locator('#ports-search').fill('_________busca_impossivel_999');
+        assert.equal(await page.locator('#ports-filter-empty').isVisible(), true,
+            'Busca sem resultados não mostrou feedback');
+        await page.locator('#ports-clear-filters').click();
+        assert.equal(await page.locator('#ports-search').inputValue(),'',
+            'Limpar filtros não apagou a busca');
+    }
+
+    if (portsCount > 18) {
+        const visibleCount = () => page.locator(
+            '.ports-video-item:not([hidden]):not(.ports-limited)').count();
+        const initial = await visibleCount();
+        assert.equal(initial,18, 'Carregamento progressivo não começou em 18 vídeos');
+        await page.locator('#ports-show-more').click();
+        assert.ok(await visibleCount() > initial,'Mostrar mais não exibiu novos vídeos');
+        const countLabel = await page.locator('#ports-visible-count').textContent();
+        assert.ok(countLabel.includes(String(await visibleCount())),
+            'Contador não reflete a quantidade realmente na tela');
+    }
+
+    await page.locator('.ports-collapse-toggle').click();
+    await page.waitForTimeout(240);
+    assert.equal(await page.locator('.ports-extra-controls').isVisible(),false,
+        'Controles de relevância ficaram visíveis com o painel recolhido');
+    assert.equal(await page.locator('.ports-more-row').isVisible(),false,
+        'Mostrar mais ficou visível com o painel recolhido');
+    await page.locator('.ports-collapse-toggle').click();
+    await page.waitForTimeout(240);
+    assert.equal(await page.locator('.ports-extra-controls').isVisible(),true,
+        'Controles de relevância não retornaram ao expandir');
+
+    if (portsCount) {
+        await page.locator('#ports-play-selection').click();
+        const pending = await page.evaluate(() => ({
+            mode: portsPlaybackActive,
+            id: pendingPlaybackRequest?.id || '',
+            text: document.querySelector('#status').textContent
+        }));
+        assert.equal(pending.mode,true,'Assistir seleção não ativou o modo de portes');
+        assert.ok(pending.id,'Player ainda não carregado perdeu o pedido de reprodução');
+        assert.match(pending.text,/Preparando o player/,
+            'Botão de reprodução exibiu feedback incorreto enquanto a API carregava');
+    }
     const noNestedScroll=await page.evaluate(()=>{
         const style=getComputedStyle(document.querySelector('.ports-video-list'));
         return style.overflowY !== 'auto' && style.overflowY !== 'scroll';

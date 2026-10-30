@@ -1527,7 +1527,7 @@ def build_ports_widget(videos, channels, failures):
 </span>
 </button>
 <button class="ports-watch-action" type="button"
-    onclick="toggleWatched('{video_id}')">
+    onclick="toggleWatched('{video_id}', 'ports')">
 ✓ Marcar como visto
 </button>
 </article>
@@ -1536,8 +1536,13 @@ def build_ports_widget(videos, channels, failures):
     if not rows:
         rows.append(
             '<p class="ports-empty">'
-            'Nenhum vídeo publicado nesses canais nos últimos 7 dias.'
-            '</p>'
+            + (
+                'Alguns canais não puderam ser verificados. '
+                'Consulte o diagnóstico da coleta.'
+                if failures else
+                'Nenhum vídeo publicado nesses canais nos últimos 7 dias.'
+            )
+            + '</p>'
         )
 
     if failures:
@@ -1610,6 +1615,12 @@ def build_ports_widget(videos, channels, failures):
             type="button" aria-pressed="false"
             onclick="togglePortsUnwatched()">Só não assistidos</button>
     </div>
+    <div class="ports-extra-controls">
+        <label><input id="ports-relevance" type="checkbox"
+            onchange="setPortsRelevance(this.checked)">
+            Mostrar apenas vídeos relacionados a portes e recompilações
+        </label>
+    </div>
     <div class="ports-filter-status">
         <span id="ports-visible-count" aria-live="polite">{count} vídeos nesta seleção</span>
         <button id="ports-clear-filters" class="ports-clear-filters" type="button"
@@ -1620,6 +1631,10 @@ def build_ports_widget(videos, channels, failures):
         <p class="ports-filter-empty" id="ports-filter-empty" hidden>
             Nenhum vídeo corresponde aos filtros escolhidos.
         </p>
+    </div>
+    <div class="ports-more-row">
+        <button id="ports-show-more" type="button"
+            onclick="showMorePorts()" hidden>Mostrar mais vídeos</button>
     </div>
     <div class="ports-bottom">
         <button id="ports-play-selection" class="ports-play-selection"

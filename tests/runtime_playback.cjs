@@ -122,9 +122,13 @@ const active = () => expression('activePlaylist.slice()');
 const mode = () => expression('portsPlaybackActive');
 
 expression('openPortsVideo("AAAAAAAAAAA");');
+assert.equal(expression('pendingPlaybackRequest.source'),'ports',
+    'Pedido de reprodução antes de carregar o YouTube perdeu sua origem');
 assert.equal(mode(), true, 'Vídeo compartilhado deve abrir fila de portes quando acionado pelo painel');
 assert.deepEqual([...active()], portsVideos.map(video => video.id).reverse());
 expression('openVideo("AAAAAAAAAAA");');
+assert.equal(expression('pendingPlaybackRequest.source'),'journal',
+    'Pedido de reprodução do Jornal não substituiu o pedido anterior');
 assert.equal(mode(), false, 'Mesmo vídeo aberto pelo Jornal precisa voltar à fila principal');
 assert.deepEqual([...active()], mainVideos.map(video => video.id));
 
@@ -197,6 +201,21 @@ assert.equal(expression('portsResumePositions.AAAAAAAAAAA.seconds'), 27,
 assert.equal(expression('watched.AAAAAAAAAAA'), 111,
     'Retomada de portes alterou o Jornal');
 expression('setPortsPlaybackMode(false); watched = {}; portsWatched = {};');
+
+// Desfazer marcações no painel deve restaurar também a retomada.
+expression('portsWatched = {}; portsResumePositions = {BBBBBBBBBBB: {seconds: 33}};');
+expression('toggleWatched("BBBBBBBBBBB", "ports");');
+assert.equal(expression('portsIsWatched("BBBBBBBBBBB")'), true);
+assert.equal(expression('portsResumePositions.BBBBBBBBBBB'), undefined);
+expression('performUndo();');
+assert.equal(expression('portsIsWatched("BBBBBBBBBBB")'), false);
+assert.equal(expression('portsResumePositions.BBBBBBBBBBB.seconds'), 33,
+    'Desfazer perdeu o ponto de retomada de portes');
+expression('portsFilterChannel = "@b"; portsRelevantOnly = true;');
+expression('extra.portsRelevantOnly = true; resetPortsFilters();');
+assert.equal(expression('portsFilterChannel'), '');
+assert.equal(expression('portsRelevantOnly'), false);
+assert.equal(expression('extra.portsRelevantOnly'), false);
 
 // Gestos de tela cheia com timer virtual: sem reproduzir qualquer vídeo real.
 document.fullscreenElement = byId('playerwrap');

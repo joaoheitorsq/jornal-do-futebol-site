@@ -279,7 +279,9 @@ function onYouTubeIframeAPIReady() {
         ||
         CURRENT_EMBEDDABLE_IDS[0]
         ||
-        (PORTS_VIDEOS.find(video => video.embeddable) || {}).id;
+        (PORTS_VIDEOS.find(video => video.embeddable) || {}).id
+        || (resumeState && resumeState.embeddable !== false
+            ? resumeState.videoId : null);
 
     if (
         resumeState
@@ -345,6 +347,15 @@ function onYouTubeIframeAPIReady() {
                         rebuildPlaylist();
                         updateTransport();
                         applyPreferredSpeed();
+
+                        // Um botão pode ter sido acionado antes da API do
+                        // YouTube ficar pronta; executar a última escolha.
+                        if (pendingPlaybackRequest) {
+                            const requested = pendingPlaybackRequest;
+                            pendingPlaybackRequest = null;
+                            openVideo(requested.id, requested.source);
+                            return;
+                        }
 
                         if (
                             resumeState
@@ -517,22 +528,20 @@ function play(
     index,
     startSeconds = null
 ) {
-    if (
-        !activePlaylist.length
-        ||
-        !ready
-    ) {
-        setStatus(
-            'Nenhum vídeo reproduzível neste modo.'
-        );
+    if (!activePlaylist.length) {
+        setStatus('Nenhum vídeo reproduzível nesta seleção.');
         return;
     }
 
-    if (
-        index < 0
-        ||
-        index >= activePlaylist.length
-    ) {
+    if (index < 0 || index >= activePlaylist.length) return;
+
+    if (!ready) {
+        pendingPlaybackRequest = {
+            id: activePlaylist[index],
+            source: portsPlaybackActive ? 'ports' : 'journal'
+        };
+        setStatus('Preparando o player do YouTube para reproduzir sua seleção…');
+        setPlayerLoading(true);
         return;
     }
 
@@ -602,6 +611,10 @@ function play(
 
 
 function start() {
+    // Salvar o último vídeo do painel anterior antes de trocar a fila.
+    if (portsPlaybackActive && ready && currentVideoId()) {
+        saveResume(currentVideoId(), currentTime());
+    }
     setPortsPlaybackMode(false);
     rebuildPlaylist();
 
@@ -1727,7 +1740,7 @@ function next() {
 
     if (!activePlaylist.length) {
         setStatus(
-            portsPlaybackActive ? 'Fim da seleção de portes.' : 'Fim do Jornal.'
+            portsPlaybackActive ? 'Fim da seleção de portes.' : portsPlaybackActive ? 'Fim da seleção de portes.' : 'Fim do Jornal.'
         );
         return;
     }
@@ -1745,7 +1758,7 @@ function next() {
 
         if (!nextId) {
             setStatus(
-                'Fim do Jornal.'
+                portsPlaybackActive ? 'Fim da seleção de portes.' : 'Fim do Jornal.'
             );
             return;
         }
@@ -1766,7 +1779,7 @@ function next() {
         nextIndex >= activePlaylist.length
     ) {
         setStatus(
-            'Fim do Jornal.'
+            portsPlaybackActive ? 'Fim da seleção de portes.' : 'Fim do Jornal.'
         );
         return;
     }

@@ -82,6 +82,7 @@ function portsIsWatched(id) { return Boolean(portsWatched[id]); }
 
 let portsPlaybackActive = false;
 let activePlayerSource = 'journal';
+let pendingPlaybackRequest = null;
 let portsCollapsed = false;
 
 // Preferências independentes do Jornal de Futebol.
@@ -712,7 +713,7 @@ function updatePortsFilters(animate = false) {
     const clear = document.getElementById('ports-clear-filters');
     if (clear) clear.hidden = !(
         portsFilterChannel || portsSearchQuery ||
-        portsOnlyUnwatched || portsSort !== 'newest'
+        portsOnlyUnwatched || portsSort !== 'newest' || portsRelevantOnly
     );
 
     const play = document.getElementById('ports-play-selection');
@@ -727,6 +728,7 @@ function updatePortsFilters(animate = false) {
     if (portsPlaybackActive) {
         rebuildPlaylist();
         updateUpNext();
+        if (typeof updateQueueInsights === 'function') updateQueueInsights();
     }
 }
 
@@ -749,6 +751,7 @@ function setPortsSearch(query) {
 function setPortsSort(sort) {
     portsSort = sort === 'oldest' ? 'oldest' : 'newest';
     savePortsPreferences();
+    if (typeof resetProgressivePorts === 'function') resetProgressivePorts();
     sortPortsCards();
     updatePortsFilters();
 
@@ -775,9 +778,16 @@ function resetPortsFilters() {
     portsSearchQuery = '';
     portsOnlyUnwatched = false;
     portsSort = 'newest';
+    portsRelevantOnly = false;
+    if (typeof extra !== 'undefined') {
+        extra.portsRelevantOnly = false;
+        if (typeof safeExtraSave === 'function') safeExtraSave();
+    }
     savePortsPreferences();
+    if (typeof resetProgressivePorts === 'function') resetProgressivePorts();
     sortPortsCards();
     updatePortsFilters(true);
+    if (typeof updateExtraDashboard === 'function') updateExtraDashboard();
 }
 
 
@@ -832,6 +842,10 @@ function updatePortsVideoUI() {
     if (fill) fill.style.setProperty('--ports-progress-ratio', String(percent / 100));
 
     updatePortsFilters();
+    if (typeof renderChannelProgress === 'function'
+        && document.getElementById('channel-progress-wrapper')?.open) {
+        renderChannelProgress();
+    }
 }
 
 
@@ -859,29 +873,56 @@ function toggleWatched(videoId, source = 'journal') {
 
     if (source === 'ports') {
         const before = portsIsWatched(videoId);
-        if (before) delete portsWatched[videoId];
-        else {
+        const previousTimestamp = portsWatched[videoId];
+        const previousPosition = portsResumePositions[videoId]
+            ? {...portsResumePositions[videoId]} : null;
+        const previousResume = loadPortsResume();
+
+        if (before) {
+            delete portsWatched[videoId];
+        } else {
             portsWatched[videoId] = Date.now();
             delete portsResumePositions[videoId];
             savePortsResumePositions();
-            try {
-                const saved = JSON.parse(localStorage.getItem(PORTS_RESUME_KEY) || 'null');
-                if (saved?.videoId === videoId) localStorage.removeItem(PORTS_RESUME_KEY);
-            } catch (_) {}
+            if (previousResume && previousResume.videoId === videoId) {
+                try { localStorage.removeItem(PORTS_RESUME_KEY); } catch (_) {}
+                if (portsPlaybackActive && resumeState?.videoId === videoId) {
+                    resumeState = null;
+                    showResumeCard(null);
+                    updateResumeJumpButton();
+                }
+            }
         }
 
         savePortsWatched();
         updatePortsVideoUI();
-        if (portsPlaybackActive) rebuildPlaylist();
+        if (typeof updateQueueInsights === 'function') updateQueueInsights();
 
-        showUndoToast(before ? 'Vídeo de portes marcado como não visto.'
-            : 'Vídeo de portes marcado como visto.', () => {
-            if (before) portsWatched[videoId] = Date.now();
-            else delete portsWatched[videoId];
-            savePortsWatched();
-            updatePortsVideoUI();
-            if (portsPlaybackActive) rebuildPlaylist();
-        });
+        showUndoToast(
+            before ? 'Vídeo de portes marcado como não visto.'
+                : 'Vídeo de portes marcado como visto.',
+            () => {
+                if (before) portsWatched[videoId] = previousTimestamp || Date.now();
+                else delete portsWatched[videoId];
+
+                if (!before) {
+                    if (previousPosition) portsResumePositions[videoId] = previousPosition;
+                    savePortsResumePositions();
+                    if (previousResume && previousResume.videoId === videoId) {
+                        try {
+                            localStorage.setItem(PORTS_RESUME_KEY,
+                                JSON.stringify(previousResume));
+                        } catch (_) {}
+                        if (portsPlaybackActive) resumeState = previousResume;
+                    }
+                }
+
+                savePortsWatched();
+                updatePortsVideoUI();
+                if (typeof updateQueueInsights === 'function') updateQueueInsights();
+                updateResumeJumpButton();
+            }
+        );
         return;
     }
 

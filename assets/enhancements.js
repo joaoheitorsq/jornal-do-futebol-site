@@ -151,6 +151,7 @@ function setPortsRelevance(value) {
     extra.portsRelevantOnly = Boolean(value);
     portsRelevantOnly = extra.portsRelevantOnly;
     safeExtraSave();
+    resetProgressivePorts();
     updatePortsFilters(true);
     updateExtraDashboard();
 }
@@ -173,6 +174,13 @@ function applyPortsLimit() {
     if (button) {
         button.hidden = count <= extra.portsLimit;
         button.textContent = 'Mostrar mais vídeos (' + Math.max(0,count-extra.portsLimit) + ' restantes)';
+    }
+    const visible = Math.min(count, extra.portsLimit);
+    const status = document.getElementById('ports-visible-count');
+    if (status) {
+        status.textContent = visible + ' de ' + PORTS_VIDEOS.length
+            + ' vídeos na tela'
+            + (visible < count ? ' · ' + count + ' correspondem aos filtros' : '');
     }
 }
 function renderChannelProgress() {

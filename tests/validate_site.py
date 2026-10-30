@@ -474,8 +474,22 @@ def validate_sources():
     require(
         sample_widget.count('class="ports-video-item"') == len(sample_videos)
         and sample_widget.count('class="ports-channel-count"') == len(sample_channels) + 1
-        and "48 vídeos" in sample_widget,
-        "O painel de portes perdeu vídeos de algum canal por limite global.",
+        and "48 vídeos" in sample_widget
+        and sample_widget.count("', 'ports')") == len(sample_videos)
+        and 'id="ports-relevance"' in sample_widget
+        and 'id="ports-show-more"' in sample_widget,
+        "O painel de portes perdeu vídeos, botões corretos ou controles internos.",
+    )
+
+    require(
+        "function resetPortsFilters()" in javascript
+        and "portsRelevantOnly = false;" in javascript
+        and "portsFilterChannel || portsSearchQuery ||" in javascript
+        and "function applyPortsLimit()" in javascript
+        and "pendingPlaybackRequest" in javascript
+        and "Preparando o player do YouTube" in javascript
+        and '.ports-more-row' in css,
+        "Filtros, paginação ou reprodução antecipada de portes sem proteção.",
     )
 
     require(
@@ -485,7 +499,8 @@ def validate_sources():
         and "function openVideo(id, source = 'journal')" in javascript
         and "openVideo(id, 'ports');" in javascript
         and "const catalog = portsPlaybackActive ? PORTS_VIDEOS : VIDEOS;" in javascript
-        and "PORTS_VIDEOS.some(video => video.id === videoId)" in javascript
+        and "function resumeOutsideCurrentJournal()" in javascript
+        and "!portsPlaybackActive &&" in javascript
         and "if (!portsPlaybackActive)" in javascript,
         "Retomada ou navegação separada das filas de portes e Jornal está ausente.",
     )
