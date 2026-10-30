@@ -58,6 +58,60 @@ async function waitForServer() {
     assert.equal(await page.locator('#ports-show-more').count(),1,'Carregamento progressivo ausente');
     assert.equal(await page.locator('#source-audit-data').count(),1,'Diagnóstico ausente');
     assert.equal(await page.locator('#ports-relevance').count(),1,'Filtro de relevância ausente');
+    // Ação real no período inteiro: marcar inclusive cartões ocultos,
+    // atualizar progresso, manter os portes intactos e permitir desfazer.
+    const chapterTest = await page.evaluate(() => {
+        const chapter = document.querySelector('.chapter');
+        if (!chapter) return null;
+        const ids = Array.from(chapter.querySelectorAll('.card[data-video-id]'))
+            .map(card => card.dataset.videoId);
+        const pending = ids.filter(id => !isWatched(id));
+        if (!pending.length) return null;
+        return {
+            key: chapter.dataset.chapterKey,
+            ids, pending,
+            portsBefore: PORTS_VIDEOS.map(video => portsIsWatched(video.id)),
+            watchedBefore: ids.map(id => isWatched(id)),
+            timeBefore: document.getElementById('time-remaining').textContent
+        };
+    });
+    if (chapterTest) {
+        const chapter = page.locator('.chapter').first();
+        const bulk = chapter.locator('.chapter-mark-all');
+        assert.equal(await bulk.isEnabled(),true,
+            'Período com vídeos pendentes não habilitou ação em lote');
+        await bulk.click();
+        const after = await page.evaluate(data => ({
+            watched: data.ids.map(id => isWatched(id)),
+            ports: PORTS_VIDEOS.map(video => portsIsWatched(video.id)),
+            time: document.getElementById('time-remaining').textContent
+        }),chapterTest);
+        assert.ok(after.watched.every(Boolean),
+            'Marcar período não concluiu todos os seus vídeos');
+        assert.deepEqual(after.ports,chapterTest.portsBefore,
+            'Marcar período contaminou o histórico de portes');
+        assert.equal(await bulk.isDisabled(),true,
+            'Período concluído não desabilitou ação repetida');
+        assert.match(await bulk.textContent(),/Período concluído/,
+            'Botão de período não apresentou feedback de conclusão');
+        assert.ok(await page.locator('#undo-toast-button').isVisible(),
+            'Marcação em lote não ofereceu desfazer');
+        await page.locator('#undo-toast-button').click();
+        const undone = await page.evaluate(data => ({
+            watched: data.ids.map(id => isWatched(id)),
+            ports: PORTS_VIDEOS.map(video => portsIsWatched(video.id)),
+            time: document.getElementById('time-remaining').textContent
+        }),chapterTest);
+        assert.deepEqual(undone.watched,chapterTest.watchedBefore,
+            'Desfazer período não restaurou os estados originais');
+        assert.deepEqual(undone.ports,chapterTest.portsBefore,
+            'Desfazer período alterou indevidamente os portes');
+        assert.equal(undone.time,chapterTest.timeBefore,
+            'Desfazer período não restaurou o tempo restante do Jornal');
+        assert.equal(await bulk.isEnabled(),true,
+            'Desfazer período não reabilitou o controle');
+    }
+
     // Reproduzir cliques de verdade: o bug anterior passava porque
     // os testes chamavam toggleWatched(id, 'ports') diretamente.
     const portsCount = await page.evaluate(() => PORTS_VIDEOS.length);

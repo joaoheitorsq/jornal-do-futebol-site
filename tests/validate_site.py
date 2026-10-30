@@ -80,6 +80,7 @@ REQUIRED_APP_FUNCTIONS = {
     "getResumeSeconds",
     "orderPlaylistWithFeatures",
     "updateChapterProgress",
+    "markChapterWatched",
     "initCardViewportAnimations",
     "animateQueueAdvance",
     "animateNumberChange",
@@ -389,6 +390,18 @@ def validate_sources():
         and ".ports-widget" in css
         and ".ports-video-item" in css,
         "Seção independente de portes não foi integrada completamente.",
+    )
+
+    require(
+        'class="chapter-mark-all"' in backend
+        and 'onclick="markChapterWatched(this.closest(\'.chapter\').dataset.chapterKey)"' in backend
+        and "function markChapterWatched(chapterKey)" in javascript
+        and "const pending = ids.filter(id => !isWatched(id));" in javascript
+        and "captureWatchedUndoState(id)" in javascript
+        and "durationMs = 5200" in javascript
+        and ".chapter-heading" in css
+        and ".chapter-mark-all" in css,
+        "Controle em lote dos períodos ausente ou sem desfazer seguro.",
     )
 
     require(
@@ -1110,6 +1123,19 @@ def validate_generated():
             and (video["isShort"] is None or isinstance(video["isShort"], bool)),
             "Vídeo do painel de portes inválido.",
         )
+
+    # Cada período deve oferecer a ação em lote sem aninhar botões,
+    # mantendo separada a ação de recolher o capítulo.
+    number_of_chapters = len(re.findall(r'class="chapter"', html))
+    number_of_bulk_buttons = len(re.findall(r'class="chapter-mark-all"', html))
+    require(
+        number_of_chapters == number_of_bulk_buttons,
+        "Um ou mais períodos não possuem botão para marcar todos como assistidos.",
+    )
+    require(
+        html.count('onclick="markChapterWatched(') == number_of_chapters,
+        "Ação de período ausente ou duplicada no HTML.",
+    )
 
     ids = re.findall(
         r'(?<![\\w-])id="([^"]+)"',

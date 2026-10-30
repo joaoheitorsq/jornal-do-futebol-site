@@ -958,7 +958,8 @@ let undoTimer = null;
 
 function showUndoToast(
     message,
-    callback
+    callback,
+    durationMs = 5200
 ) {
     const toast =
         document.getElementById(
@@ -1010,7 +1011,7 @@ function showUndoToast(
     undoTimer =
         setTimeout(
             dismissUndoToast,
-            5200
+            durationMs
         );
 }
 
@@ -1487,6 +1488,128 @@ function updateCardFeatureUI() {
 }
 
 
+// Marcação em lote do período: sempre considera todos os cartões
+// originais, inclusive os ocultos por filtros, e não altera PORTS_VIDEOS.
+function markChapterWatched(chapterKey) {
+    if (!chapterKey) return;
+
+    const chapter = Array.from(document.querySelectorAll('.chapter'))
+        .find(item => item.dataset.chapterKey === chapterKey);
+    if (!chapter) return;
+
+    const journalIds = new Set(VIDEOS.map(video => video.id));
+    const ids = [...new Set(
+        Array.from(chapter.querySelectorAll('.card[data-video-id]'))
+            .map(card => card.dataset.videoId)
+            .filter(id => journalIds.has(id))
+    )];
+    const pending = ids.filter(id => !isWatched(id));
+    if (!pending.length) {
+        setStatus('Todos os vídeos deste período já estão assistidos.');
+        return;
+    }
+
+    // Capturar somente os vídeos que mudarão: progresso anterior,
+    // Ver depois, Terminar depois e posição na fila manual.
+    const snapshots = pending.map(id => ({
+        id,
+        state: captureWatchedUndoState(id)
+    }));
+    const pendingSet = new Set(pending);
+    const manualBefore = [...manualQueue];
+    const journalResumeBefore = (() => {
+        try { return localStorage.getItem(RESUME_KEY); }
+        catch (_) { return null; }
+    })();
+    let removedResume = false;
+    if (journalResumeBefore) {
+        try {
+            removedResume = pendingSet.has(JSON.parse(journalResumeBefore).videoId);
+        } catch (_) {}
+    }
+
+    const timestamp = Date.now();
+    pending.forEach(id => {
+        watched[id] = timestamp;
+        delete featureState.resumePositions[id];
+        delete featureState.finishLater[id];
+    });
+    featureState.deferredByDay[currentJournalKey()] =
+        deferredIdsToday().filter(id => !pendingSet.has(id));
+    manualQueue = manualQueue.filter(id => !pendingSet.has(id));
+
+    saveWatched();
+    saveManualQueue();
+    saveFeatureState();
+
+    if (removedResume) {
+        try { localStorage.removeItem(RESUME_KEY); } catch (_) {}
+    }
+    if (!portsPlaybackActive && resumeState &&
+        pendingSet.has(resumeState.videoId)) {
+        resumeState = null;
+    }
+
+    const period = chapterKey.includes('|')
+        ? chapterKey.slice(chapterKey.indexOf('|') + 1)
+        : 'período';
+    applyView();
+    maybeCelebrateJournalCompletion();
+    setStatus(period + ': ' + pending.length + ' vídeo(s) marcado(s) como assistido(s).');
+
+    showUndoToast(
+        period + ': ' + pending.length + ' vídeo(s) marcado(s) como visto(s).',
+        () => {
+            snapshots.forEach(({id, state}) => {
+                delete watched[id];
+                if (state.resumePosition) {
+                    featureState.resumePositions[id] = state.resumePosition;
+                }
+                if (state.finishLater) {
+                    featureState.finishLater[id] = state.finishLater;
+                }
+            });
+
+            const deferredRestore = snapshots
+                .filter(({state}) => state.deferred)
+                .map(({id}) => id);
+            featureState.deferredByDay[currentJournalKey()] =
+                uniqueIds([...deferredIdsToday(), ...deferredRestore]);
+
+            // Repor posições originais sem descartar novas escolhas que
+            // o usuário tenha colocado na fila depois da marcação.
+            const restoredIds = new Set(
+                snapshots.filter(({state}) => state.manual)
+                    .map(({id}) => id)
+            );
+            const currentQueue = [...manualQueue];
+            manualQueue = uniqueIds([
+                ...manualBefore.filter(id =>
+                    restoredIds.has(id) || currentQueue.includes(id)),
+                ...currentQueue
+            ]);
+
+            if (removedResume && journalResumeBefore) {
+                try {
+                    if (!localStorage.getItem(RESUME_KEY)) {
+                        localStorage.setItem(RESUME_KEY, journalResumeBefore);
+                        if (!portsPlaybackActive) resumeState = loadResume();
+                    }
+                } catch (_) {}
+            }
+
+            saveWatched();
+            saveManualQueue();
+            saveFeatureState();
+            applyView();
+            maybeCelebrateJournalCompletion();
+            setStatus('Ação desfeita: ' + period + ' restaurado.');
+        },
+        14000
+    );
+}
+
+
 function updateChapterProgress() {
     document
         .querySelectorAll(
@@ -1565,6 +1688,24 @@ function updateChapterProgress() {
                         ? '<span class="chapter-done">✓ Concluído</span>'
                         : ''
                     );
+            }
+
+            // O botão em lote conta TODOS os vídeos do período,
+            // não apenas os atualmente visíveis ou não pulados.
+            const periodIds = Array.from(
+                chapter.querySelectorAll('.card[data-video-id]')
+            ).map(card => card.dataset.videoId);
+            const remainingInPeriod = periodIds.filter(id =>
+                !isWatched(id)
+            ).length;
+            const bulkButton = chapter.querySelector('.chapter-mark-all');
+            if (bulkButton) {
+                bulkButton.disabled = remainingInPeriod === 0;
+                bulkButton.textContent = remainingInPeriod > 0
+                    ? '✓ Marcar período como visto (' + remainingInPeriod + ')'
+                    : '✓ Período concluído';
+                bulkButton.setAttribute('aria-disabled',
+                    remainingInPeriod === 0 ? 'true' : 'false');
             }
 
             const complete =

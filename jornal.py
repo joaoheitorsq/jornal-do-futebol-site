@@ -1798,6 +1798,7 @@ Marcar como visto
     data-chapter-key="__CHAPTER_KEY__"
 >
 
+<div class="chapter-heading">
 <button
     class="chapter-title"
     type="button"
@@ -1815,6 +1816,16 @@ __CHAPTER_LABEL__
 </span>
 <span class="chapter-chevron" aria-hidden="true">▾</span>
 </button>
+<button
+    class="chapter-mark-all"
+    type="button"
+    onclick="markChapterWatched(this.closest('.chapter').dataset.chapterKey)"
+    aria-label="Marcar todos os vídeos de __CHAPTER_LABEL__ como assistidos"
+    title="Marcar todos os vídeos deste período como assistidos"
+>
+✓ Marcar período como visto
+</button>
+</div>
 
 <div class="list chapter-list">
 __CARDS__
