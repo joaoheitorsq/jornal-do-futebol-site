@@ -178,6 +178,10 @@ async function waitForServer() {
             applyPortsLimit();
             setPortsPlaybackMode(true);
             const id = PORTS_VIDEOS[0].id;
+            // Uma etapa anterior marcou esse ID como visto ao testar
+            // o contador. Retomada só é válida para vídeos pendentes.
+            delete portsWatched[id];
+            savePortsWatched();
             resumeState = {videoId:id, seconds:40, embeddable:true};
             const card = Array.from(document.querySelectorAll('.ports-video-item'))
                 .find(item => item.dataset.videoId === id);
