@@ -156,6 +156,13 @@ Toda animação nova do Jornal deve ser implementada com meta de fluidez de 60 F
 
 Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o Jornal mostra um ✓ animado no canto superior esquerdo. Esse feedback reutiliza um único elemento e anima somente `transform` e `opacity`.
 
+## Shorts com reprodução convencional do YouTube
+
+- O player incorporado do Jornal é **sempre** o iframe oficial `https://www.youtube.com/embed/VIDEO_ID` em proporção 16:9, com os mesmos controles para Shorts e vídeos normais. `/shorts/VIDEO_ID` só é consultado no backend para a **classificação do formato**, nunca para a reprodução.
+- O YouTube controla o logotipo, a interface interna e eventuais elementos de Shorts dentro do iframe. A API pública não oferece um parâmetro para forçar a marca comum do YouTube em todo Short. Não mascarar logotipos nem aplicar sobreposições sobre os controles do iframe.
+- O link `youtube-standard-watch-link`, nos controles do Jornal, abre o vídeo selecionado por `https://www.youtube.com/watch?v=VIDEO_ID&t=N s` (o parâmetro de tempo real é `&t=Ns`). A página normal `/watch` evita a navegação ao feed `/shorts`. Ao abrir externamente, a reprodução interna é pausada; o progresso só é alterado pelas regras já existentes. A fila do Jornal permanece intacta.
+- Vídeos não incorporáveis também são abertos por `/watch`. O comportamento de URLs é testado em Node, e a presença do link e a proporção horizontal são testadas em Chromium.
+
 ## Avanço de 30 segundos em tela cheia
 
 - `fullscreen-seek-forward` aparece somente na tela cheia própria de `#playerwrap`: em **retrato (vertical)**, fica à esquerda do botão de concluir/avançar vídeo; em **paisagem (horizontal)**, fica imediatamente acima dele, com a mesma margem direita.
