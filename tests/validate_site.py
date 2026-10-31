@@ -1016,6 +1016,14 @@ def validate_generated():
         and revision.get("version") == version_match.group(1),
         "revision.json não corresponde à versão do HTML gerado.",
     )
+    revision_bytes = revision_path.stat().st_size
+    html_bytes = index_path.stat().st_size
+    require(revision_bytes <= 256, "Arquivo de revisão ficou grande demais.")
+    print(
+        f"PERF_REVISION: HTML={html_bytes} bytes; "
+        f"JSON={revision_bytes} bytes; "
+        f"economia={100 * (1 - revision_bytes / max(1, html_bytes)):.2f}% por checagem."
+    )
 
     javascript = read_javascript()
     available = set(
