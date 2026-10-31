@@ -213,11 +213,10 @@ function loadResume() {
 }
 
 function currentVideoMeta(videoId) {
-    return VIDEOS.find(
-        video => video.id === videoId
-    ) || PORTS_VIDEOS.find(
-        video => video.id === videoId
-    ) || null;
+    // Jornal primeiro: preserva a precedência dos vídeos compartilhados.
+    return JOURNAL_VIDEO_BY_ID.get(videoId)
+        || PORTS_VIDEO_BY_ID.get(videoId)
+        || null;
 }
 
 
@@ -227,7 +226,7 @@ function resumeOutsideCurrentJournal() {
     return Boolean(
         !portsPlaybackActive &&
         resumeState &&
-        !VIDEOS.some(video => video.id === resumeState.videoId)
+        !JOURNAL_VIDEO_BY_ID.has(resumeState.videoId)
     );
 }
 
