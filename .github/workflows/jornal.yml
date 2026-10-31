@@ -57,6 +57,7 @@ jobs:
             node --check "$file"
           done
           node tests/runtime_playback.cjs
+          node tests/service_worker_cache.cjs
           python tests/validate_site.py --source-only
 
       - name: Restaurar cache do tradutor
