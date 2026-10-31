@@ -258,6 +258,51 @@ function standardEmbedUrl(videoId) {
 }
 
 
+// O YouTube decide os controles e a marca exibidos dentro do iframe.
+// /watch?v= força a página de reprodução convencional FORA do iframe,
+// inclusive quando o vídeo original pertence à categoria Shorts.
+function standardWatchUrl(videoId, seconds = 0) {
+    if (typeof videoId !== 'string'
+        || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
+    const url = 'https://www.youtube.com/watch?v='
+        + encodeURIComponent(videoId);
+    const position = Math.floor(Number(seconds));
+    return Number.isFinite(position) && position > 0
+        ? url + '&t=' + position + 's'
+        : url;
+}
+
+function updateStandardWatchLink(videoId) {
+    const link = document.getElementById('youtube-standard-watch-link');
+    if (!link) return;
+    const url = standardWatchUrl(videoId);
+    link.hidden = !url;
+    if (url) link.href = url;
+    else link.removeAttribute('href');
+}
+
+function openStandardWatchAtCurrentTime() {
+    const link = document.getElementById('youtube-standard-watch-link');
+    if (!link) return;
+    const activeId = currentVideoId();
+    const pendingId = pendingPlaybackRequest && pendingPlaybackRequest.id;
+    const videoId = pendingId || activeId
+        || (activePlaylist && activePlaylist[i])
+        || (resumeState && resumeState.videoId);
+    const seconds = videoId === activeId ? currentTime()
+        : (typeof getResumeSeconds === 'function'
+            ? getResumeSeconds(videoId) : 0);
+    const url = standardWatchUrl(videoId, seconds);
+    if (url) {
+        link.href = url;
+        // Evita tocar dois players simultaneamente; não muda a marcação
+        // de assistidos nem a fila do Jornal.
+        if (player && ready && typeof player.pauseVideo === 'function') {
+            try { player.pauseVideo(); } catch (_) {}
+        }
+    }
+}
+
 function onYouTubeIframeAPIReady() {
     if (
         !activePlaylist.length
@@ -323,6 +368,7 @@ function onYouTubeIframeAPIReady() {
         standardEmbedUrl(
             initialId
         );
+    updateStandardWatchLink(initialId);
 
     iframe.title =
         'Player do YouTube';
@@ -350,6 +396,7 @@ function onYouTubeIframeAPIReady() {
                         ready = true;
                         setPlayerLoading(false);
                         rebuildPlaylist();
+                        updateStandardWatchLink(initialId);
                         updateTransport();
                         applyPreferredSpeed();
 
@@ -396,6 +443,7 @@ function onYouTubeIframeAPIReady() {
                         const id =
                             currentVideoId();
 
+                        if (id) updateStandardWatchLink(id);
                         updateTransport();
 
                         if (
@@ -589,6 +637,7 @@ function play(
 
     setPlayerLoading(true);
 
+    updateStandardWatchLink(id);
     dismissPlaybackError();
     player.loadVideoById({
         videoId: id,
@@ -1850,7 +1899,7 @@ function openPortsVideo(id) {
 
     if (video.embeddable === false) {
         window.open(
-            'https://www.youtube.com/watch?v=' + encodeURIComponent(id),
+            standardWatchUrl(id),
             '_blank',
             'noopener'
         );
@@ -1879,8 +1928,7 @@ function openVideo(id, source = 'journal') {
 
     if (video.embeddable === false) {
         window.open(
-            'https://www.youtube.com/watch?v='
-            + encodeURIComponent(id),
+            standardWatchUrl(id),
             '_blank',
             'noopener'
         );
