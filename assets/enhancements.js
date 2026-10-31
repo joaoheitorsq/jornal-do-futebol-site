@@ -331,12 +331,13 @@ function dismissUpdateNotice() {
 function checkJournalUpdate() {
     if (document.hidden || typeof fetch !== 'function') return;
     const local = document.querySelector('meta[name="journal-version"]')?.content;
-    fetch(location.pathname + '?revision_check=' + Date.now(), {
-        cache: 'no-store', credentials:'same-origin'
-    }).then(res => res.ok ? res.text() : '').then(html => {
-        if (!html) return;
-        const match = html.match(/<meta name="journal-version" content="([^"]+)">/);
-        if (!match || match[1] === local) return;
+    // Arquivo mínimo publicado junto do HTML: evita baixar e analisar
+    // toda a edição (cards e dados de vídeos) a cada checagem.
+    fetch('revision.json?revision_check=' + Date.now(), {
+        cache: 'no-store', credentials: 'same-origin'
+    }).then(res => res.ok ? res.json() : null).then(data => {
+        if (!data || typeof data.version !== 'string'
+            || data.version === local) return;
         const box = document.getElementById('update-notice');
         if (box) box.hidden = false;
     }).catch(()=>{});
