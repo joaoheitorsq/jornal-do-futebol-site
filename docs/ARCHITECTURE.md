@@ -12,9 +12,12 @@ Este documento é o mapa para alterações futuras. A regra principal é mexer a
 - `assets/view.js`: capítulos, busca, retomada, fila, tempos, filtros e mini-player.
 - `assets/player.js`: transporte, YouTube Player, navegação, fullscreen e avanço protegido.
 - `assets/motion.js`: animações otimizadas para compositor e observação da viewport.
-- `assets/features.js`: fila manual, adiar, terminar depois, backup, progresso por vídeo, sessão, undo e controles avançados.
+- `assets/features.js`: fila manual, adiar, terminar depois, backup, progresso por vídeo, sessão, undo, marcação em lote de períodos e controles avançados.
+- `assets/enhancements.js`: personalização, filtros extras, favoritos, silenciamento, diagnóstico e carregamento progressivo de portes.
 - `assets/bootstrap.js`: inicialização do estado e carregamento da API do YouTube. Deve ser o último módulo.
 - `channels.json`: canais e regra `onlyShorts`.
+- `ports_channels.json`: canais do painel independente de portes.
+- `service-worker.js` e `manifest.webmanifest`: cache restrito ao projeto e instalação PWA.
 - `tests/validate_site.py`: contrato estrutural do projeto.
 - `.github/workflows/jornal.yml`: valida, gera e publica.
 
@@ -30,7 +33,8 @@ A ordem é um contrato:
 4. `player.js`
 5. `motion.js`
 6. `features.js`
-7. `bootstrap.js`
+7. `enhancements.js`
+8. `bootstrap.js`
 
 Os arquivos são scripts clássicos e compartilham o mesmo estado global. O `bootstrap.js` inicializa os dados somente depois que todas as funções já foram carregadas.
 
@@ -45,25 +49,27 @@ Quando uma alteração futura exigir mudar o formato dos dados em `localStorage`
 3. preservar os dados antigos sempre que possível;
 4. nunca resolver incompatibilidades apagando silenciosamente o progresso.
 
-A versão 1 apenas formaliza as chaves legadas existentes e não altera o progresso atual.
+O esquema atual é a versão 2. As marcações e posições de retomada do painel de portes ficam em chaves próprias, com migração única do histórico antigo. Não misturar novos assistidos de portes com os do Jornal principal.
 
 ## Fluxo de publicação
 
 1. Push relevante em `main` ou `workflow_dispatch`.
 2. Compilação sintática do Python.
 3. `node --check` em todos os arquivos `assets/*.js`.
-4. Validação estrutural dos fontes.
-5. Preparação do Argos Translate.
-6. Execução de `jornal.py`.
-7. Validação do HTML final.
-8. Cópia dos assets para `_site`.
-9. Publicação no GitHub Pages.
+4. Testes Node de reprodução/filas e cache do service worker.
+5. Validação estrutural dos fontes.
+6. Preparação opcional do Argos Translate.
+7. Execução de `jornal.py`.
+8. Validação do HTML final.
+9. Smoke test real no Chromium em eventos de `push` (não em `workflow_dispatch`).
+10. Cópia dos assets para `_site`.
+11. Publicação no GitHub Pages.
 
 O cron externo de 30 minutos continua usando `workflow_dispatch`. Alterações relevantes em código também publicam automaticamente por `push`. Execuções antigas são canceladas quando uma versão mais nova entra na mesma fila, evitando gastar tempo publicando código já ultrapassado.
 
 ## Cache
 
-Cada CSS e cada módulo JavaScript recebe um hash SHA-256 de 12 caracteres na URL. Qualquer alteração de asset invalida automaticamente o cache do navegador.
+Cada CSS e cada módulo JavaScript recebe um hash SHA-256 de 12 caracteres na URL. O service worker prefere a rede, armazena apenas recursos do próprio escopo do projeto e mantém no máximo duas versões de cada CSS/JS, eliminando as variantes anteriores. URLs com consultas arbitrárias e checagens de revisão não entram no cache. A atualização do service worker para `jornal-shell-v2` descarta o cache da versão anterior sem tocar no `localStorage`.
 
 ## Onde alterar
 
@@ -73,17 +79,22 @@ Cada CSS e cada módulo JavaScript recebe um hash SHA-256 de 12 caracteres na UR
 - Busca, fila, cards visuais, mini-player e retomada: `assets/view.js`.
 - Estado, vistos, HearthPwn e migração do armazenamento: `assets/core.js`.
 - Recursos avançados, backup e estado por vídeo: `assets/features.js`.
+- Filtros de personalização, favoritos, silenciamento e paginação de portes: `assets/enhancements.js`.
 - Animações e microinterações: `assets/motion.js`.
 - Inicialização e carregamento da API do YouTube: `assets/bootstrap.js`.
 - Estrutura fixa do HTML: `templates/index.html`.
 - Conteúdo dinâmico dos cards e coleta: `jornal.py`.
-- Canais: `channels.json`.
+- Canais do Jornal: `channels.json`.
+- Canais de portes: `ports_channels.json`.
+- Cache e PWA: `service-worker.js` e `manifest.webmanifest`.
 
 ## Validação local
 
 ```bash
 python -m py_compile jornal.py tests/validate_site.py
 for file in assets/*.js; do node --check "$file"; done
+node tests/runtime_playback.cjs
+node tests/service_worker_cache.cjs
 python tests/validate_site.py --source-only
 ```
 
@@ -154,7 +165,7 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - A lista de portes **não possui rolagem interna nem altura máxima**: `ports-video-list` permanece em fluxo natural (`overflow: visible`), de modo que arrastar sobre qualquer vídeo movimenta a página inteira. Não reintroduzir `overflow-y: auto` ou `overscroll-behavior: contain` nessa lista.
 - Os cartões utilizam miniaturas dimensionadas com CSS Grid, títulos e metadados legíveis, estados atuais/assistidos, chips de canais e ajuste responsivo para telas pequenas.
 - O bloco `ports-data` contém `PORTS_VIDEOS`, independente da lista principal `VIDEOS`. O botão de reproduzir usa `openPortsVideo` e a fila específica da seção no player existente; **Começar jornal** volta à fila principal.
-- Vídeos do painel não alteram duração, progresso e total da lista principal. A marcação de assistido usa as mesmas chaves locais existentes para não fragmentar o progresso por dispositivo; a configuração de canais fica exclusivamente no arquivo JSON.
+- Vídeos do painel não alteram duração, progresso e total da lista principal. Assistidos de portes usam `jornal_do_futebol_ports_watched_v1`, com retomada e posições próprias; o histórico principal utiliza `jornal_do_futebol_watched_v1`. Não há sincronização automática entre dispositivos. A configuração das fontes fica em `ports_channels.json`.
 
 - O canal bummy está fixado por ID de canal imutável, além do handle, para evitar ambiguidades de identificação. Na seção de portes, cada canal também consulta o feed Atom oficial do YouTube como fonte complementar sem gasto de cota da Data API; apenas IDs cuja autoria seja validada pela API entram no painel. As mensagens `RECUPERADOS VIA ATOM` mostram vídeos omitidos pela playlist.
 - A coleta produz linhas `RESUMO CANAL @handle: uploads=N, incluídos=M` para **todos os canais** com consulta de uploads bem-sucedida; ausência de publicação e exclusão por filtros ficam diagnosticáveis. O cabeçalho exibe o total de vídeos de cada fonte nos chips. Uma alteração em `ports_channels.json` também dispara o workflow no `push`.
@@ -167,7 +178,7 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - **Controles de tela cheia:** ambos continuam exigindo toque longo (3 s para concluir, 2 s para avançar 30 s). Toques extras não reiniciam a pressão; a tecla Espaço/Enter também aciona o botão de concluir e soltar ou perder foco cancela a operação.
 - **Backup seguro:** validação de estrutura/tamanho antes da escrita, cópia do estado existente e tentativa de reversão integral se o navegador recusar a restauração. Não se altera o esquema local de versão 2.
 - **Coleta defensiva:** IDs de vídeo são validados antes de chegar aos handlers HTML, datas inválidas são ignoradas, vídeos repetidos na mesma playlist são deduplicados e a paginação circular é detectada.
-- **Sobreposição legítima:** um mesmo upload pode estar nas listas de futebol e portes, com filas separadas e status de visto compartilhado. A validação verifica duplicatas **dentro** de cada lista, não proíbe IDs presentes em ambas.
+- **Sobreposição legítima:** um mesmo upload pode estar nas listas de futebol e portes, com filas e status de visto independentes por painel. A validação verifica duplicatas **dentro** de cada lista, não proíbe IDs presentes em ambas.
 - **Testes automatizados:** o CI executa validação Python de fonte e HTML gerado, verificação de sintaxe de todos os módulos JS e `tests/runtime_playback.cjs` (filas, vídeo compartilhado, retomada e gestos), além de simulações locais de respostas inesperadas da API.
 
 
