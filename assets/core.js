@@ -19,6 +19,11 @@ const PORTS_VIDEOS = JSON.parse(
     : '[]'
 );
 
+// Lookups imutáveis da edição: evita varrer todas as listas a cada
+// atualização de card, progresso, fila ou retomada.
+const JOURNAL_VIDEO_BY_ID = new Map(VIDEOS.map(video => [video.id, video]));
+const PORTS_VIDEO_BY_ID = new Map(PORTS_VIDEOS.map(video => [video.id, video]));
+
 const PORTS_COLLAPSED_KEY =
     'jornal_do_futebol_ports_collapsed_v1';
 
