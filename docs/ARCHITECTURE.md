@@ -75,7 +75,8 @@ Cada CSS e cada módulo JavaScript recebe um hash SHA-256 de 12 caracteres na UR
 
 - Os metadados dos vídeos ativos são indexados em `JOURNAL_VIDEO_BY_ID` e `PORTS_VIDEO_BY_ID` no `assets/core.js`; consultas de card, retomada e ações usam esses índices, mantendo o Jornal como fonte prioritária nos IDs compartilhados.
 - `jornal.py` gera `revision.json` com o **mesmo** valor da meta `journal-version` do HTML. Esse arquivo é publicado no mesmo artefato do site e não é versionado no Git.
-- `checkJournalUpdate()` solicita somente `revision.json?revision_check=...` a cada 15 minutos enquanto a aba está visível, com `cache: no-store`. Não voltar a baixar o HTML completo para esta comparação.
+- `checkJournalUpdate()` solicita somente `revision.json?revision_check=...` a cada 15 minutos enquanto a aba está visível, com `cache: no-store`. Ao voltar à aba, consulta novamente quando transcorrido pelo menos um minuto desde a última verificação. Não voltar a baixar o HTML completo para esta comparação.
+- O transporte evita reescrever controles a cada 500 ms quando a aba está oculta ou o player ainda não inicializou.
 - `tests/validate_site.py` exige que JSON e HTML representem a mesma edição, e `tests/browser_smoke.cjs` testa a leitura do JSON em Chromium.
 - Alterações devem preservar os testes de fila, históricos independentes, retomada, toque longo e PWA.
 
