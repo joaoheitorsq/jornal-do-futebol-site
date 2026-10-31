@@ -1999,7 +1999,20 @@ def main():
             )
         )
 
-    log("index.html atualizado.")
+    # Mesmo identificador exposto em <meta name="journal-version">.
+    # Um JSON pequeno permite verificar novas edições sem transferir HTML.
+    with open(
+        "revision.json", "w", encoding="utf-8", newline="\n"
+    ) as file:
+        json.dump(
+            {"version": now_local.isoformat()},
+            file,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        file.write("\n")
+
+    log("index.html e revision.json atualizados.")
 
 
 if __name__ == "__main__":
