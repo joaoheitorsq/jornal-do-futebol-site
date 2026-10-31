@@ -328,8 +328,11 @@ function dismissUpdateNotice() {
     const box = document.getElementById('update-notice');
     if (box) box.hidden = true;
 }
+let lastJournalRevisionCheckAt = 0;
 function checkJournalUpdate() {
-    if (document.hidden || typeof fetch !== 'function') return;
+    if (document.hidden || typeof fetch !== 'function'
+        || Date.now() - lastJournalRevisionCheckAt < 60000) return;
+    lastJournalRevisionCheckAt = Date.now();
     const local = document.querySelector('meta[name="journal-version"]')?.content;
     // Arquivo mínimo publicado junto do HTML: evita baixar e analisar
     // toda a edição (cards e dados de vídeos) a cada checagem.
@@ -420,6 +423,9 @@ function initEnhancements() {
     updateExtraDashboard();
     updateBackupReminder();
     if (typeof setInterval === 'function') setInterval(checkJournalUpdate,15*60*1000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) checkJournalUpdate();
+    });
     if ('serviceWorker' in navigator && location.protocol==='https:') {
         navigator.serviceWorker.register('service-worker.js').catch(()=>{});
     }
