@@ -291,6 +291,12 @@ def validate_sources():
     )
 
     javascript = read_javascript()
+    require(
+        "revision.json?revision_check=" in javascript
+        and 'json.dump(' in read_text("jornal.py")
+        and "cp index.html revision.json _site/" in read_text(".github/workflows/jornal.yml"),
+        "Consulta otimizada de revisão não está integrada à publicação.",
+    )
     css = read_text("assets/style.css")
 
     # As 22 melhorias não podem acidentalmente quebrar o isolamento,
@@ -995,6 +1001,20 @@ def validate_generated():
 
     html = index_path.read_text(
         encoding="utf-8"
+    )
+
+    # O arquivo de revisão publicado deve ser exatamente da mesma edição.
+    revision_path = ROOT / "revision.json"
+    require(revision_path.is_file(), "revision.json não foi gerado.")
+    revision = json.loads(revision_path.read_text(encoding="utf-8"))
+    version_match = re.search(
+        r'<meta name="journal-version" content="([^"]+)">', html
+    )
+    require(
+        version_match is not None
+        and isinstance(revision, dict)
+        and revision.get("version") == version_match.group(1),
+        "revision.json não corresponde à versão do HTML gerado.",
     )
 
     javascript = read_javascript()
