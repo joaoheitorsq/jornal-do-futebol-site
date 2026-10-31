@@ -61,6 +61,7 @@ function element(id) {
         },
         setPointerCapture() {},
         setAttribute() {},
+        removeAttribute() {},
         getAttribute() { return null; },
         querySelector() { return null; },
         querySelectorAll() { return []; },
@@ -236,6 +237,36 @@ ctx.__fakePlayer = {
     seekTo() {}
 };
 expression('ready = true; player = __fakePlayer;');
+
+// O Short nunca deve ativar uma URL /shorts/ para reprodução.
+assert.equal(new URL(expression('standardEmbedUrl("S1234567890")')).pathname,
+    '/embed/S1234567890');
+assert.equal(new URL(expression('standardEmbedUrl("MMMMMMMMMMM")')).pathname,
+    '/embed/MMMMMMMMMMM');
+assert.equal(new URL(expression('standardEmbedUrl("S1234567890")')).searchParams.get('controls'),
+    '1');
+assert.equal(expression('standardWatchUrl("S1234567890")'),
+    'https://www.youtube.com/watch?v=S1234567890');
+assert.equal(expression('standardWatchUrl("S1234567890", 73.9)'),
+    'https://www.youtube.com/watch?v=S1234567890&t=73s');
+assert.equal(expression('standardWatchUrl("invalid id")'), null,
+    'IDs inválidos não podem formar URLs externas');
+
+let pausedForExternal = 0;
+ctx.__fakePlayer.pauseVideo = () => { pausedForExternal++; };
+ctx.__fakePlayer.getCurrentTime = () => 43.8;
+expression('pendingPlaybackRequest = null; activePlaylist = ["BBBBBBBBBBB"]; i = 0;');
+expression('updateStandardWatchLink("BBBBBBBBBBB");');
+assert.equal(byId('youtube-standard-watch-link').hidden, false);
+assert.equal(byId('youtube-standard-watch-link').href,
+    'https://www.youtube.com/watch?v=BBBBBBBBBBB');
+expression('openStandardWatchAtCurrentTime();');
+assert.equal(byId('youtube-standard-watch-link').href,
+    'https://www.youtube.com/watch?v=BBBBBBBBBBB&t=43s');
+assert.equal(pausedForExternal, 1,
+    'Abrir o player externo deve pausar o player interno');
+assert.equal(expression('portsIsWatched("BBBBBBBBBBB")'), false,
+    'Abrir no YouTube não pode concluir vídeo nem alterar progresso');
 
 function pointer(pointerId) {
     return {
