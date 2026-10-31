@@ -941,6 +941,14 @@ def validate_sources():
         positions == sorted(positions),
         "Ordem dos módulos JavaScript no template foi alterada.",
     )
+    require(
+        all(
+            f'<script defer src="{relative_path}?v={ASSET_VERSIONS[relative_path]}"'
+            in template
+            for relative_path in JS_FILES
+        ),
+        "Scripts da interface devem baixar sem bloquear o parser e executar na ordem.",
+    )
 
     require(
         "assets/style.css?v=__STYLE_VERSION__"
