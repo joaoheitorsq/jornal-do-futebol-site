@@ -409,6 +409,33 @@ small {
     cursor: pointer;
 }
 
+/* Link externo para assistir Shorts pela página /watch padrão.
+   Não modifica ou sobrepõe a identidade visual do iframe do YouTube. */
+.controls .youtube-standard-watch-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-strong);
+    color: #fff;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    padding: 9px 12px;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+.controls .youtube-standard-watch-link:hover {
+    border-color: currentColor;
+}
+.controls .youtube-standard-watch-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+.controls .youtube-standard-watch-link[hidden] {
+    display: none;
+}
+
 .view-toggle.active {
     background: var(--text);
     color: #111;
