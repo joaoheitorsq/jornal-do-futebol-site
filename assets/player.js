@@ -227,8 +227,13 @@ function commitSeek(value) {
 }
 
 
+// Evita escritas de DOM a cada 500 ms antes de iniciar o player ou
+// enquanto a aba está oculta. O contador volta ao próximo ciclo visível.
 setInterval(
-    updateTransport,
+    () => {
+        if (document.hidden || !player || !ready) return;
+        updateTransport();
+    },
     500
 );
 
