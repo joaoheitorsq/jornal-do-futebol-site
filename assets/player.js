@@ -1837,7 +1837,7 @@ function prev() {
 
 
 function openPortsVideo(id) {
-    const video = PORTS_VIDEOS.find(item => item.id === id);
+    const video = PORTS_VIDEO_BY_ID.get(id);
 
     if (!video) {
         return;
