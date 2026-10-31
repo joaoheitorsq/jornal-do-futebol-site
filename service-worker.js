@@ -5,6 +5,8 @@ const SHELL = ['./','./index.html','./assets/icon.svg','./assets/icon-192.png','
 
 function canHandleRequest(request, url) {
     if (request.method !== 'GET' || url.origin !== self.location.origin) return false;
+    // Não interceptar recursos de outros projetos hospedados no mesmo domínio.
+    if (!url.pathname.startsWith(new URL(self.registration.scope).pathname)) return false;
     if (url.searchParams.has('revision_check')) return false;
 
     // Somente versões SHA-256 produzidas pelo gerador podem usar query string.
