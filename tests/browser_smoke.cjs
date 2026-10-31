@@ -29,6 +29,38 @@ async function waitForServer() {
     await page.waitForTimeout(300);
     assert.equal(errors.length,0,'Erros JavaScript na inicialização: '+errors.join(' | '));
     assert.equal(await page.locator('#extra-media').count(),1,'Filtro por tipo ausente');
+    // Os dois tipos de vídeo conservam o iframe horizontal; a alternativa
+    // externa utiliza a rota /watch e não converte o vídeo para /shorts.
+    const standardPlayerTest = await page.evaluate(() => {
+        const id = 'S1234567890';
+        const iframeUrl = standardEmbedUrl(id);
+        const link = document.getElementById('youtube-standard-watch-link');
+        const initialHidden = link.hidden;
+        updateStandardWatchLink(id);
+        const linkAfterUpdate = link.href;
+        const previousPending = pendingPlaybackRequest;
+        pendingPlaybackRequest = {id, source: 'journal'};
+        link.addEventListener('click', event => event.preventDefault(), {once: true});
+        link.click();
+        const linkAfterClick = link.href;
+        pendingPlaybackRequest = previousPending;
+        link.hidden = true;
+        return {
+            iframeUrl, initialHidden, linkAfterUpdate, linkAfterClick,
+            aspectRatio: getComputedStyle(document.getElementById('playerwrap')).aspectRatio
+        };
+    });
+    assert.match(standardPlayerTest.iframeUrl,
+        /^https:\/\/www\.youtube\.com\/embed\/S1234567890\?/,
+        'Short foi direcionado para interface Shorts em vez de embed padrão');
+    assert.equal(standardPlayerTest.initialHidden, true,
+        'Ação externa deve aparecer somente quando houver vídeo selecionado');
+    assert.equal(standardPlayerTest.linkAfterUpdate,
+        'https://www.youtube.com/watch?v=S1234567890');
+    assert.equal(standardPlayerTest.linkAfterClick,
+        'https://www.youtube.com/watch?v=S1234567890');
+    assert.equal(standardPlayerTest.aspectRatio,'16 / 9',
+        'Player do Jornal não deve mudar para proporção Shorts');
     // Verificação real do contrato de versão sem transferir o HTML novamente.
     const revision = await page.evaluate(async () => {
         const res = await fetch('revision.json?revision_check=smoke',{cache:'no-store'});
