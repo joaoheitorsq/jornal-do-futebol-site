@@ -104,7 +104,7 @@ jobs:
       - name: Preparar arquivos do site
         run: |
           mkdir -p _site/assets
-          cp index.html _site/index.html
+          cp index.html revision.json _site/
           cp assets/*.js _site/assets/
           cp assets/style.css _site/assets/style.css
           cp assets/icon.svg assets/icon-192.png assets/icon-512.png _site/assets/
