@@ -325,6 +325,21 @@ def validate_sources():
     )
     template = read_text("templates/index.html")
     backend = read_text("jornal.py")
+    player_source = read_text("assets/player.js")
+
+    # Shorts devem usar exatamente o mesmo embed dos vídeos normais.
+    # Para controle de interface/logotipo, a alternativa externa é /watch.
+    require(
+        "https://www.youtube.com/embed/" in player_source
+        and "function standardEmbedUrl(videoId)" in player_source
+        and "function standardWatchUrl(videoId" in player_source
+        and "'https://www.youtube.com/watch?v='" in player_source
+        and "function openStandardWatchAtCurrentTime()" in player_source
+        and 'id="youtube-standard-watch-link"' in template
+        and 'onclick="openStandardWatchAtCurrentTime()"' in template
+        and '.controls .youtube-standard-watch-link[hidden]' in css,
+        "Reprodução de Shorts fora do embed padrão ou sem acesso à página /watch.",
+    )
 
     require(
         'id="extra-collapse-toggle"' in template
