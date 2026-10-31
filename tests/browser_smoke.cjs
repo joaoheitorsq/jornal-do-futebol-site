@@ -29,6 +29,22 @@ async function waitForServer() {
     await page.waitForTimeout(300);
     assert.equal(errors.length,0,'Erros JavaScript na inicialização: '+errors.join(' | '));
     assert.equal(await page.locator('#extra-media').count(),1,'Filtro por tipo ausente');
+    // Verificação real do contrato de versão sem transferir o HTML novamente.
+    const revision = await page.evaluate(async () => {
+        const res = await fetch('revision.json?revision_check=smoke',{cache:'no-store'});
+        return {
+            status: res.status,
+            data: res.ok ? await res.json() : null,
+            local: document.querySelector('meta[name="journal-version"]')?.content
+        };
+    });
+    assert.equal(revision.status,200,'Metadado compacto de revisão não foi publicado');
+    assert.equal(revision.data.version,revision.local,
+        'Metadado de revisão e versão HTML não correspondem');
+    assert.equal(await page.evaluate(() => {
+        const shared = VIDEOS.find(v => PORTS_VIDEO_BY_ID.has(v.id));
+        return !shared || currentVideoMeta(shared.id) === JOURNAL_VIDEO_BY_ID.get(shared.id);
+    }),true,'Índice do Jornal deve manter precedência em vídeos compartilhados');
 
     // O botão deve recolher controles sem apagar preferências ou afetar
     // o Jornal, e a escolha precisa persistir após recarregar a página.
