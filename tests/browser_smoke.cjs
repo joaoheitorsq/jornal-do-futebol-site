@@ -46,6 +46,32 @@ async function waitForServer() {
         return !shared || currentVideoMeta(shared.id) === JOURNAL_VIDEO_BY_ID.get(shared.id);
     }),true,'Índice do Jornal deve manter precedência em vídeos compartilhados');
 
+    // Medição diagnóstica, sem limite rígido de tempo (CI não é hardware móvel).
+    // Compara o mesmo conjunto de IDs e checksum com busca linear e índice.
+    const lookupPerf = await page.evaluate(() => {
+        const ids = VIDEOS.map(video => video.id);
+        if (!ids.length) return null;
+        function measure(lookup) {
+            let sum = 0;
+            const started = performance.now();
+            for (let iteration = 0; iteration < 700; iteration++) {
+                for (const id of ids) {
+                    const video = lookup(id);
+                    sum += Number(video?.duration || 1);
+                }
+            }
+            return {milliseconds: performance.now() - started, sum};
+        }
+        const linear = measure(id => VIDEOS.find(video => video.id === id));
+        const indexed = measure(id => JOURNAL_VIDEO_BY_ID.get(id));
+        return {count: ids.length, linear, indexed};
+    });
+    if (lookupPerf) {
+        assert.equal(lookupPerf.linear.sum,lookupPerf.indexed.sum,
+            'Índice retornou dados diferentes da busca original');
+        console.log('PERF_LOOKUP ' + JSON.stringify(lookupPerf));
+    }
+
     // O botão deve recolher controles sem apagar preferências ou afetar
     // o Jornal, e a escolha precisa persistir após recarregar a página.
     const personalizationToggle = page.locator('#extra-collapse-toggle');
