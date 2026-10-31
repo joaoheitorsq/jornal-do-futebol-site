@@ -208,11 +208,7 @@ function setSkippedChannelsToday(channels) {
 
 
 function videoIdentityMeta(videoId) {
-    const current =
-        VIDEOS.find(
-            video =>
-                video.id === videoId
-        );
+    const current = JOURNAL_VIDEO_BY_ID.get(videoId);
 
     if (current) {
         return current;
