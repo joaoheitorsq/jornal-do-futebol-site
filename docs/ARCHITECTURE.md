@@ -36,7 +36,7 @@ A ordem é um contrato:
 7. `enhancements.js`
 8. `bootstrap.js`
 
-Os arquivos são scripts clássicos e compartilham o mesmo estado global. O `bootstrap.js` inicializa os dados somente depois que todas as funções já foram carregadas.
+Os arquivos são scripts clássicos e compartilham o mesmo estado global. Todos usam `defer`, para permitir download paralelo sem bloquear o parser, mas a execução permanece na ordem declarada. O `bootstrap.js` inicializa os dados somente depois que todas as funções já foram carregadas. A ordem e o atributo `defer` são verificados no validador.
 
 ## Armazenamento local
 
