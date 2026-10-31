@@ -121,6 +121,14 @@ function expression(code) { return vm.runInContext(code, ctx); }
 const active = () => expression('activePlaylist.slice()');
 const mode = () => expression('portsPlaybackActive');
 
+// Índices fixos devem preservar a origem e a precedência no mesmo ID.
+assert.equal(expression('JOURNAL_VIDEO_BY_ID.size'), mainVideos.length);
+assert.equal(expression('PORTS_VIDEO_BY_ID.size'), portsVideos.length);
+assert.equal(expression('currentVideoMeta("AAAAAAAAAAA").title'), 'Compartilhado');
+assert.equal(expression('currentVideoMeta("BBBBBBBBBBB").channelHandle'), '@b');
+assert.equal(expression('currentVideoMeta("ZZZZZZZZZZZ")'), null);
+assert.equal(expression('videoIdentityMeta("MMMMMMMMMMM").channelTitle'), 'M');
+
 expression('openPortsVideo("AAAAAAAAAAA");');
 assert.equal(expression('pendingPlaybackRequest.source'),'ports',
     'Pedido de reprodução antes de carregar o YouTube perdeu sua origem');
