@@ -2,6 +2,7 @@
 """Regressões de segurança sem rede: HTML de terceiros e JSON incorporado."""
 import json
 import sys
+from io import BytesIO
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -88,7 +89,17 @@ def main():
     require(json.loads(embedded)["title"] == malicious,
             "Escaping seguro corrompeu o conteúdo JSON")
 
-    print("Segurança: links HTTPS, RSS, homepage, HTML e JSON incorporado OK.")
+    # A coleta não deve aceitar respostas externas ilimitadas.
+    require(jornal.read_limited(BytesIO(b"abc"), 3) == b"abc",
+            "Limite de resposta rejeitou um corpo legítimo")
+    try:
+        jornal.read_limited(BytesIO(b"abcd"), 3)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Uma resposta externa excessiva foi aceita")
+
+    print("Segurança: URL, RSS, HTML, JSON e limites de payload OK.")
 
 
 if __name__ == "__main__":
