@@ -38,6 +38,8 @@ function loadFeatureState() {
             !data
             ||
             typeof data !== 'object'
+            ||
+            Array.isArray(data)
         ) {
             return fallback;
         }
@@ -48,6 +50,7 @@ function loadFeatureState() {
                 &&
                 typeof data.resumePositions
                 === 'object'
+                && !Array.isArray(data.resumePositions)
                 ? data.resumePositions
                 : {},
             deferredByDay:
@@ -55,6 +58,7 @@ function loadFeatureState() {
                 &&
                 typeof data.deferredByDay
                 === 'object'
+                && !Array.isArray(data.deferredByDay)
                 ? data.deferredByDay
                 : {},
             finishLater:
@@ -62,6 +66,7 @@ function loadFeatureState() {
                 &&
                 typeof data.finishLater
                 === 'object'
+                && !Array.isArray(data.finishLater)
                 ? data.finishLater
                 : {},
             skippedChannelsByDay:
@@ -69,6 +74,7 @@ function loadFeatureState() {
                 &&
                 typeof data.skippedChannelsByDay
                 === 'object'
+                && !Array.isArray(data.skippedChannelsByDay)
                 ? data.skippedChannelsByDay
                 : {}
         };
@@ -109,7 +115,8 @@ function loadManualQueue() {
             JSON.parse(raw);
 
         return Array.isArray(data)
-            ? data.map(String)
+            ? data.filter(id => typeof id === 'string'
+                && /^[A-Za-z0-9_-]{11}$/.test(id)).slice(0, 10000)
             : [];
     }
     catch (_) {
@@ -277,13 +284,8 @@ function getResumeSeconds(videoId) {
         return 0;
     }
 
-    return Math.max(
-        0,
-        Number(
-            value.seconds
-            || 0
-        )
-    );
+    const seconds = Number(value.seconds || 0);
+    return Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
 }
 
 
