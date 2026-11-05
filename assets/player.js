@@ -1467,6 +1467,7 @@ function beginFullscreenNextHold(event) {
                 );
 
                 hideFullscreenHoldCountdown('next');
+                cancelSwipeNext();
 
                 markCurrentWatchedAndNext();
 
@@ -1641,9 +1642,118 @@ function initFullscreenNextHold() {
 initFullscreenNextHold();
 
 
+// Gesto seguro fora do iframe: na página, usa a faixa logo abaixo
+// do player; na tela cheia, reutiliza o botão "próximo" existente.
+// Nenhum elemento novo intercepta os controles internos do YouTube.
+const SWIPE_NEXT_MIN_DISTANCE = 60;
+const SWIPE_NEXT_MAX_DURATION_MS = 1500;
+let swipeNextPointer = null;
+
+function cancelSwipeNext() {
+    if (swipeNextPointer && swipeNextPointer.target) {
+        swipeNextPointer.target.classList.remove('swipe-active');
+    }
+    swipeNextPointer = null;
+}
+
+function beginSwipeNext(event, fullscreenButton) {
+    if (swipeNextPointer) {
+        // Mais de um dedo invalida o gesto: não concluir por acidente.
+        swipeNextPointer.cancelled = true;
+        return;
+    }
+    if (!player || !ready || completionAdvanceInProgress
+        || event.isPrimary === false
+        || (event.pointerType === 'mouse' && event.button !== 0)
+        || (fullscreenButton && !isJournalFullscreen())) return;
+
+    const id = currentVideoId();
+    if (!id || !Number.isFinite(event.clientX)
+        || !Number.isFinite(event.clientY)) return;
+
+    const target = document.getElementById(
+        fullscreenButton ? 'fullscreen-next' : 'journal-swipe-next'
+    );
+    if (!target) return;
+
+    swipeNextPointer = {
+        id,
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        startedAt: Date.now(),
+        fullscreenButton,
+        target,
+        cancelled: false
+    };
+    target.classList.add('swipe-active');
+    if (event.pointerId !== null && event.pointerId !== undefined) {
+        try { target.setPointerCapture(event.pointerId); } catch (_) {}
+    }
+}
+
+function moveSwipeNext(event) {
+    const gesture = swipeNextPointer;
+    if (!gesture || gesture.pointerId !== event.pointerId
+        || gesture.cancelled) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    // Não confundir gesto para baixo ou horizontal com avançar.
+    if (dy > 24 || (Math.abs(dx) > 38
+        && Math.abs(dx) > Math.abs(dy) * 1.1)) {
+        gesture.cancelled = true;
+    }
+}
+
+function endSwipeNext(event) {
+    const gesture = swipeNextPointer;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const dy = event.clientY - gesture.y;
+    const dx = Math.abs(event.clientX - gesture.x);
+    const elapsed = Date.now() - gesture.startedAt;
+    const valid = !gesture.cancelled
+        && dy <= -SWIPE_NEXT_MIN_DISTANCE
+        && dx <= Math.max(30, -dy * 0.65)
+        && elapsed >= 0 && elapsed <= SWIPE_NEXT_MAX_DURATION_MS
+        && currentVideoId() === gesture.id
+        && player && ready && !completionAdvanceInProgress
+        && (!gesture.fullscreenButton || (
+            isJournalFullscreen() && !fullscreenNextHoldTriggered
+        ));
+    cancelSwipeNext();
+
+    if (!valid) return;
+    if (gesture.fullscreenButton) cancelFullscreenNextHold();
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    // Esta é a mesma rotina do botão de concluir do fullscreen.
+    // Internamente: markWatched -> atualização do histórico -> play(next).
+    markCurrentWatchedAndNext();
+}
+
+function initSwipeNext() {
+    const surfaces = [
+        {element: document.getElementById('journal-swipe-next'),
+            fullscreenButton: false},
+        {element: document.getElementById('fullscreen-next'),
+            fullscreenButton: true}
+    ];
+    for (const {element, fullscreenButton} of surfaces) {
+        if (!element) continue;
+        element.addEventListener(
+            'pointerdown', event => beginSwipeNext(event, fullscreenButton)
+        );
+        element.addEventListener('pointermove', moveSwipeNext);
+        element.addEventListener('pointerup', endSwipeNext);
+        element.addEventListener('pointercancel', cancelSwipeNext);
+    }
+}
+initSwipeNext();
+
+
 document.addEventListener(
     'fullscreenchange',
     () => {
+        cancelSwipeNext();
         cancelFullscreenNextHold();
         updateJournalFullscreenButton();
     }
