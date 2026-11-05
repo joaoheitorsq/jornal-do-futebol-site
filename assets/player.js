@@ -468,7 +468,12 @@ function createYouTubePlayer() {
                         if (pendingPlaybackRequest) {
                             const requested = pendingPlaybackRequest;
                             pendingPlaybackRequest = null;
-                            openVideo(requested.id, requested.source);
+                            openVideo(
+                                requested.id,
+                                requested.source,
+                                requested.startSeconds === undefined
+                                    ? null : requested.startSeconds
+                            );
                             return;
                         }
 
@@ -652,9 +657,16 @@ function play(
     if (index < 0 || index >= activePlaylist.length) return;
 
     if (!ready) {
+        const id = activePlaylist[index];
         pendingPlaybackRequest = {
-            id: activePlaylist[index],
-            source: portsPlaybackActive ? 'ports' : 'journal'
+            id,
+            source: portsPlaybackActive ? 'ports' : 'journal',
+            // Antes desta mudança, o clique inicial podia perder segundos
+            // explícitos de uma retomada enquanto aguardava o iframe.
+            startSeconds: startSeconds === null
+                ? (typeof getResumeSeconds === 'function'
+                    ? getResumeSeconds(id) : 0)
+                : Math.max(0, Number(startSeconds || 0))
         };
         setStatus('Preparando o player do YouTube para reproduzir sua seleção…');
         setPlayerLoading(true);
@@ -1974,7 +1986,7 @@ function openPortsVideo(id) {
 }
 
 
-function openVideo(id, source = 'journal') {
+function openVideo(id, source = 'journal', requestedSeconds = null) {
     const video =
         metadataForVideo(id);
 
@@ -2040,10 +2052,12 @@ function openVideo(id, source = 'journal') {
     if (index >= 0) {
         play(
             index,
-            typeof getResumeSeconds
-            === 'function'
-            ? getResumeSeconds(id)
-            : 0
+            requestedSeconds !== null
+                ? Math.max(0, Number(requestedSeconds || 0))
+                : (resumeState && resumeState.videoId === id
+                    ? Math.max(0, Number(resumeState.seconds || 0))
+                    : (typeof getResumeSeconds === 'function'
+                        ? getResumeSeconds(id) : 0))
         );
 
         window.scrollTo({
