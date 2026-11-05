@@ -142,6 +142,16 @@ assert.throws(() => expression(
     'validateJournalBackupEntries([["jornal_do_futebol_unknown_payload", "value"]])'
 ), /chaves reconhecidas/);
 
+// "constructor" tem 11 caracteres e é um possível ID da API.
+// Em objetos comuns, herda uma função mesmo quando o vídeo nunca foi visto.
+expression('featureState = defaultFeatureState(); watched = {}; portsWatched = {}; portsResumePositions = {};');
+assert.equal(expression('isWatched("constructor")'), false);
+assert.equal(expression('portsIsWatched("constructor")'), false);
+assert.equal(expression('isFinishLater("constructor")'), false);
+assert.equal(expression('getResumePosition("constructor")'), null);
+assert.equal(expression('metadataForVideo("constructor")'), null);
+assert.equal(expression('portsResumeSeconds("constructor")'), 0);
+
 // Índices fixos devem preservar a origem e a precedência no mesmo ID.
 assert.equal(expression('JOURNAL_VIDEO_BY_ID.size'), mainVideos.length);
 assert.equal(expression('PORTS_VIDEO_BY_ID.size'), portsVideos.length);
