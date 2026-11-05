@@ -175,14 +175,12 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - `completeCurrentAndAdvance()` continua sendo o único responsável por marcar assistido, respeitar a fila do Jornal ou de portes, recuperar o próximo e atualizar o progresso. A observação é desarmada na conclusão, evitando avanços duplicados. No último vídeo, o player é explicitamente interrompido para não ficar repetindo.
 - Testes sem mídia externa em `tests/runtime_playback.cjs` cobrem fim comum, fim sem callback, reinício silencioso de Shorts, identificação incerta, rewind manual, ID antigo e avanço único. Os testes de Chromium não conseguem garantir o comportamento real do iframe em todos os aparelhos.
 
-## Deslizar para cima: concluir e passar ao próximo
+## Gesto de arrastar removido (05/11/2026)
 
-- O navegador **não entrega à página pai** gestos iniciados dentro do iframe cross-origin do YouTube. As regras do player também não permitem sobrepor uma camada que cubra o vídeo ou seus controles. O Jornal não tenta interceptar o toque dentro do iframe.
-- Fora da tela cheia, a faixa independente `journal-swipe-next`, **abaixo** dos controles do player, permite arrastar para cima pelo menos 60 px. Um toque simples não conclui. A faixa usa `touch-action: none` apenas nela, sem prender a rolagem dos cartões nem bloquear os controles do YouTube.
-- Na tela cheia própria do Jornal, o **botão de próximo já existente** aceita tanto a pressão contínua original de 3 segundos quanto um arrasto rápido para cima, iniciado sobre o botão. O gesto cancela o temporizador da pressão longa antes de concluir.
-- O detector só aceita gesto concluído em até 1,5 s, predominantemente vertical, com um único dedo, sobre o mesmo ID ainda reproduzido. Movimentos para baixo, horizontais, toques simples, ponteiros cancelados ou vídeos trocados durante o gesto **não** marcam como visto.
-- Ambas as superfícies chamam `markCurrentWatchedAndNext()` e daí `completeCurrentAndAdvance()`: primeiro o vídeo é marcado e seu progresso atualizado na origem apropriada; só depois é chamado `play(next)`. O gesto não muda o modo de portas/recomps nem a fila ativa.
-- Testes Node e Chromium verificam gesto válido, cancelamentos, coexistência com pressão longa, um único avanço, histórico independente e ausência de interceptação sobre o iframe.
+- A faixa de deslizar abaixo do player foi removida, assim como os listeners de gesto no botão fullscreen, por preferência explícita do usuário.
+- Arrastos dentro do iframe do YouTube não são capturáveis de maneira confiável pelo Jornal. Não implementar substitutos fora do vídeo ou camadas sobre o iframe.
+- Permanece o botão de concluir e avançar na tela cheia mediante pressão contínua de **3 segundos**, bem como o avanço automático ao terminar Shorts e vídeos normais.
+- O validador protege contra a reintrodução acidental da faixa de deslizar.
 
 ## Avanço de 30 segundos em tela cheia
 
