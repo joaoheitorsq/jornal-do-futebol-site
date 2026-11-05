@@ -182,8 +182,28 @@ async function waitForServer() {
             'Período concluído não desabilitou ação repetida');
         assert.match(await bulk.textContent(),/Período concluído/,
             'Botão de período não apresentou feedback de conclusão');
-        assert.ok(await page.locator('#undo-toast-button').isVisible(),
-            'Marcação em lote não ofereceu desfazer');
+        // Diagnóstico explícito: distinguir erro de aplicação, regra CSS
+        // e temporização, sem confundir o estado de assistidos com o toast.
+        const undoVisible = await page.locator('#undo-toast-button').isVisible();
+        if (!undoVisible) {
+            const debug = await page.evaluate(() => {
+                const toast = document.getElementById('undo-toast');
+                const button = document.getElementById('undo-toast-button');
+                const style = getComputedStyle(toast);
+                const btnStyle = getComputedStyle(button);
+                return {
+                    toastClass: toast.className, opacity: style.opacity,
+                    visibility: style.visibility, display: style.display,
+                    buttonHidden: button.hidden,
+                    buttonVisibility: btnStyle.visibility,
+                    status: document.getElementById('status').textContent,
+                    undoActionType: typeof undoAction
+                };
+            });
+            console.error('UNDO_DIAGNOSTIC ' + JSON.stringify({debug,errors}));
+        }
+        assert.ok(undoVisible,
+            'Marcação em lote não ofereceu desfazer: '+errors.join(' | '));
         await page.locator('#undo-toast-button').click();
         const undone = await page.evaluate(data => ({
             watched: data.ids.map(id => isWatched(id)),
