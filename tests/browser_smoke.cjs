@@ -477,6 +477,83 @@ async function waitForServer() {
         assert.equal(autoAdvanceTest.portsSame,true,
             'Fim de Short contaminou o histórico independente de portes');
     }
+    // Swipe real em eventos de ponteiro na área PRÓPRIA do Jornal:
+    // conclui primeiro, abre o próximo, preserva o histórico de portes.
+    const swipeIntegration = await page.evaluate(() => {
+        const surface = document.getElementById('journal-swipe-next');
+        const css = getComputedStyle(surface);
+        const candidate = VIDEOS.find(video =>
+            video.embeddable !== false
+            && VIDEOS.some(other => other.id !== video.id)
+        );
+        if (!candidate) return {skipped:true};
+        onlyUnwatched = false;
+        searchQuery = '';
+        watched = {};
+        featureState = defaultFeatureState();
+        manualQueue = [];
+        setPortsPlaybackMode(false);
+        rebuildPlaylist();
+        const id = activePlaylist.find(item =>
+            adjacentQueuedVideoId(item,activePlaylist,1)
+        );
+        if (!id) return {skipped:true};
+        const expectedNext = adjacentQueuedVideoId(id,activePlaylist,1);
+        const originalPorts = PORTS_VIDEOS.map(v => portsIsWatched(v.id));
+        let fakeId = id;
+        const loaded = [];
+        player = {
+            getVideoData() { return {video_id:fakeId}; },
+            getPlayerState() { return YT.PlayerState.PLAYING; },
+            getCurrentTime() { return 5; },
+            getDuration() { return 35; },
+            loadVideoById({videoId}) { fakeId=videoId; loaded.push(videoId); },
+            getPlaybackRate() { return 1; },
+            setPlaybackRate() {},
+            getAvailablePlaybackRates() { return [1]; },
+            pauseVideo() {},
+            stopVideo() {}
+        };
+        ready = true;
+        activePlayerSource = 'journal';
+        i = activePlaylist.indexOf(id);
+        completionAdvanceInProgress = false;
+        resetPlaybackEndObservation(id);
+
+        function send(type,y,x=155,idOfPointer=50) {
+            surface.dispatchEvent(new PointerEvent(type,{
+                bubbles:true, pointerId:idOfPointer,
+                pointerType:'touch', isPrimary:true,
+                clientX:x, clientY:y
+            }));
+        }
+        send('pointerdown',210);
+        send('pointerup',205);
+        const afterTap = isWatched(id);
+        send('pointerdown',210);
+        send('pointermove',125,158);
+        send('pointerup',120,158);
+        send('pointerup',100,158); // não pode concluir duas vezes
+        return {
+            skipped:false, touchAction:css.touchAction, afterTap,
+            completed:isWatched(id), loaded, expectedNext,
+            portsPreserved:PORTS_VIDEOS.every((v,j) =>
+                portsIsWatched(v.id) === originalPorts[j])
+        };
+    });
+    if (!swipeIntegration.skipped) {
+        assert.equal(swipeIntegration.touchAction,'none',
+            'Faixa de gestos deve capturar arrasto sem rolar a página');
+        assert.equal(swipeIntegration.afterTap,false,
+            'Um toque simples nunca pode marcar um vídeo como assistido');
+        assert.equal(swipeIntegration.completed,true,
+            'Swipe não marcou o vídeo como assistido');
+        assert.deepEqual(swipeIntegration.loaded,[swipeIntegration.expectedNext],
+            'Swipe não abriu exatamente o próximo vídeo');
+        assert.equal(swipeIntegration.portsPreserved,true,
+            'Swipe do Jornal alterou indevidamente o histórico de portes');
+    }
+
     assert.equal(errors.length,0,'Erros JavaScript após interação: '+errors.join(' | '));
     await page.setViewportSize({width:1280,height:720});
     assert.equal(await page.locator('h1').count(),1,'Cabeçalho ausente no desktop');
