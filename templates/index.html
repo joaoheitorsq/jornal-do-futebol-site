@@ -120,7 +120,27 @@ Hoje: —
 <div id="player-spacer"></div>
 
 <div id="playerwrap">
-<div id="player-slot"></div>
+<div id="player-slot">
+<button
+    id="journal-player-preview"
+    class="journal-player-preview"
+    type="button"
+    onclick="playPreviewVideo()"
+    aria-label="Reproduzir vídeo selecionado no Jornal"
+>
+<img
+    id="journal-player-preview-image"
+    class="journal-player-preview-image"
+    alt=""
+    decoding="async"
+>
+<span class="journal-player-preview-center" aria-hidden="true">▶</span>
+<span class="journal-player-preview-footer">
+<span id="journal-player-preview-title">Vídeo selecionado</span>
+<span class="journal-player-preview-instruction">Reproduzir no Jornal</span>
+</span>
+</button>
+</div>
 
 <button
     id="mini-player-toggle"
