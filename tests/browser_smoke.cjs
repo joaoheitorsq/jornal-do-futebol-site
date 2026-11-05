@@ -29,6 +29,20 @@ async function waitForServer() {
     await page.waitForTimeout(300);
     assert.equal(errors.length,0,'Erros JavaScript na inicialização: '+errors.join(' | '));
     assert.equal(await page.locator('#extra-media').count(),1,'Filtro por tipo ausente');
+    assert.equal(await page.locator('#journal-player-preview').isVisible(),true,
+        'A capa horizontal deve aparecer antes da primeira reprodução');
+    assert.equal(await page.locator('#youtube-standard-player').count(),0,
+        'Um iframe pré-carregado mostra indevidamente a interface Shorts');
+    const initialPreview = await page.evaluate(() => ({
+        id: document.getElementById('journal-player-preview').dataset.videoId,
+        title: document.getElementById('journal-player-preview-title').textContent,
+        image: document.getElementById('journal-player-preview-image').src
+    }));
+    assert.match(initialPreview.id,/^[A-Za-z0-9_-]{11}$/);
+    assert.ok(initialPreview.title,'Capa perdeu o título do vídeo selecionado');
+    assert.ok(initialPreview.image.includes('/'+initialPreview.id+'/hqdefault.jpg'),
+        'Capa usa miniatura de outro vídeo');
+
     // Os dois tipos de vídeo conservam o iframe horizontal; a alternativa
     // externa utiliza a rota /watch e não converte o vídeo para /shorts.
     const standardPlayerTest = await page.evaluate(() => {
@@ -44,7 +58,7 @@ async function waitForServer() {
         link.click();
         const linkAfterClick = link.href;
         pendingPlaybackRequest = previousPending;
-        link.hidden = true;
+        link.hidden = initialHidden;
         return {
             iframeUrl, initialHidden, linkAfterUpdate, linkAfterClick,
             aspectRatio: getComputedStyle(document.getElementById('playerwrap')).aspectRatio
@@ -53,8 +67,8 @@ async function waitForServer() {
     assert.match(standardPlayerTest.iframeUrl,
         /^https:\/\/www\.youtube\.com\/embed\/S1234567890\?/,
         'Short foi direcionado para interface Shorts em vez de embed padrão');
-    assert.equal(standardPlayerTest.initialHidden, true,
-        'Ação externa deve aparecer somente quando houver vídeo selecionado');
+    assert.equal(standardPlayerTest.initialHidden, false,
+        'A prévia selecionada já deve oferecer a reprodução padrão externa');
     assert.equal(standardPlayerTest.linkAfterUpdate,
         'https://www.youtube.com/watch?v=S1234567890');
     assert.equal(standardPlayerTest.linkAfterClick,
