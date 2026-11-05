@@ -74,6 +74,15 @@ def store_channel_metadata(key, item):
 
 MAX_RETRIES = 5
 RETRYABLE = {429, 500, 502, 503, 504}
+# Limites conservadores contra respostas externas excessivas ou corrompidas.
+MAX_JSON_RESPONSE_BYTES = 16 * 1024 * 1024
+MAX_TEXT_RESPONSE_BYTES = 8 * 1024 * 1024
+
+def read_limited(response, limit):
+    data = response.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("Resposta externa excedeu o limite de segurança.")
+    return data
 
 # Regra de tempo: Shorts desses canais contam normalmente,
 # mas vídeos normais não entram no tempo total/assistido/restante.
@@ -104,16 +113,29 @@ def get_json(url, params=None, retries=MAX_RETRIES):
             )
 
             with urlopen(req, timeout=25) as response:
-                return json.loads(response.read().decode("utf-8"))
+                return json.loads(
+                    read_limited(response, MAX_JSON_RESPONSE_BYTES).decode("utf-8")
+                )
 
         except HTTPError as erro:
-            body = ""
+            # Nunca inserir corpo externo bruto nos logs: ele pode
+            # refletir parâmetros de consulta, inclusive a chave da API.
+            reason = ""
             try:
-                body = erro.read().decode("utf-8", errors="replace")
-            except Exception:
+                payload = json.loads(
+                    read_limited(erro, 16384).decode("utf-8")
+                )
+                details = payload.get("error", {}).get("errors", [])
+                if isinstance(details, list) and details:
+                    reason = str(details[0].get("reason", ""))[:60]
+                if not re.fullmatch(r"[A-Za-z0-9_-]{1,60}", reason):
+                    reason = ""
+            except (ValueError, UnicodeError, TypeError, AttributeError, KeyError):
                 pass
 
-            last = RuntimeError(f"HTTP {erro.code}: {body[:400]}")
+            last = RuntimeError(
+                f"HTTP {erro.code}" + (f" ({reason})" if reason else "")
+            )
 
             if erro.code not in RETRYABLE or attempt == retries:
                 raise last
@@ -150,7 +172,9 @@ def get_text(url, retries=3, timeout=12):
 
             with urlopen(req, timeout=timeout) as response:
                 charset = response.headers.get_content_charset() or "utf-8"
-                return response.read().decode(charset, errors="replace")
+                return read_limited(
+                    response, MAX_TEXT_RESPONSE_BYTES
+                ).decode(charset, errors="replace")
 
         except HTTPError as erro:
             last = RuntimeError(f"HTTP {erro.code}")
