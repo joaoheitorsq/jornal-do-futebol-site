@@ -866,6 +866,7 @@ function rebuildPlaylist() {
             i = 0;
         }
 
+        if (typeof refreshPlayerPreview === 'function') refreshPlayerPreview();
         return;
     }
 
@@ -927,6 +928,7 @@ function rebuildPlaylist() {
     else {
         i = 0;
     }
+    if (typeof refreshPlayerPreview === 'function') refreshPlayerPreview();
 }
 
 function updateWatchButtons() {
