@@ -9,7 +9,7 @@ function loadCollapsedChapters() {
         }
 
         const data = JSON.parse(raw);
-        return data && typeof data === 'object'
+        return data && typeof data === 'object' && !Array.isArray(data)
             ? data
             : {};
     }
@@ -182,10 +182,8 @@ function loadResume() {
 
         return {
             videoId: String(data.videoId),
-            seconds: Math.max(
-                0,
-                Number(data.seconds || 0)
-            ),
+            seconds: Number.isFinite(Number(data.seconds))
+                ? Math.max(0, Number(data.seconds)) : 0,
             title: String(
                 data.title
                 || 'Vídeo anterior em andamento'
@@ -194,10 +192,8 @@ function loadResume() {
                 data.channelTitle
                 || ''
             ),
-            duration: Math.max(
-                0,
-                Number(data.duration || 0)
-            ),
+            duration: Number.isFinite(Number(data.duration))
+                ? Math.max(0, Number(data.duration)) : 0,
             countForTime:
                 data.countForTime !== false,
             embeddable:
