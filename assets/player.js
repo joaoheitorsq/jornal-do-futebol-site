@@ -168,6 +168,8 @@ function seekBy(seconds) {
                 : current + seconds
         );
 
+        // Não interpretar busca manual para trás como replay de um Short.
+        resetPlaybackEndObservation(currentVideoId());
         player.seekTo(target, true);
         updateTransport();
     }
@@ -218,6 +220,7 @@ function commitSeek(value) {
         const target =
             duration * (Number(value || 0) / 1000);
 
+        resetPlaybackEndObservation(currentVideoId());
         player.seekTo(target, true);
     }
     catch (_) {}
@@ -231,8 +234,11 @@ function commitSeek(value) {
 // enquanto a aba está oculta. O contador volta ao próximo ciclo visível.
 setInterval(
     () => {
-        if (document.hidden || !player || !ready) return;
-        updateTransport();
+        if (!player || !ready) return;
+        // A checagem de fim também funciona quando o transporte visual
+        // está oculto; os navegadores podem reduzir timers em segundo plano.
+        if (monitorPlaybackEnd()) return;
+        if (!document.hidden) updateTransport();
     },
     500
 );
@@ -245,6 +251,7 @@ function standardEmbedUrl(videoId) {
             controls: '1',
             playsinline: '1',
             rel: '0',
+            loop: '0',
             fs: '1',
             origin: window.location.origin
         });
@@ -457,6 +464,7 @@ function createYouTubePlayer() {
                 onReady:
                     () => {
                         ready = true;
+                        resetPlaybackEndObservation(initialId);
                         setPlayerLoading(false);
                         rebuildPlaylist();
                         updateStandardWatchLink(initialId);
@@ -552,6 +560,10 @@ function createYouTubePlayer() {
                         }
 
                         if (event.data === YT.PlayerState.PLAYING) {
+                            // Shorts às vezes reiniciam sem emitir ENDED.
+                            // O detector reconhece o reinício antes de salvar
+                            // a posição 0 e sobrescrever a retomada anterior.
+                            if (monitorPlaybackEnd()) return;
                             dismissPlaybackError();
                             applyPreferredSpeed();
                             if (id) {
@@ -593,10 +605,10 @@ function createYouTubePlayer() {
                             event.data
                             ===
                             YT.PlayerState.ENDED
+                            && id
+                            && id === playbackEndObservation.id
                         ) {
-                            completeCurrentAndAdvance(
-                                id
-                            );
+                            completeCurrentAndAdvance(id);
                         }
                     },
 
@@ -697,6 +709,8 @@ function play(
 
     const id =
         activePlaylist[i];
+    // Invalida a observação do vídeo anterior antes de trocar o ID.
+    resetPlaybackEndObservation(id);
 
     const resolvedStart =
         startSeconds === null
@@ -780,6 +794,79 @@ function start() {
 
 let completionAdvanceInProgress = false;
 let completionAdvanceVideoId = null;
+
+// O YouTube pode reproduzir novamente um Short sem disparar ENDED.
+// Combina o estado oficial (acima) com observação da linha do tempo,
+// sem depender do logotipo, do layout ou da classificação perfeita.
+const playbackEndObservation = {
+    id: null,
+    lastSeconds: null,
+    lastSampleAt: 0
+};
+
+function resetPlaybackEndObservation(id = null) {
+    playbackEndObservation.id = id;
+    playbackEndObservation.lastSeconds = null;
+    playbackEndObservation.lastSampleAt = 0;
+}
+
+function monitorPlaybackEnd() {
+    if (!player || !ready || completionAdvanceInProgress) return false;
+
+    try {
+        const id = currentVideoId();
+        if (!id || id !== playbackEndObservation.id
+            || player.getPlayerState() !== YT.PlayerState.PLAYING) return false;
+
+        const meta = metadataForVideo(id);
+        const playerDuration = Number(player.getDuration());
+        const metadataDuration = Number(meta && meta.duration);
+        const duration = Number.isFinite(playerDuration) && playerDuration > 0
+            ? playerDuration : metadataDuration;
+
+        // Abrange Shorts confirmados e vídeos de até 3 minutos que o
+        // YouTube possa exibir como Short mesmo com isShort=false/null.
+        if (!Number.isFinite(duration) || duration <= 0
+            || !(meta && (meta.isShort === true || duration <= 180.5))) {
+            resetPlaybackEndObservation(id);
+            return false;
+        }
+
+        const seconds = Number(player.getCurrentTime());
+        if (!Number.isFinite(seconds) || seconds < 0) return false;
+
+        const now = Date.now();
+        const lastSeconds = playbackEndObservation.lastSeconds;
+        const recentSample = now - playbackEndObservation.lastSampleAt <= 4000;
+        const endMargin = Math.min(0.4, duration * 0.04);
+        const rewindMargin = Math.max(1.2, Math.min(3, duration * 0.08));
+
+        // Caminho 1: últimos instantes de reprodução, antes do loop.
+        const atEnd = seconds >= duration - endMargin
+            && seconds >= duration * 0.75;
+        // Caminho 2: o relógio voltou sozinho do final para o início
+        // sem o evento ENDED. Buscas manuais pelos controles do Jornal
+        // limpam o histórico de observação antes de chamar seekTo().
+        const looped = lastSeconds !== null && recentSample
+            && lastSeconds >= duration - rewindMargin
+            && lastSeconds - seconds >= Math.max(1.5, duration * 0.5)
+            && seconds <= Math.min(2.5, duration * 0.22);
+
+        if (atEnd || looped) {
+            // A rotina existente marca como visto, preserva a fila
+            // de origem, atualiza o histórico e inicia o próximo.
+            completeCurrentAndAdvance(id);
+            return true;
+        }
+
+        playbackEndObservation.lastSeconds = seconds;
+        playbackEndObservation.lastSampleAt = now;
+    }
+    catch (error) {
+        console.warn('Monitor de fim de vídeo indisponível:', error);
+    }
+    return false;
+}
 
 
 function adjacentQueuedVideoId(
