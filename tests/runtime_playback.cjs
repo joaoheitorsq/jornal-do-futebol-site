@@ -122,6 +122,26 @@ function expression(code) { return vm.runInContext(code, ctx); }
 const active = () => expression('activePlaylist.slice()');
 const mode = () => expression('portsPlaybackActive');
 
+// Backups incompatíveis são rejeitados antes de qualquer escrita destrutiva.
+assert.doesNotThrow(() => expression(
+    'validateJournalBackupEntries([[WATCHED_KEY, JSON.stringify({AAAAAAAAAAA:1})]])'
+));
+assert.doesNotThrow(() => expression(
+    'validateJournalBackupEntries([[RESUME_KEY, JSON.stringify({videoId:"AAAAAAAAAAA",seconds:42})]])'
+));
+assert.throws(() => expression(
+    'validateJournalBackupEntries([[WATCHED_KEY, "not-json"]])'
+), /JSON inválido/);
+assert.throws(() => expression(
+    'validateJournalBackupEntries([[FEATURE_STATE_KEY, JSON.stringify({resumePositions:[]})]])'
+), /Estado de recursos inválido/);
+assert.throws(() => expression(
+    'validateJournalBackupEntries([[RESUME_KEY, JSON.stringify({videoId:"invalid!"})]])'
+), /Ponto de retomada inválido/);
+assert.throws(() => expression(
+    'validateJournalBackupEntries([["jornal_do_futebol_unknown_payload", "value"]])'
+), /chaves reconhecidas/);
+
 // Índices fixos devem preservar a origem e a precedência no mesmo ID.
 assert.equal(expression('JOURNAL_VIDEO_BY_ID.size'), mainVideos.length);
 assert.equal(expression('PORTS_VIDEO_BY_ID.size'), portsVideos.length);
