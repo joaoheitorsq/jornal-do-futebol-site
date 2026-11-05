@@ -557,7 +557,7 @@ def validate_sources():
         "function setPortsPlaybackMode(enabled)" in javascript
         and "function restorePortsPlaybackMode()" in javascript
         and "restorePortsPlaybackMode();" in javascript
-        and "function openVideo(id, source = 'journal')" in javascript
+        and "function openVideo(id, source = 'journal', requestedSeconds = null)" in javascript
         and "openVideo(id, 'ports');" in javascript
         and "const catalog = portsPlaybackActive ? PORTS_VIDEOS : VIDEOS;" in javascript
         and "function resumeOutsideCurrentJournal()" in javascript
