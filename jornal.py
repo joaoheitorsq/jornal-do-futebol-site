@@ -9,7 +9,7 @@ from collections import OrderedDict, Counter
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from zoneinfo import ZoneInfo
-from urllib.parse import urlencode, urljoin
+from urllib.parse import urlencode, urljoin, urlsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from html.parser import HTMLParser
@@ -167,6 +167,31 @@ def get_text(url, retries=3, timeout=12):
     raise last or RuntimeError("Falha de rede desconhecida.")
 
 
+def safe_hearthpwn_url(value):
+    """Aceita só links HTTPS do domínio de notícias esperado.
+
+    Escapar HTML não impede URLs javascript:/data:, nem desvios de
+    domínio via links absolutos, //host ou userinfo em feeds externos.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        resolved = urljoin(HEARTHPWN_HOME, value.strip())
+        parsed = urlsplit(resolved)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname not in {"www.hearthpwn.com", "hearthpwn.com"}
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.port not in (None, 443)
+            or any(ord(char) < 32 for char in resolved)
+        ):
+            return None
+        return resolved
+    except ValueError:
+        return None
+
+
 class HearthPwnHomeParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -183,8 +208,9 @@ class HearthPwnHomeParser(HTMLParser):
 
         if self.in_h2 and tag.lower() == "a":
             href = attrs.get("href", "")
-            if "/news/" in href:
-                self.current_href = href
+            safe_url = safe_hearthpwn_url(href)
+            if safe_url and "/news/" in urlsplit(safe_url).path:
+                self.current_href = safe_url
                 self.current_text = []
 
     def handle_data(self, data):
@@ -198,7 +224,7 @@ class HearthPwnHomeParser(HTMLParser):
                 self.items.append(
                     {
                         "title": title,
-                        "url": urljoin(HEARTHPWN_HOME, self.current_href),
+                        "url": self.current_href,
                         "summary": "",
                         "published": "",
                     }
@@ -240,7 +266,7 @@ def parse_hearthpwn_rss(source):
 
     for item in root.findall(".//item"):
         title = clean_html_text(item.findtext("title") or "")
-        link = (item.findtext("link") or "").strip()
+        link = safe_hearthpwn_url(item.findtext("link") or "")
         description = clean_html_text(item.findtext("description") or "")
         published = format_hearthpwn_date(item.findtext("pubDate") or "")
 
@@ -1372,7 +1398,10 @@ def build_hearthpwn_widget(news_items):
 
     for item in news_items[:HEARTHPWN_LIMIT]:
         title = html.escape(item.get("title", "Sem título"))
-        url = html.escape(item.get("url", HEARTHPWN_HOME), quote=True)
+        safe_url = safe_hearthpwn_url(item.get("url", ""))
+        if not safe_url:
+            continue
+        url = html.escape(safe_url, quote=True)
         summary = html.escape(item.get("summary", ""))
         published = html.escape(item.get("published", ""))
 
