@@ -375,6 +375,20 @@ def validate_sources():
         and '.controls .youtube-standard-watch-link[hidden]' in css,
         "Reprodução de Shorts fora do embed padrão ou sem acesso à página /watch.",
     )
+    # A interface de Shorts do YouTube pode reiniciar sem emitir ENDED:
+    # prevenir regressão do watchdog sem alterar a fila nem o histórico.
+    require(
+        "loop: '0'" in player_source
+        and "function monitorPlaybackEnd()" in player_source
+        and "function resetPlaybackEndObservation(" in player_source
+        and "if (monitorPlaybackEnd()) return;" in player_source
+        and "completeCurrentAndAdvance(id);" in player_source
+        and "resetPlaybackEndObservation(null);" in player_source
+        and "typeof player.stopVideo === 'function'" in player_source
+        and "looped = lastSeconds !== null" in player_source,
+        "Detecção de fim e prevenção de loop dos Shorts não está completa.",
+    )
+
     require(
         'id="journal-player-preview"' in template
         and 'id="journal-player-preview-image"' in template
