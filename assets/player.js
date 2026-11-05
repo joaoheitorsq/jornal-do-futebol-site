@@ -815,8 +815,15 @@ function monitorPlaybackEnd() {
 
     try {
         const id = currentVideoId();
-        if (!id || id !== playbackEndObservation.id
-            || player.getPlayerState() !== YT.PlayerState.PLAYING) return false;
+        if (!id || id !== playbackEndObservation.id) return false;
+        const state = player.getPlayerState();
+        // Reserva adicional: em alguns embeds o estado muda para ENDED,
+        // mas o onStateChange correspondente não é entregue ao Jornal.
+        if (state === YT.PlayerState.ENDED) {
+            completeCurrentAndAdvance(id);
+            return true;
+        }
+        if (state !== YT.PlayerState.PLAYING) return false;
 
         const meta = metadataForVideo(id);
         const playerDuration = Number(player.getDuration());
