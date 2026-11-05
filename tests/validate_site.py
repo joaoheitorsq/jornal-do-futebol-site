@@ -290,6 +290,17 @@ def validate_sources():
         "Instalação opcional do tradutor sem limite de tempo.",
     )
 
+    # Artefatos Pages têm escopo do workflow run, não da tentativa:
+    # nomes estáticos falham em "Re-run all jobs" por duplicidade.
+    require(
+        "actions: read" in workflow
+        and "name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}" in workflow
+        and "listWorkflowRunArtifacts" in workflow
+        and "steps.pages_artifact.outputs.name" in workflow
+        and "artifact_name:" in workflow,
+        "Publicação Pages vulnerável a artefatos duplicados entre tentativas.",
+    )
+
     javascript = read_javascript()
     require(
         "revision.json?revision_check=" in javascript
