@@ -82,6 +82,7 @@ byId('journal-data').textContent = JSON.stringify(mainVideos);
 byId('ports-data').textContent = JSON.stringify(portsVideos);
 
 const document = {
+    body: {dataset: {journalDate: '04/11/2026'}},
     fullscreenElement: null,
     getElementById: byId,
     createElement(tag) { return element(tag); },
