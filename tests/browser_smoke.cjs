@@ -392,6 +392,91 @@ async function waitForServer() {
         return style.overflowY !== 'auto' && style.overflowY !== 'scroll';
     });
     assert.equal(noNestedScroll,true,'Painel de portes prendeu o scroll');
+
+    // Integração real no DOM: um Short chegando ao fim deve percorrer
+    // completeCurrentAndAdvance -> marcar visto -> player.loadVideoById
+    // do próximo vídeo da fila, sem tocar na marcação de portes.
+    const autoAdvanceTest = await page.evaluate(() => {
+        if (!window.YT) window.YT = {};
+        YT.PlayerState = Object.assign({
+            UNSTARTED:-1, ENDED:0, PLAYING:1,
+            PAUSED:2, BUFFERING:3, CUED:5
+        },YT.PlayerState || {});
+
+        setPortsPlaybackMode(false);
+        onlyUnwatched = false;
+        searchQuery = '';
+        watched = {};
+        featureState = defaultFeatureState();
+        manualQueue = [];
+        extra.media = 'all';
+        extra.maxDuration = 0;
+        extra.sessionMinutes = 0;
+        extra.muted = {};
+        extra.preferFavorites = false;
+        rebuildPlaylist();
+
+        const selected = VIDEOS.find(video =>
+            video.isShort === true
+            && video.embeddable !== false
+            && Number(video.duration) > 1
+            && activePlaylist.includes(video.id)
+            && adjacentQueuedVideoId(video.id, activePlaylist, 1)
+        );
+        if (!selected) return {skipped: true};
+
+        const nextId = adjacentQueuedVideoId(selected.id,activePlaylist,1);
+        const portsBefore = PORTS_VIDEOS.map(video => portsIsWatched(video.id));
+        let fakeId = selected.id;
+        const loaded = [];
+        let stopped = 0;
+        player = {
+            getVideoData() { return {video_id: fakeId}; },
+            getPlayerState() { return YT.PlayerState.PLAYING; },
+            getCurrentTime() { return selected.duration - 0.15; },
+            getDuration() { return selected.duration; },
+            loadVideoById({videoId}) {
+                fakeId = videoId;
+                loaded.push(videoId);
+            },
+            setPlaybackRate() {},
+            getPlaybackRate() { return 1; },
+            getAvailablePlaybackRates() { return [1]; },
+            stopVideo() { stopped++; },
+            pauseVideo() {},
+        };
+        ready = true;
+        activePlayerSource = 'journal';
+        i = activePlaylist.indexOf(selected.id);
+        completionAdvanceInProgress = false;
+        completionAdvanceVideoId = null;
+        resetPlaybackEndObservation(selected.id);
+
+        const detected = monitorPlaybackEnd();
+        const firstCount = loaded.length;
+        const duplicateDetected = monitorPlaybackEnd();
+        return {
+            skipped: false, detected, duplicateDetected,
+            completed: isWatched(selected.id),
+            loaded, firstCount, nextId, stopped,
+            portsSame: PORTS_VIDEOS.every((v,j) =>
+                portsIsWatched(v.id) === portsBefore[j])
+        };
+    });
+    if (!autoAdvanceTest.skipped) {
+        assert.equal(autoAdvanceTest.detected,true,
+            'Short não acionou o avanço ao chegar ao fim');
+        assert.equal(autoAdvanceTest.completed,true,
+            'Short concluído não foi marcado como assistido');
+        assert.equal(autoAdvanceTest.loaded[0],autoAdvanceTest.nextId,
+            'O player não abriu o próximo vídeo da fila');
+        assert.equal(autoAdvanceTest.firstCount,1,
+            'Um fim de Short carregou mais de um vídeo');
+        assert.equal(autoAdvanceTest.duplicateDetected,false,
+            'Watchdog produziu avanço duplicado');
+        assert.equal(autoAdvanceTest.portsSame,true,
+            'Fim de Short contaminou o histórico independente de portes');
+    }
     assert.equal(errors.length,0,'Erros JavaScript após interação: '+errors.join(' | '));
     await page.setViewportSize({width:1280,height:720});
     assert.equal(await page.locator('h1').count(),1,'Cabeçalho ausente no desktop');
