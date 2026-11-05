@@ -856,7 +856,7 @@ function monitorPlaybackEnd() {
         // limpam o histórico de observação antes de chamar seekTo().
         const looped = lastSeconds !== null && recentSample
             && lastSeconds >= duration - rewindMargin
-            && lastSeconds - seconds >= Math.max(1.5, duration * 0.5)
+            && lastSeconds - seconds >= Math.min(1.5, duration * 0.5)
             && seconds <= Math.min(2.5, duration * 0.22);
 
         if (atEnd || looped) {
