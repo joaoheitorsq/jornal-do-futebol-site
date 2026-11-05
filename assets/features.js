@@ -2382,6 +2382,57 @@ function openBackupImport() {
 }
 
 
+// Validar dados críticos ANTES de remover qualquer chave existente.
+// Um backup malformado não pode transformar históricos íntegros em {}.
+function validateJournalBackupEntries(entries) {
+    const objectKeys = new Set([
+        WATCHED_KEY, PORTS_WATCHED_KEY, HEARTHPWN_SEEN_KEY,
+        FEATURE_STATE_KEY, PORTS_POSITIONS_KEY, COLLAPSED_CHAPTERS_KEY,
+        ENHANCEMENTS_KEY, PORTS_PREFERENCES_KEY
+    ]);
+    const resumeKeys = new Set([RESUME_KEY, PORTS_RESUME_KEY]);
+    const recognized = new Set([
+        ...objectKeys, ...resumeKeys, UNWATCHED_MODE_KEY,
+        STORAGE_SCHEMA_KEY, HEARTHPWN_COLLAPSED_KEY,
+        PORTS_COLLAPSED_KEY, MINI_PLAYER_COLLAPSED_KEY,
+        EXTRA_TOOLS_COLLAPSED_KEY
+    ]);
+    if (!entries.some(([key]) => recognized.has(key))) {
+        throw new Error('Backup não contém chaves reconhecidas do Jornal.');
+    }
+    for (const [key, value] of entries) {
+        if (!objectKeys.has(key) && !resumeKeys.has(key)) continue;
+        let parsed;
+        try { parsed = JSON.parse(value); }
+        catch (_) { throw new Error('JSON inválido na chave ' + key); }
+        const validObject = data => data !== null
+            && typeof data === 'object' && !Array.isArray(data);
+        if (objectKeys.has(key) && !validObject(parsed)) {
+            throw new Error('Estrutura inválida na chave ' + key);
+        }
+        if (key === FEATURE_STATE_KEY) {
+            for (const field of [
+                'resumePositions', 'deferredByDay',
+                'finishLater', 'skippedChannelsByDay'
+            ]) {
+                if (parsed[field] !== undefined && !validObject(parsed[field])) {
+                    throw new Error('Estado de recursos inválido: ' + field);
+                }
+            }
+        }
+        if (resumeKeys.has(key) && parsed !== null) {
+            if (!validObject(parsed)
+                || typeof parsed.videoId !== 'string'
+                || !/^[A-Za-z0-9_-]{11}$/.test(parsed.videoId)
+                || (parsed.seconds !== undefined
+                    && (!Number.isFinite(Number(parsed.seconds))
+                        || Number(parsed.seconds) < 0))) {
+                throw new Error('Ponto de retomada inválido na chave ' + key);
+            }
+        }
+    }
+}
+
 async function importJournalBackup(input) {
     const file =
         input && input.files && input.files[0];
@@ -2466,6 +2517,8 @@ async function importJournalBackup(input) {
         ) {
             throw new Error('Fila manual inválida no backup.');
         }
+
+        validateJournalBackupEntries(newEntries);
 
         // Cópia íntegra para reverter falhas de cota ou bloqueio do navegador.
         const previous = new Map();
