@@ -500,4 +500,67 @@ assert.deepEqual(automaticAdvances, ['AAAAAAAAAAA'],
     'ENDED oficial deixou de concluir o Short');
 expression('completeCurrentAndAdvance = __realComplete; resetPlaybackEndObservation(null); completionAdvanceInProgress = false;');
 
+// Swipe instantâneo: somente faixa própria do Jornal ou botão do fullscreen.
+// Toque curto, arrasto para baixo/lados, multitouch e gesto velho não avançam.
+let swipeCalls = 0;
+expression('player = __watchdogPlayer; ready = true; completionAdvanceInProgress = false;');
+loopId = 'AAAAAAAAAAA';
+ctx.__swipeOriginal = expression('markCurrentWatchedAndNext');
+expression('markCurrentWatchedAndNext = () => { __swipeCalls(); };');
+ctx.__swipeCalls = () => { swipeCalls++; };
+const swipeStrip = byId('journal-swipe-next');
+function swipeEvent(id, x, y) {
+    return {
+        pointerId:id, pointerType:'touch', button:0, isPrimary:true,
+        clientX:x, clientY:y, preventDefault() {}
+    };
+}
+function simulateSwipe(element, id, endX, endY) {
+    element.emit('pointerdown', swipeEvent(id, 150, 220));
+    element.emit('pointermove', swipeEvent(id, endX, endY));
+    element.emit('pointerup', swipeEvent(id, endX, endY));
+}
+simulateSwipe(swipeStrip, 21, 155, 125);
+assert.equal(swipeCalls, 1, 'Deslizar para cima não concluiu o vídeo');
+assert.equal(expression('swipeNextPointer'), null, 'Swipe deixou ponteiro ativo');
+
+simulateSwipe(swipeStrip, 22, 150, 215);
+simulateSwipe(swipeStrip, 23, 150, 290);
+simulateSwipe(swipeStrip, 24, 245, 215);
+assert.equal(swipeCalls, 1, 'Toque curto ou outros sentidos acionaram avanço');
+
+swipeStrip.emit('pointerdown', swipeEvent(25, 150, 220));
+swipeStrip.emit('pointerdown', swipeEvent(26, 150, 220));
+swipeStrip.emit('pointerup', swipeEvent(25, 151, 100));
+assert.equal(swipeCalls, 1, 'Segundo dedo não cancelou o swipe');
+
+swipeStrip.emit('pointerdown', swipeEvent(27, 150, 220));
+swipeStrip.emit('pointercancel', swipeEvent(27, 150, 165));
+swipeStrip.emit('pointerup', swipeEvent(27, 150, 100));
+assert.equal(swipeCalls, 1, 'Pointer cancelado concluiu vídeo');
+
+swipeStrip.emit('pointerdown', swipeEvent(28, 150, 220));
+loopId = 'BBBBBBBBBBB';
+swipeStrip.emit('pointerup', swipeEvent(28, 151, 120));
+assert.equal(swipeCalls, 1, 'Swipe antigo concluiu o vídeo seguinte');
+loopId = 'AAAAAAAAAAA';
+
+// A mesma superfície fullscreen conserva o toque longo de 3 segundos,
+// mas o arrasto vertical tem resposta imediata e cancela o timer.
+document.fullscreenElement = byId('playerwrap');
+simulateSwipe(nextButton, 29, 153, 120);
+assert.equal(swipeCalls, 2, 'Deslizar no botão fullscreen não avançou');
+assert.equal(timers.size, 0, 'Swipe fullscreen deixou timer do toque longo pendente');
+
+nextButton.emit('pointerdown', swipeEvent(30, 150, 220));
+const pendingHold = [...timers.values()].find(timer => timer.ms === 3000);
+assert.ok(pendingHold, 'Toque longo deixou de criar temporizador');
+pendingHold.fn();
+nextButton.emit('pointerup', swipeEvent(30, 150, 110));
+assert.equal(swipeCalls, 3, 'Toque longo deveria concluir uma única vez');
+assert.equal(expression('swipeNextPointer'), null,
+    'Toque longo não cancelou o gesto pendente');
+expression('cancelFullscreenNextHold(); markCurrentWatchedAndNext = __swipeOriginal;');
+document.fullscreenElement = null;
+
 console.log('Testes de filas, retomada, Shorts sem loop e gestos: OK');
