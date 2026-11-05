@@ -75,6 +75,13 @@ do YouTube nem a UI de mídia incorporada em todos os celulares.
 - **Serviços externos:** quedas da API/Atom, quota do YouTube, bloqueios
   de incorporação e a identidade visual interna do Shorts não são
   controláveis pelo site. Os testes Chromium bloqueiam mídia externa.
+- **Agendamento externo:** o workflow aceita `workflow_dispatch` e `push`,
+  mas não define `on.schedule`. As execuções recorrentes a cada 30 minutos
+  são iniciadas por um agendador **fora** deste repositório, que não foi
+  auditado aqui. Se esse acionador parar, o site continuará publicado,
+  mas deixará de receber edições periódicas. Monitorar os últimos runs
+  e a credencial/agendamento externos. Um fallback automático requer
+  revisão da cota de API e da concorrência para evitar execuções duplicadas.
 - **Histórico local:** marcações e retomadas residem no dispositivo.
   Limpar dados do navegador ou desinstalar PWA pode destruí-los; fazer
   backup periódico, guardado fora do aparelho.
