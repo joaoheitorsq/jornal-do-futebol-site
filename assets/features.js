@@ -216,14 +216,10 @@ function videoIdentityMeta(videoId) {
 
     if (
         featureState
-        &&
-        featureState.finishLater[
-            videoId
-        ]
+        && Object.hasOwn(featureState.finishLater, videoId)
+        && featureState.finishLater[videoId]
     ) {
-        return featureState.finishLater[
-            videoId
-        ];
+        return featureState.finishLater[videoId];
     }
 
     if (
@@ -256,9 +252,8 @@ function getResumePosition(videoId) {
     }
 
     const value =
-        featureState.resumePositions[
-            videoId
-        ];
+        Object.hasOwn(featureState.resumePositions, videoId)
+            ? featureState.resumePositions[videoId] : null;
 
     return (
         value
@@ -388,10 +383,8 @@ function isInManualQueue(videoId) {
 function isFinishLater(videoId) {
     return Boolean(
         featureState
-        &&
-        featureState.finishLater[
-            videoId
-        ]
+        && Object.hasOwn(featureState.finishLater, videoId)
+        && featureState.finishLater[videoId]
     );
 }
 
@@ -679,8 +672,8 @@ function toggleFinishLater(videoId) {
     }
 
     const previous =
-        featureState.finishLater[id]
-        || null;
+        Object.hasOwn(featureState.finishLater, id)
+        ? featureState.finishLater[id] : null;
 
     if (previous) {
         delete featureState
@@ -856,8 +849,8 @@ function handleVideoWatched(videoId) {
 
     if (
         featureState
-        &&
-        featureState.finishLater[id]
+        && Object.hasOwn(featureState.finishLater, id)
+        && featureState.finishLater[id]
     ) {
         delete featureState
             .finishLater[id];
@@ -2096,7 +2089,7 @@ function updateSessionSummary() {
             );
 
         if (
-            watched[video.id]
+            isWatched(video.id)
             &&
             sameDay(
                 watched[video.id]
