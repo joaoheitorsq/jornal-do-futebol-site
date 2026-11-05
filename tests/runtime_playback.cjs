@@ -13,13 +13,13 @@ const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const mainVideos = [
-    {id: 'AAAAAAAAAAA', title: 'Compartilhado', channelTitle: 'A', embeddable: true},
-    {id: 'MMMMMMMMMMM', title: 'Jornal', channelTitle: 'M', embeddable: true}
+    {id: 'AAAAAAAAAAA', title: 'Compartilhado', channelTitle: 'A', embeddable: true, isShort: true, duration: 30},
+    {id: 'MMMMMMMMMMM', title: 'Jornal', channelTitle: 'M', embeddable: true, isShort: false, duration: 400}
 ];
 const portsVideos = [
     {id: 'AAAAAAAAAAA', title: 'Compartilhado', channelTitle: 'A', channelHandle: '@a', embeddable: true},
-    {id: 'BBBBBBBBBBB', title: 'Portes', channelTitle: 'B', channelHandle: '@b', embeddable: true},
-    {id: 'CCCCCCCCCCC', title: 'Portes 2', channelTitle: 'C', channelHandle: '@c', embeddable: true}
+    {id: 'BBBBBBBBBBB', title: 'Portes', channelTitle: 'B', channelHandle: '@b', embeddable: true, isShort: true, duration: 25},
+    {id: 'CCCCCCCCCCC', title: 'Portes 2', channelTitle: 'C', channelHandle: '@c', embeddable: true, isShort: false, duration: 55}
 ];
 
 function storage() {
@@ -394,4 +394,85 @@ assert.equal(expression('pendingPlaybackRequest'), null);
 assert.equal(expression('ready'), true, 'Primeiro vídeo não iniciou depois do iframe ficar pronto');
 assert.equal(loadedAt, 37, 'O player não retomou os 37 segundos salvos');
 
-console.log('Testes de filas, retomada, vídeo compartilhado e gestos: OK');
+// Regressões para Shorts que reiniciam automaticamente sem emitir ENDED.
+// Isolamos a decisão do watchdog e verificamos seu contrato com o avanço.
+const automaticAdvances = [];
+let loopId = 'AAAAAAAAAAA';
+let loopSeconds = 0;
+let loopDuration = 30;
+let loopState = ctx.YT.PlayerState.PLAYING;
+ctx.__watchdogPlayer = {
+    getVideoData() { return {video_id: loopId}; },
+    getPlayerState() { return loopState; },
+    getCurrentTime() { return loopSeconds; },
+    getDuration() { return loopDuration; },
+};
+ctx.__autoAdvances = automaticAdvances;
+ctx.__realComplete = expression('completeCurrentAndAdvance');
+expression('completeCurrentAndAdvance = id => { __autoAdvances.push(id); completionAdvanceInProgress = true; resetPlaybackEndObservation(null); };');
+expression('player = __watchdogPlayer; ready = true; portsPlaybackActive = false; completionAdvanceInProgress = false; resetPlaybackEndObservation("AAAAAAAAAAA");');
+
+loopSeconds = 12;
+assert.equal(expression('monitorPlaybackEnd()'), false,
+    'Watchdog não pode concluir antes de chegar ao fim do Short');
+loopSeconds = 29.75;
+assert.equal(expression('monitorPlaybackEnd()'), true,
+    'Short próximo do fim deve avançar antes de reiniciar');
+assert.deepEqual(automaticAdvances, ['AAAAAAAAAAA']);
+loopSeconds = 0;
+assert.equal(expression('monitorPlaybackEnd()'), false,
+    'Short concluído não pode avançar duas vezes');
+assert.equal(automaticAdvances.length, 1);
+
+// Quando o Shorts reinicia antes do evento ENDED, detectar o relógio
+// voltando do fim para o início, mesmo sem atingir a janela de 0,4 s.
+automaticAdvances.length = 0;
+expression('completionAdvanceInProgress = false; resetPlaybackEndObservation("AAAAAAAAAAA");');
+loopSeconds = 28.5;
+assert.equal(expression('monitorPlaybackEnd()'), false);
+loopSeconds = 0.1;
+assert.equal(expression('monitorPlaybackEnd()'), true,
+    'Reinício silencioso do Short não gerou avanço');
+assert.deepEqual(automaticAdvances, ['AAAAAAAAAAA']);
+
+// Buscar manualmente para trás não pode concluir um vídeo.
+automaticAdvances.length = 0;
+expression('completionAdvanceInProgress = false; resetPlaybackEndObservation("AAAAAAAAAAA");');
+loopSeconds = 28.5;
+expression('monitorPlaybackEnd()');
+expression('resetPlaybackEndObservation("AAAAAAAAAAA");'); // seekTo manual
+loopSeconds = 0.2;
+assert.equal(expression('monitorPlaybackEnd()'), false,
+    'Retrocesso intencional foi confundido com fim do Short');
+assert.equal(automaticAdvances.length, 0);
+
+// Uma classificação isShort=false não deve impedir Shorts curtos de avançar.
+loopId = 'CCCCCCCCCCC'; loopDuration = 55; loopSeconds = 54.78;
+expression('completionAdvanceInProgress = false; portsPlaybackActive = true; resetPlaybackEndObservation("CCCCCCCCCCC");');
+assert.equal(expression('monitorPlaybackEnd()'), true,
+    'Vídeo curto do painel de portes com classificação false não avançou');
+assert.deepEqual(automaticAdvances, ['CCCCCCCCCCC']);
+
+// Vídeo longo normal continua dependendo do evento ENDED oficial.
+automaticAdvances.length = 0;
+loopId = 'MMMMMMMMMMM'; loopDuration = 400; loopSeconds = 399.92;
+expression('completionAdvanceInProgress = false; portsPlaybackActive = false; resetPlaybackEndObservation("MMMMMMMMMMM");');
+assert.equal(expression('monitorPlaybackEnd()'), false,
+    'Watchdog de Shorts não deve antecipar o fim dos vídeos longos');
+assert.equal(automaticAdvances.length, 0);
+
+// Nunca concluir um ID antigo quando a API troca o vídeo do player.
+loopId = 'AAAAAAAAAAA'; loopDuration = 30; loopSeconds = 29.9;
+expression('resetPlaybackEndObservation("MMMMMMMMMMM");');
+assert.equal(expression('monitorPlaybackEnd()'), false,
+    'Evento atrasado de vídeo anterior não pode concluir o próximo');
+assert.equal(automaticAdvances.length, 0);
+
+// Evento ENDED segue funcional e não duplica uma conclusão já detectada.
+expression('completionAdvanceInProgress = false; resetPlaybackEndObservation("AAAAAAAAAAA");');
+createdPlayerEvents.onStateChange({data: ctx.YT.PlayerState.ENDED});
+assert.deepEqual(automaticAdvances, ['AAAAAAAAAAA'],
+    'ENDED oficial deixou de concluir o Short');
+expression('completeCurrentAndAdvance = __realComplete; resetPlaybackEndObservation(null); completionAdvanceInProgress = false;');
+
+console.log('Testes de filas, retomada, Shorts sem loop e gestos: OK');
