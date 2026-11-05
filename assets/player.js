@@ -303,7 +303,67 @@ function openStandardWatchAtCurrentTime() {
     }
 }
 
+// Prévia independente: enquanto ninguém iniciou a reprodução, não há iframe
+// no DOM e, portanto, nenhuma tela promocional de Shorts do YouTube.
+let youtubeIframeApiLoaded = false;
+let youtubePlayerCreating = false;
+
+function currentPreviewVideoId() {
+    if (resumeState && activePlaylist.includes(resumeState.videoId)) {
+        return resumeState.videoId;
+    }
+    return activePlaylist[i] || activePlaylist[0]
+        || CURRENT_EMBEDDABLE_IDS[0]
+        || (PORTS_VIDEOS.find(video => video.embeddable) || {}).id
+        || (resumeState && resumeState.embeddable !== false
+            ? resumeState.videoId : null);
+}
+
+function refreshPlayerPreview() {
+    if (youtubePlayerCreating || player || ready) return;
+    const preview = document.getElementById('journal-player-preview');
+    if (!preview) return;
+    const id = currentPreviewVideoId();
+    preview.hidden = !id;
+    if (!id) return;
+
+    preview.dataset.videoId = id;
+    const thumbnail = document.getElementById('journal-player-preview-image');
+    if (thumbnail) {
+        const url = 'https://i.ytimg.com/vi/'
+            + encodeURIComponent(id) + '/hqdefault.jpg';
+        if (thumbnail.getAttribute('src') !== url) {
+            thumbnail.src = url;
+        }
+    }
+    const title = document.getElementById('journal-player-preview-title');
+    const meta = metadataForVideo(id);
+    if (title) title.textContent =
+        meta && meta.title ? String(meta.title) : 'Vídeo selecionado';
+    updateStandardWatchLink(id);
+}
+
+function playPreviewVideo() {
+    const preview = document.getElementById('journal-player-preview');
+    const id = preview && preview.dataset.videoId;
+    if (!id) return;
+    openVideo(id, portsPlaybackActive ? 'ports' : 'journal');
+}
+
 function onYouTubeIframeAPIReady() {
+    youtubeIframeApiLoaded = true;
+    if (pendingPlaybackRequest) ensureYouTubePlayer();
+    else refreshPlayerPreview();
+}
+
+function ensureYouTubePlayer() {
+    if (!youtubeIframeApiLoaded || youtubePlayerCreating || player
+        || !pendingPlaybackRequest) return;
+    youtubePlayerCreating = true;
+    createYouTubePlayer();
+}
+
+function createYouTubePlayer() {
     if (
         !activePlaylist.length
         &&
@@ -325,6 +385,7 @@ function onYouTubeIframeAPIReady() {
     }
 
     let initialId =
+        (pendingPlaybackRequest && pendingPlaybackRequest.id) ||
         activePlaylist[0]
         ||
         CURRENT_EMBEDDABLE_IDS[0]
@@ -334,6 +395,8 @@ function onYouTubeIframeAPIReady() {
             ? resumeState.videoId : null);
 
     if (
+        !pendingPlaybackRequest
+        &&
         resumeState
         &&
         activePlaylist.includes(
@@ -595,6 +658,7 @@ function play(
         };
         setStatus('Preparando o player do YouTube para reproduzir sua seleção…');
         setPlayerLoading(true);
+        ensureYouTubePlayer();
         return;
     }
 
