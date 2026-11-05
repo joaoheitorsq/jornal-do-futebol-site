@@ -304,12 +304,13 @@ assert.equal(byId('fullscreen-hold-countdown').classList.contains('show'), false
 // A API pode estar disponível sem criar iframe. A primeira reprodução
 // deve montar um único iframe oficial e consumir o pedido pendente.
 expression('player = null; ready = false; pendingPlaybackRequest = null; youtubeIframeApiLoaded = false; youtubePlayerCreating = false;');
-expression('portsPlaybackActive = false; activePlaylist = ["MMMMMMMMMMM"]; i = 0; resumeState = null;');
+expression('portsPlaybackActive = false; activePlaylist = ["MMMMMMMMMMM"]; i = 0; resumeState = {videoId: "MMMMMMMMMMM", seconds: 37, embeddable: true};');
 expression('refreshPlayerPreview();');
 assert.equal(byId('journal-player-preview').dataset.videoId, 'MMMMMMMMMMM');
 assert.match(byId('journal-player-preview-image').src, /\/MMMMMMMMMMM\/hqdefault\.jpg$/);
 let playerCreations = 0;
 let createdPlayerEvents = null;
+let loadedAt = null;
 ctx.YT.Player = function(id, options) {
     playerCreations++;
     createdPlayerEvents = options.events;
@@ -319,7 +320,7 @@ ctx.YT.Player = function(id, options) {
         getPlayerState() { return 2; },
         getCurrentTime() { return 0; },
         getDuration() { return 50; },
-        loadVideoById() {},
+        loadVideoById(options) { loadedAt = options.startSeconds; },
         cueVideoById() {},
         pauseVideo() {}
     };
@@ -329,6 +330,8 @@ assert.equal(playerCreations, 0, 'API pronta não deve criar iframe antes do cli
 expression('playPreviewVideo();');
 assert.equal(playerCreations, 1, 'Clique deve criar o player do YouTube uma vez');
 assert.equal(expression('pendingPlaybackRequest.id'), 'MMMMMMMMMMM');
+assert.equal(expression('pendingPlaybackRequest.startSeconds'), 37,
+    'Retomada inicial perdeu os segundos enquanto o iframe carregava');
 assert.match(byId('player-slot').children[0].src,
     /^https:\/\/www\.youtube\.com\/embed\/MMMMMMMMMMM\?/);
 assert.equal(expression('youtubePlayerCreating'), true);
@@ -338,5 +341,6 @@ assert.ok(createdPlayerEvents && createdPlayerEvents.onReady);
 createdPlayerEvents.onReady();
 assert.equal(expression('pendingPlaybackRequest'), null);
 assert.equal(expression('ready'), true, 'Primeiro vídeo não iniciou depois do iframe ficar pronto');
+assert.equal(loadedAt, 37, 'O player não retomou os 37 segundos salvos');
 
 console.log('Testes de filas, retomada, vídeo compartilhado e gestos: OK');
