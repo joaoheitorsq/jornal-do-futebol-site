@@ -53,7 +53,8 @@ function savePortsResumePositions() {
     catch (_) {}
 }
 function portsResumeSeconds(id) {
-    const data = portsResumePositions[id];
+    const data = Object.hasOwn(portsResumePositions, id)
+        ? portsResumePositions[id] : null;
     return Math.max(0,Number(data?.seconds || 0));
 }
 let portsWatched = {};
@@ -70,7 +71,7 @@ function loadPortsWatched() {
         // definitivamente os dois históricos.
         const initial = {};
         PORTS_VIDEOS.forEach(video => {
-            if (watched[video.id]) initial[video.id] = watched[video.id];
+            if (isWatched(video.id)) initial[video.id] = watched[video.id];
         });
         localStorage.setItem(PORTS_WATCHED_KEY, JSON.stringify(initial));
         return initial;
@@ -83,7 +84,9 @@ function savePortsWatched() {
     catch (_) {}
 }
 
-function portsIsWatched(id) { return Boolean(portsWatched[id]); }
+function portsIsWatched(id) {
+    return Object.hasOwn(portsWatched, id) && Boolean(portsWatched[id]);
+}
 
 let portsPlaybackActive = false;
 let activePlayerSource = 'journal';
@@ -869,7 +872,7 @@ function markWatched(videoId, source = 'journal') {
 
 
 function isWatched(videoId) {
-    return Boolean(watched[videoId]);
+    return Object.hasOwn(watched, videoId) && Boolean(watched[videoId]);
 }
 
 
@@ -878,8 +881,9 @@ function toggleWatched(videoId, source = 'journal') {
 
     if (source === 'ports') {
         const before = portsIsWatched(videoId);
-        const previousTimestamp = portsWatched[videoId];
-        const previousPosition = portsResumePositions[videoId]
+        const previousTimestamp = before ? portsWatched[videoId] : null;
+        const previousPosition = Object.hasOwn(portsResumePositions, videoId)
+            && portsResumePositions[videoId]
             ? {...portsResumePositions[videoId]} : null;
         const previousResume = loadPortsResume();
 
