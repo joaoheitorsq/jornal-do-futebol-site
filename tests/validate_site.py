@@ -351,6 +351,20 @@ def validate_sources():
         and '.controls .youtube-standard-watch-link[hidden]' in css,
         "Reprodução de Shorts fora do embed padrão ou sem acesso à página /watch.",
     )
+    require(
+        'id="journal-player-preview"' in template
+        and 'id="journal-player-preview-image"' in template
+        and 'onclick="playPreviewVideo()"' in template
+        and "function refreshPlayerPreview()" in javascript
+        and "function ensureYouTubePlayer()" in javascript
+        and "function playPreviewVideo()" in javascript
+        and "if (pendingPlaybackRequest) ensureYouTubePlayer();" in javascript
+        and "ensureYouTubePlayer();" in javascript
+        and "requested.startSeconds" in javascript
+        and "refreshPlayerPreview();" in read_text("assets/bootstrap.js")
+        and ".journal-player-preview[hidden]" in css,
+        "Prévia horizontal sob demanda não deve reativar o iframe Shorts inicial.",
+    )
 
     require(
         'id="extra-collapse-toggle"' in template
