@@ -461,6 +461,19 @@ assert.equal(expression('monitorPlaybackEnd()'), false,
     'Watchdog de Shorts não deve antecipar o fim dos vídeos longos');
 assert.equal(automaticAdvances.length, 0);
 
+// O estado ENDED consultado diretamente também deve funcionar mesmo
+// quando o player não dispara onStateChange.
+automaticAdvances.length = 0;
+loopId = 'MMMMMMMMMMM'; loopDuration = 400; loopSeconds = 400;
+loopState = ctx.YT.PlayerState.ENDED;
+expression('completionAdvanceInProgress = false; resetPlaybackEndObservation("MMMMMMMMMMM");');
+assert.equal(expression('monitorPlaybackEnd()'), true,
+    'ENDED sem callback deveria avançar pelo watchdog');
+assert.deepEqual(automaticAdvances, ['MMMMMMMMMMM']);
+loopState = ctx.YT.PlayerState.PLAYING;
+automaticAdvances.length = 0;
+expression('completionAdvanceInProgress = false;');
+
 // Nunca concluir um ID antigo quando a API troca o vídeo do player.
 loopId = 'AAAAAAAAAAA'; loopDuration = 30; loopSeconds = 29.9;
 expression('resetPlaybackEndObservation("MMMMMMMMMMM");');
