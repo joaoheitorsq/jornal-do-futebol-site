@@ -184,7 +184,13 @@ async function waitForServer() {
             'Botão de período não apresentou feedback de conclusão');
         // Diagnóstico explícito: distinguir erro de aplicação, regra CSS
         // e temporização, sem confundir o estado de assistidos com o toast.
-        const undoVisible = await page.locator('#undo-toast-button').isVisible();
+        const undoButton = page.locator('#undo-toast-button');
+        // O toast possui transição de visibility; tolerar a transição,
+        // mas não aceitar um botão que permaneça oculto.
+        if (!(await undoButton.isVisible())) {
+            await undoButton.waitFor({state:'visible', timeout:1800}).catch(() => {});
+        }
+        const undoVisible = await undoButton.isVisible();
         if (!undoVisible) {
             const debug = await page.evaluate(() => {
                 const toast = document.getElementById('undo-toast');
