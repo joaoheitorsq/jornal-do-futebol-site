@@ -153,6 +153,26 @@ assert.equal(expression('getResumePosition("constructor")'), null);
 assert.equal(expression('metadataForVideo("constructor")'), null);
 assert.equal(expression('portsResumeSeconds("constructor")'), 0);
 
+// Corrupção de estados salvos não pode causar listas/segundos inválidos.
+ctx.localStorage.setItem('jornal_do_futebol_watched_v1', '[]');
+assert.equal(Array.isArray(expression('loadWatched()')), false);
+ctx.localStorage.removeItem('jornal_do_futebol_watched_v1');
+ctx.localStorage.setItem('jornal_do_futebol_features_v2',
+    JSON.stringify({resumePositions: []}));
+assert.equal(Array.isArray(expression('loadFeatureState().resumePositions')), false);
+ctx.localStorage.removeItem('jornal_do_futebol_features_v2');
+ctx.sessionStorage.setItem('jornal_do_futebol_manual_queue_v1',
+    JSON.stringify(['AAAAAAAAAAA', 'not-an-id', 42]));
+assert.deepEqual([...expression('loadManualQueue()')], ['AAAAAAAAAAA']);
+ctx.sessionStorage.removeItem('jornal_do_futebol_manual_queue_v1');
+ctx.localStorage.setItem('jornal_do_futebol_resume_v1',
+    JSON.stringify({videoId:'AAAAAAAAAAA',seconds:'Infinity'}));
+assert.equal(expression('loadResume().seconds'), 0);
+ctx.localStorage.removeItem('jornal_do_futebol_resume_v1');
+expression('portsResumePositions = {BBBBBBBBBBB:{seconds:"Infinity"}};');
+assert.equal(expression('portsResumeSeconds("BBBBBBBBBBB")'), 0);
+expression('portsResumePositions = {};');
+
 // Índices fixos devem preservar a origem e a precedência no mesmo ID.
 assert.equal(expression('JOURNAL_VIDEO_BY_ID.size'), mainVideos.length);
 assert.equal(expression('PORTS_VIDEO_BY_ID.size'), portsVideos.length);
