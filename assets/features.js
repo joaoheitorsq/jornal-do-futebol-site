@@ -822,14 +822,8 @@ function captureWatchedUndoState(
             }
             : null,
         finishLater:
-            featureState
-            &&
-            featureState
-                .finishLater[id]
-            ? {
-                ...featureState
-                    .finishLater[id]
-            }
+            isFinishLater(id)
+            ? {...featureState.finishLater[id]}
             : null,
         deferred:
             isDeferred(id),
