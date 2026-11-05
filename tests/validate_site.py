@@ -389,6 +389,23 @@ def validate_sources():
         "Detecção de fim e prevenção de loop dos Shorts não está completa.",
     )
 
+    # Swipes não podem interceptar gestos dentro do iframe do YouTube:
+    # área exclusiva abaixo do player e botão fullscreen existente.
+    require(
+        'id="journal-swipe-next"' in template
+        and 'class="journal-swipe-next"' in template
+        and 'class="journal-swipe-arrow"' in template
+        and "function beginSwipeNext(" in player_source
+        and "function endSwipeNext(" in player_source
+        and "function initSwipeNext()" in player_source
+        and "SWIPE_NEXT_MIN_DISTANCE = 60" in player_source
+        and "markCurrentWatchedAndNext();" in player_source
+        and ".journal-swipe-next {" in css
+        and "touch-action: none;" in css
+        and "initSwipeNext();" in player_source,
+        "Gesto seguro de concluir/avançar fora do iframe não está integrado.",
+    )
+
     require(
         'id="journal-player-preview"' in template
         and 'id="journal-player-preview-image"' in template
