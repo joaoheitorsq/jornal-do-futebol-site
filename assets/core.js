@@ -55,7 +55,8 @@ function savePortsResumePositions() {
 function portsResumeSeconds(id) {
     const data = Object.hasOwn(portsResumePositions, id)
         ? portsResumePositions[id] : null;
-    return Math.max(0,Number(data?.seconds || 0));
+    const seconds = Number(data?.seconds || 0);
+    return Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
 }
 let portsWatched = {};
 
@@ -289,7 +290,7 @@ function loadWatched() {
         }
 
         const data = JSON.parse(raw);
-        return data && typeof data === 'object'
+        return data && typeof data === 'object' && !Array.isArray(data)
             ? data
             : {};
     }
@@ -322,7 +323,7 @@ function loadHearthPwnSeen() {
         }
 
         const data = JSON.parse(raw);
-        return data && typeof data === 'object'
+        return data && typeof data === 'object' && !Array.isArray(data)
             ? data
             : {};
     }
@@ -607,7 +608,7 @@ function loadPortsPreferences() {
         const data = JSON.parse(
             localStorage.getItem(PORTS_PREFERENCES_KEY) || '{}'
         );
-        if (!data || typeof data !== 'object') return;
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return;
 
         const channel = String(data.channel || '');
         const available = Array.from(
