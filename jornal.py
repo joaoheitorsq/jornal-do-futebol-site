@@ -173,7 +173,8 @@ def safe_hearthpwn_url(value):
     Escapar HTML não impede URLs javascript:/data:, nem desvios de
     domínio via links absolutos, //host ou userinfo em feeds externos.
     """
-    if not isinstance(value, str) or not value.strip():
+    if (not isinstance(value, str) or not value.strip()
+            or any(ord(char) < 32 or ord(char) == 127 for char in value)):
         return None
     try:
         resolved = urljoin(HEARTHPWN_HOME, value.strip())
