@@ -179,7 +179,8 @@ Hoje: —
     id="fullscreen-next"
     class="fullscreen-next"
     type="button"
-    aria-label="Segure por 3 segundos para marcar o vídeo atual como visto e ir para o próximo"
+    aria-label="Segure por 3 segundos ou deslize para cima para marcar como visto e avançar"
+    title="Segure 3 segundos ou deslize para cima para concluir e avançar"
 >
 <svg
     class="fullscreen-action-icon fullscreen-next-icon"
@@ -244,6 +245,21 @@ Próximo ⏭
 ⛶ Tela cheia do Jornal
 </button>
 
+</div>
+
+<div
+    id="journal-swipe-next"
+    class="journal-swipe-next"
+    role="group"
+    aria-label="Área de gesto: deslize para cima para marcar o vídeo como assistido e reproduzir o próximo"
+    title="Deslize para cima aqui para concluir e avançar. Toques simples não executam a ação."
+>
+    <span class="journal-swipe-arrow" aria-hidden="true">↑</span>
+    <span class="journal-swipe-label">
+        <strong>Deslize para cima</strong>
+        <span>Marcar como assistido e ir para o próximo</span>
+    </span>
+    <span class="journal-swipe-hint" aria-hidden="true">Arraste ↑</span>
 </div>
 
 <div class="journal-transport" aria-label="Controles do Jornal">
