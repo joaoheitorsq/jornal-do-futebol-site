@@ -67,7 +67,7 @@ function element(id) {
         querySelectorAll() { return []; },
         closest() { return null; },
         append() {},
-        replaceChildren() {},
+        replaceChildren(...children) { this.children = children; },
         remove() {},
         animate() {},
     };
@@ -301,4 +301,42 @@ seekButton.emit('pointerup', pointer(3));
 assert.equal(timers.size, 0, 'Soltar dedo principal precisa cancelar +30');
 
 assert.equal(byId('fullscreen-hold-countdown').classList.contains('show'), false);
+// A API pode estar disponível sem criar iframe. A primeira reprodução
+// deve montar um único iframe oficial e consumir o pedido pendente.
+expression('player = null; ready = false; pendingPlaybackRequest = null; youtubeIframeApiLoaded = false; youtubePlayerCreating = false;');
+expression('portsPlaybackActive = false; activePlaylist = ["MMMMMMMMMMM"]; i = 0; resumeState = null;');
+expression('refreshPlayerPreview();');
+assert.equal(byId('journal-player-preview').dataset.videoId, 'MMMMMMMMMMM');
+assert.match(byId('journal-player-preview-image').src, /\/MMMMMMMMMMM\/hqdefault\.jpg$/);
+let playerCreations = 0;
+let createdPlayerEvents = null;
+ctx.YT.Player = function(id, options) {
+    playerCreations++;
+    createdPlayerEvents = options.events;
+    assert.equal(id, 'youtube-standard-player');
+    return {
+        getVideoData() { return {video_id:'MMMMMMMMMMM'}; },
+        getPlayerState() { return 2; },
+        getCurrentTime() { return 0; },
+        getDuration() { return 50; },
+        loadVideoById() {},
+        cueVideoById() {},
+        pauseVideo() {}
+    };
+};
+expression('onYouTubeIframeAPIReady();');
+assert.equal(playerCreations, 0, 'API pronta não deve criar iframe antes do clique');
+expression('playPreviewVideo();');
+assert.equal(playerCreations, 1, 'Clique deve criar o player do YouTube uma vez');
+assert.equal(expression('pendingPlaybackRequest.id'), 'MMMMMMMMMMM');
+assert.match(byId('player-slot').children[0].src,
+    /^https:\/\/www\.youtube\.com\/embed\/MMMMMMMMMMM\?/);
+assert.equal(expression('youtubePlayerCreating'), true);
+expression('ensureYouTubePlayer();');
+assert.equal(playerCreations, 1, 'Múltiplas solicitações não podem recriar o player');
+assert.ok(createdPlayerEvents && createdPlayerEvents.onReady);
+createdPlayerEvents.onReady();
+assert.equal(expression('pendingPlaybackRequest'), null);
+assert.equal(expression('ready'), true, 'Primeiro vídeo não iniciou depois do iframe ficar pronto');
+
 console.log('Testes de filas, retomada, vídeo compartilhado e gestos: OK');
