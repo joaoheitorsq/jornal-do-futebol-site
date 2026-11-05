@@ -435,6 +435,18 @@ assert.equal(expression('monitorPlaybackEnd()'), true,
     'Reinício silencioso do Short não gerou avanço');
 assert.deepEqual(automaticAdvances, ['AAAAAAAAAAA']);
 
+// Shorts com 1 a 2 segundos também podem reiniciar entre amostras.
+automaticAdvances.length = 0;
+loopDuration = 1.8;
+expression('completionAdvanceInProgress = false; resetPlaybackEndObservation("AAAAAAAAAAA");');
+loopSeconds = 1.52;
+assert.equal(expression('monitorPlaybackEnd()'), false);
+loopSeconds = 0.08;
+assert.equal(expression('monitorPlaybackEnd()'), true,
+    'Short de 1,8 segundo reiniciou sem disparar avanço');
+assert.deepEqual(automaticAdvances, ['AAAAAAAAAAA']);
+loopDuration = 30;
+
 // Buscar manualmente para trás não pode concluir um vídeo.
 automaticAdvances.length = 0;
 expression('completionAdvanceInProgress = false; resetPlaybackEndObservation("AAAAAAAAAAA");');
