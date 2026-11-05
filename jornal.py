@@ -2014,6 +2014,11 @@ def main():
         log(f"AVISO: painel de portes indisponível: {erro}")
         ports_videos, ports_failures = [], [str(erro)]
 
+    # Não manter o secret de coleta no ambiente durante a tradução,
+    # que carrega bibliotecas de terceiros sem necessidade de API do YouTube.
+    os.environ.pop("YOUTUBE_API_KEY", None)
+    key = None
+
     # Não descartar vídeos do painel por coincidirem com outra seção.
     # As listas são independentes e as marcações são por videoId.
     ports_videos.sort(key=lambda video: video["publishedDt"])
