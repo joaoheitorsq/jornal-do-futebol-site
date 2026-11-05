@@ -301,6 +301,30 @@ def validate_sources():
         "Publicação Pages vulnerável a artefatos duplicados entre tentativas.",
     )
 
+    # Defesa em profundidade e menores privilégios no CI.
+    require(
+        "permissions:\n  contents: read" in workflow
+        and "    permissions:\n      contents: read\n      actions: read\n      pages: write\n      id-token: write" in workflow
+        and "python tests/security_regression.py" in workflow
+        and "tests/security_regression.py" in workflow,
+        "Testes adversariais ou isolamento das permissões de deploy ausentes.",
+    )
+    require(
+        "http-equiv=\"Content-Security-Policy\"" in read_text("templates/index.html")
+        and "object-src 'none'" in read_text("templates/index.html")
+        and "base-uri 'self'" in read_text("templates/index.html")
+        and "form-action 'self'" in read_text("templates/index.html"),
+        "Política básica de conteúdo insegura ou ausente.",
+    )
+    require(
+        "validateJournalBackupEntries(newEntries);" in read_text("assets/features.js")
+        and "MAX_JSON_RESPONSE_BYTES" in read_text("jornal.py")
+        and "MAX_TEXT_RESPONSE_BYTES" in read_text("jornal.py")
+        and "jornal-shell-v3" in read_text("service-worker.js")
+        and ".catch(() => self.skipWaiting())" not in read_text("service-worker.js"),
+        "Backups, limites de rede ou atualização offline sem proteção.",
+    )
+
     javascript = read_javascript()
     require(
         "revision.json?revision_check=" in javascript
