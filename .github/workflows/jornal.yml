@@ -21,11 +21,10 @@ concurrency:
   group: jornal-do-futebol-pages
   cancel-in-progress: true
 
+# A geração não recebe credenciais de publicação.
+# Apenas o job deploy pode solicitar token OIDC e escrever no Pages.
 permissions:
   contents: read
-  actions: read
-  pages: write
-  id-token: write
 
 env:
   ARGOS_PACKAGE_DIR: ${{ github.workspace }}/.argos-packages
@@ -53,12 +52,13 @@ jobs:
 
       - name: Validar código-fonte
         run: |
-          python -m py_compile jornal.py tests/validate_site.py
+          python -m py_compile jornal.py tests/validate_site.py tests/security_regression.py
           for file in assets/*.js; do
             node --check "$file"
           done
           node tests/runtime_playback.cjs
           node tests/service_worker_cache.cjs
+          python tests/security_regression.py
           python tests/validate_site.py --source-only
 
       - name: Restaurar cache do tradutor
@@ -129,6 +129,13 @@ jobs:
   deploy:
 
     name: Publicar Jornal
+
+    # Privilégios de publicação somente depois do build/teste.
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
 
     runs-on: ubuntu-24.04
 
