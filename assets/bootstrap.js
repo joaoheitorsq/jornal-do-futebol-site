@@ -27,6 +27,7 @@ updatePortsVideoUI();
 initializeFeatureUI();
 updateExtraDashboard();
 applyPortsLimit();
+refreshPlayerPreview();
 
 if (resumeState) {
     showResumeCard(
