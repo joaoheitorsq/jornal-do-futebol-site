@@ -1456,6 +1456,10 @@ def build_hearthpwn_widget(news_items):
 '''
         )
 
+    # Se o feed só trouxer links inseguros, não mostrar um painel vazio.
+    if not rows:
+        return ""
+
     return (
         '''
 <section class="hearthpwn-widget" aria-label="Últimas notícias do HearthPwn">
