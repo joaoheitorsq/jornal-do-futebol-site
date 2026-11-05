@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Regressões de segurança sem rede: HTML de terceiros e JSON incorporado."""
 import json
-from html.parser import HTMLParser
+import sys
+from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import jornal
 
 
