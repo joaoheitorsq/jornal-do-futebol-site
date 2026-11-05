@@ -11,6 +11,7 @@ const scope = origin + '/jornal-do-futebol-site/';
 const handlers = {};
 const stores = new Map();
 let offline = false;
+let skipWaitingCalls = 0;
 
 function response(body) {
     return {
@@ -28,6 +29,7 @@ async function openCache(name) {
     const entries = stores.get(name);
     return {
         async addAll(paths) {
+            if (offline) throw new Error('Precache indisponível');
             for (const part of paths) {
                 entries.set(new URL(part, scope).href, response(part));
             }
@@ -57,7 +59,7 @@ vm.runInNewContext(
             location: {origin},
             registration: {scope},
             addEventListener(name, handler) { handlers[name] = handler; },
-            skipWaiting: async () => {},
+            skipWaiting: async () => { skipWaitingCalls++; },
             clients: {claim: async () => {}}
         },
         caches, URL, console,
@@ -91,11 +93,19 @@ async function request(url, method = 'GET') {
 }
 
 (async () => {
-    stores.set('jornal-shell-v1', new Map([['obsolete', response('old')]]));
+    stores.set('jornal-shell-v2', new Map([['obsolete', response('old')]]));
+    offline = true;
+    await assert.rejects(lifecycle('install'), /Precache indisponível/,
+        'Instalação offline deve falhar em vez de ativar cache incompleto');
+    assert.equal(skipWaitingCalls, 0, 'Worker não pode ativar após falha no precache');
+    assert.equal(stores.has('jornal-shell-v2'), true,
+        'Instalação falha não pode apagar o último cache offline');
+    offline = false;
     await lifecycle('install');
+    assert.equal(skipWaitingCalls, 1, 'Instalação válida não ativou o novo worker');
     await lifecycle('activate');
-    assert.equal(stores.has('jornal-shell-v1'), false, 'Cache antigo não foi removido');
-    assert.equal(stores.has('jornal-shell-v2'), true, 'Nova versão não foi criada');
+    assert.equal(stores.has('jornal-shell-v2'), false, 'Cache antigo não foi removido');
+    assert.equal(stores.has('jornal-shell-v3'), true, 'Nova versão não foi criada');
 
     const asset = scope + 'assets/core.js?v=';
     const ids = ['111111111111', '222222222222', '333333333333'];
@@ -104,7 +114,7 @@ async function request(url, method = 'GET') {
         assert.equal(result.body, asset + id, 'Versão válida não carregou da rede');
     }
 
-    const stored = [...stores.get('jornal-shell-v2').keys()]
+    const stored = [...stores.get('jornal-shell-v3').keys()]
         .filter(url => url.startsWith(asset));
     assert.equal(stored.length, 2, 'Cache de JS cresceu sem limite');
     assert.equal(stored.includes(asset + ids[0]), false, 'Versão mais antiga permaneceu');
