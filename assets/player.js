@@ -957,6 +957,9 @@ function completeCurrentAndAdvance(
         return;
     }
 
+    // Desarmar a detecção inclusive no último vídeo. Caso o YouTube
+    // reinicie um Short após concluí-lo, não concluir duas vezes.
+    resetPlaybackEndObservation(null);
     rebuildPlaylist();
 
     const queueBefore =
@@ -1038,6 +1041,16 @@ function completeCurrentAndAdvance(
 
     completionAdvanceInProgress = false;
     completionAdvanceVideoId = null;
+
+    // O último Short pode entrar em loop sem um próximo vídeo.
+    // Encerrar explicitamente o player evita reprodução infinita.
+    if (player && ready) {
+        try {
+            if (typeof player.stopVideo === 'function') player.stopVideo();
+            else if (typeof player.pauseVideo === 'function') player.pauseVideo();
+        }
+        catch (_) {}
+    }
 
     setStatus(
         portsPlaybackActive
