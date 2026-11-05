@@ -1,5 +1,5 @@
 /* Cache apenas de recursos do aplicativo; nenhuma mídia ou API externa. */
-const VERSION = 'jornal-shell-v2';
+const VERSION = 'jornal-shell-v3';
 const MAX_ASSET_VERSIONS = 2;
 const SHELL = ['./','./index.html','./assets/icon.svg','./assets/icon-192.png','./assets/icon-512.png','./manifest.webmanifest'];
 
@@ -42,8 +42,14 @@ async function storeAndPrune(request, response) {
 }
 
 self.addEventListener('install', event => {
-    event.waitUntil(caches.open(VERSION).then(cache => cache.addAll(SHELL))
-        .then(() => self.skipWaiting()).catch(() => self.skipWaiting()));
+    // Se o precache falhar (rede offline ou respostas inválidas), cancelar
+    // a instalação. Ativar mesmo assim descartaria o cache do worker antigo
+    // e destruiria o último fallback offline utilizável.
+    event.waitUntil(
+        caches.open(VERSION)
+            .then(cache => cache.addAll(SHELL))
+            .then(() => self.skipWaiting())
+    );
 });
 
 self.addEventListener('activate', event => {
