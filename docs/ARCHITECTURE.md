@@ -166,6 +166,15 @@ Ao concluir com sucesso qualquer pressão de 2 segundos em um botão de card, o 
 - O link `youtube-standard-watch-link`, nos controles do Jornal, abre o vídeo selecionado por `https://www.youtube.com/watch?v=VIDEO_ID&t=N s` (o parâmetro de tempo real é `&t=Ns`). A página normal `/watch` evita a navegação ao feed `/shorts`. Ao abrir externamente, a reprodução interna é pausada; o progresso só é alterado pelas regras já existentes. A fila do Jornal permanece intacta.
 - Vídeos não incorporáveis também são abertos por `/watch`. O comportamento de URLs é testado em Node, e a presença do link e a proporção horizontal são testadas em Chromium.
 
+### Fim de Shorts sem loop (fallback automático)
+
+- A incorporação passa explicitamente `loop=0`, mas não depende apenas dessa configuração: o próprio player do YouTube pode reiniciar Shorts sem emitir `YT.PlayerState.ENDED`. O evento `ENDED` continua sendo a via preferencial.
+- `monitorPlaybackEnd()` roda no ciclo já existente de 500 ms e supervisiona o estado oficial do player, mesmo quando o callback falha. Para Shorts confirmados ou vídeos com duração de até 180 segundos, também detecta a chegada aos últimos 0,4 s ou o relógio voltando do final para o início em amostras próximas.
+- Um vídeo com `isShort=false` ainda é protegido se a duração for curta, pois a classificação de Shorts pode divergir do player interno. Vídeos normais longos continuam aguardando `ENDED`.
+- Uma troca de vídeo reinicializa a observação; mudanças feitas pelos controles `seekBy()` e `commitSeek()` limpam a comparação de relógios, evitando tratar uma busca manual para trás como loop.
+- `completeCurrentAndAdvance()` continua sendo o único responsável por marcar assistido, respeitar a fila do Jornal ou de portes, recuperar o próximo e atualizar o progresso. A observação é desarmada na conclusão, evitando avanços duplicados. No último vídeo, o player é explicitamente interrompido para não ficar repetindo.
+- Testes sem mídia externa em `tests/runtime_playback.cjs` cobrem fim comum, fim sem callback, reinício silencioso de Shorts, identificação incerta, rewind manual, ID antigo e avanço único. Os testes de Chromium não conseguem garantir o comportamento real do iframe em todos os aparelhos.
+
 ## Avanço de 30 segundos em tela cheia
 
 - `fullscreen-seek-forward` aparece somente na tela cheia própria de `#playerwrap`: em **retrato (vertical)**, fica à esquerda do botão de concluir/avançar vídeo; em **paisagem (horizontal)**, fica imediatamente acima dele, com a mesma margem direita.
