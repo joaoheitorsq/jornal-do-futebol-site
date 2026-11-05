@@ -114,6 +114,84 @@ small {
     border: 0;
 }
 
+/* Antes de iniciar não existe iframe: esta capa não encobre controles
+   nem a marca do YouTube, que aparecem após criar o player oficial. */
+.journal-player-preview {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: #0b0e13;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+.journal-player-preview[hidden] {
+    display: none;
+}
+.journal-player-preview-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: .76;
+}
+.journal-player-preview::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg,
+        transparent 24%, rgba(0,0,0,.15) 55%, rgba(0,0,0,.85) 100%);
+    pointer-events: none;
+}
+.journal-player-preview-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 46px;
+    border-radius: 12px;
+    background: #e22;
+    color: #fff;
+    font-size: 27px;
+    z-index: 1;
+    box-shadow: 0 4px 18px rgba(0,0,0,.55);
+}
+.journal-player-preview-footer {
+    position: absolute;
+    bottom: 12px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: clamp(12px, 2.6vw, 16px);
+    font-weight: 700;
+    z-index: 1;
+    text-shadow: 0 1px 5px #000;
+}
+#journal-player-preview-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.journal-player-preview-instruction {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: .85;
+}
+.journal-player-preview:focus-visible {
+    outline: 3px solid #8cc3ff;
+    outline-offset: -3px;
+}
+
 #player-spacer {
     display: none;
     aspect-ratio: 16 / 9;
