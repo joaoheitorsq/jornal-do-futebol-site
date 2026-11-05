@@ -1,4 +1,89 @@
-# Auditoria de segurança e regressões — outubro de 2026
+# Auditoria técnica e de segurança — 04/11/2026 (America/Fortaleza)
+
+## Escopo e método — duas passagens
+
+Revisão de `jornal.py`, listas de canais, geração HTML/JSON, oito módulos
+JavaScript, template/CSS, backup/importação, cache PWA, workflow GitHub
+Actions e testes. Primeira passagem: detecção de falhas e redução das
+superfícies de ataque. Segunda passagem: verificações de regressão, leitura
+das correções e confirmação de geração e publicação no GitHub Actions.
+
+Esta auditoria é de **melhor esforço**, não uma certificação de ausência de
+vulnerabilidades. Nenhum teste local reproduz todas as respostas possíveis
+do YouTube nem a UI de mídia incorporada em todos os celulares.
+
+### Correções implementadas
+
+1. **Links externos:** HearthPwn RSS/homepage validam *após a resolução*
+   o esquema HTTPS, host exato e porta. Bloqueiam `javascript:`, `data:`,
+   domínio falso, userinfo, caracteres de controle e redirecionamentos
+   explícitos a outros domínios. O renderer descarta também URLs inválidas.
+2. **Injeção HTML e JSON:** preservados `html.escape` dos campos externos
+   e `js_json` que escapa `<`, `>` e `&`. Um teste adversarial novo cobre
+   fechamento de `</script>`, payloads HTML e links não confiáveis.
+3. **HTTP externo:** leituras passam a ter limites de 16 MiB (JSON/API)
+   e 8 MiB (HTML/feeds). Mensagens HTTP não despejam mais corpos externos
+   potencialmente contendo dados sensíveis nos logs.
+4. **Segredo de API:** `YOUTUBE_API_KEY` é removido do ambiente do
+   processo depois de coletar futebol e portes, antes de carregar o
+   tradutor de terceiros.
+5. **GitHub Actions:** o job de geração possui apenas `contents: read`.
+   Só o job de deploy recebe `pages: write`, `id-token: write` e
+   `actions: read` para selecionar artefatos. As sete ações próprias
+   do GitHub foram fixadas por SHA completo, evitando alterações
+   inesperadas de tags mutáveis.
+6. **Publicação:** preservado identificador de artefato por execução e
+   tentativa, com seleção do mais recente para prevenir duplicidade em
+   `Re-run all jobs`.
+7. **PWA offline:** versão `jornal-shell-v3`. Falhas no precache abortam
+   a nova instalação sem ativá-la ou destruir o último worker funcional.
+   Teste de instalação offline e de atualização normal incluído.
+8. **Backups:** antes de remover qualquer chave local, o importador
+   rejeita JSON inválido, arrays em mapas, estrutura incompatível,
+   retomadas com IDs ilegais e arquivos sem chaves reconhecidas.
+   A rotina de rollback existente é mantida em caso de falha de escrita.
+9. **Armazenamento:** getters rejeitam segundos não finitos e coleções
+   incompatíveis. A fila manual aceita apenas IDs oficiais de vídeo,
+   com limite de entradas; objetos corrompidos voltam a estados seguros.
+10. **Colisão de propriedades:** leitura de históricos, `finishLater`,
+    retomadas e snapshots exige propriedades próprias via `Object.hasOwn`.
+    Testes incluem `constructor`, um valor de 11 caracteres que pode
+    existir como ID e era tratado erroneamente como registro herdado.
+11. **CSP inicial:** política por meta bloqueia `object-src`, `base-uri`
+    e postagens de formulário para destinos externos, sem interferir nos
+    handlers inline existentes. Adicionada política de referrer.
+12. **Testes:** `tests/security_regression.py` + regressões Node,
+    validações estáticas e smoke test Chromium no caminho de push.
+
+### Riscos residuais e ações manuais relevantes
+
+- **Branch `main` não protegida:** constatado via metadados da API do
+  GitHub em 04/11/2026. Ativar **Settings → Rules → Rulesets** ou
+  proteção da branch; exigir revisão/checks antes de alterações. A
+  conexão atual não permite modificar essas regras administrativas.
+- **Segredo do YouTube:** em Google Cloud, restringir a chave usada no
+  Actions à YouTube Data API v3 e ajustar cotas. Não inserir chave no
+  código, README, capturas de tela ou URLs públicas.
+- **CSP estrita:** o projeto ainda usa handlers HTML inline. Uma CSP sem
+  `unsafe-inline` exigiria refatoração de todos os handlers e testes
+  abrangentes. A meta CSP atual é defesa parcial, não uma política
+  contra todo XSS.
+- **Dependências externas:** as actions foram fixadas por commit e a
+  versão direta do Argos é fixada, mas a cadeia transitiva de pacotes
+  continua sujeita a vulnerabilidades futuras e exige atualização
+  controlada.
+- **Serviços externos:** quedas da API/Atom, quota do YouTube, bloqueios
+  de incorporação e a identidade visual interna do Shorts não são
+  controláveis pelo site. Os testes Chromium bloqueiam mídia externa.
+- **Histórico local:** marcações e retomadas residem no dispositivo.
+  Limpar dados do navegador ou desinstalar PWA pode destruí-los; fazer
+  backup periódico, guardado fora do aparelho.
+- **Garantia:** ausência de falhas nos testes não prova ausência de
+  falhas em todas as configurações, navegadores ou dados futuros.
+
+---
+
+# Histórico: auditoria de segurança — outubro de 2026
 
 ## Superfícies revisadas
 
